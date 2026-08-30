@@ -1720,6 +1720,30 @@ def track_routes(offers, hist):
     return daily
 
 
+def route_freshness(daily):
+    """노선별로 '마지막으로 가격이 들어온 날' 과 그 이후 며칠이 지났는지.
+
+    route_stats() 는 오늘 offer 가 있는 노선만 만든다. 그래서 가격이 끊긴
+    노선은 routes 에서 통째로 사라지고, 화면은 "며칠째 안 들어오는지" 를
+    알 수 없다. 그건 사용자가 가장 알고 싶어 하는 것이다 —
+    이 소스는 사람들의 검색 기록이라, 아무도 안 찾는 노선은 시간이 지나면
+    캐시에서 빠진다. 다시 한 번 검색해 줘야 하는 시점을 알려면 이 값이
+    필요하다.
+    """
+    today = date.today()
+    out = {}
+    for k, days in (daily or {}).items():
+        if not isinstance(days, dict) or not days:
+            continue
+        last = max(days)
+        try:
+            gap = (today - datetime.strptime(last, "%Y-%m-%d").date()).days
+        except ValueError:
+            continue
+        out[k] = {"last": last, "days_ago": gap, "days_tracked": len(days)}
+    return out
+
+
 def route_stats(offers, daily, lows):
     """노선별 집계. 용어를 여기서 한 번만 정의하고 화면은 그대로 쓴다.
 
@@ -1913,7 +1937,8 @@ def _dedup_oneway(rows):
     return sorted(best.values(), key=lambda r: r["price_krw"])
 
 
-def write_deals(offers, routes, meta, stats, gone, cjj_status=None):
+def write_deals(offers, routes, meta, stats, gone, cjj_status=None,
+                freshness=None):
     """web/ 앱이 읽는 deals.json.
 
     실부담가·최종 정렬은 여기서 굳히지 않는다. 교통비가 사용자 설정이라
@@ -1929,6 +1954,9 @@ def write_deals(offers, routes, meta, stats, gone, cjj_status=None):
         "holidays": HOLIDAYS,
         "region_base": REGION_BASE,
         "routes": routes,
+        # 오늘 0건이라 routes 에서 빠진 노선까지 포함한다.
+        # "며칠째 가격이 안 들어오는가" 를 화면이 계산할 수 있어야 한다.
+        "route_freshness": freshness or {},
         "cjj": {
             "config": {k: v for k, v in CJJ_ROUTES.items()},
             "status": cjj_status or [],
@@ -2106,6 +2134,7 @@ def main():
 
     # 노선 집계를 offer 에 되먹인다 (30일/추적기간 최저는 점수와 화면 양쪽에 쓰인다)
     routes = route_stats(offers, daily, lows)
+    freshness = route_freshness(daily)
     for o in offers:
         r = routes.get(f"{o['dep']}-{o['arr']}", {})
         o["low30"] = r.get("low30")
@@ -2142,7 +2171,7 @@ def main():
             "merge": dict(MERGE_INFO),
             "drops": DROPS}
 
-    write_deals(offers, routes, meta, stats, gone, cjj_status)
+    write_deals(offers, routes, meta, stats, gone, cjj_status, freshness)
 
     # ── provider / 커버리지 로그 (§19) ──
     print()

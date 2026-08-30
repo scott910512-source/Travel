@@ -468,13 +468,19 @@ function cjjSection(pool) {
         const seedable = r.row && r.row.price_status === 'missing';
         const seed = seedable
           ? liveSearchURL('CJJ', r.code, 45, CJJ_SEED_NIGHTS) : null;
+        // 한 번도 안 들어온 노선과, 들어왔다가 끊긴 노선은 다른 이야기다.
+        // 후자는 "다시" 눌러 달라고 해야 사용자가 헷갈리지 않는다.
+        const age = routeAge('CJJ', r.code);
+        const lapsed = seedable && age !== null && age >= STALE_DAYS;
+        const seedLabel = age === null ? '🔎 검색해서 채우기'
+                                       : `🔄 ${age}일째 없음 · 다시 채우기`;
         return `<div class="kv${seedable ? ' kv-seed' : ''}">
           <span class="k" style="color:var(--tx2);font-weight:700">${esc(r.info.city)}
             <span style="font-family:var(--mono);color:var(--tx3);font-weight:600">${esc(r.code)}</span></span>
           <span class="v" style="font-family:var(--sans);font-size:12px;color:var(--tx3);font-weight:600;text-align:right">
             ${esc(why)}<br>${seed
-              ? `<a class="seed-btn" href="${esc(seed.url)}" target="_blank" rel="noopener"
-                   >🔎 검색해서 채우기</a>`
+              ? `<a class="seed-btn${lapsed ? ' lapsed' : ''}" href="${esc(seed.url)}"
+                   target="_blank" rel="noopener">${seedLabel}</a>`
               : '<span style="font-size:11px">직항 운항 노선 · 다음 순번에 조회</span>'}
           </span></div>`;
       }).join('')}
@@ -486,8 +492,10 @@ function cjjSection(pool) {
     ${missing.length ? `<div class="note"><b>비어 있는 노선 ${missing.length}개를 채우는 법</b>
       <p>이 앱의 가격은 <b>사람들이 검색한 기록</b>입니다. 도쿄·오사카처럼 많이 찾는
       노선은 저절로 채워지지만, 삿포로·발리처럼 찾는 사람이 적은 노선은 비어 있습니다.
-      <b>아래 "검색해서 채우기"를 한 번만 눌러 두면 다음 스캔부터 자동으로 추적합니다.</b>
-      매번 누를 필요는 없습니다.</p></div>` : ''}
+      <b>아래 버튼을 한 번 눌러 두면 다음 스캔부터 자동으로 추적합니다.</b>
+      다만 캐시는 2~7일이면 빠지므로, 계속 아무도 안 찾는 노선은 언젠가
+      다시 비어집니다. 그때는 버튼이 <b>"N일째 없음 · 다시 채우기"</b> 로
+      바뀝니다 — 그게 뜰 때만 다시 누르시면 됩니다.</p></div>` : ''}
     <div class="strip">
       <div><div class="k">직항 목적지</div><div class="v num">${total}</div></div>
       <div><div class="k">오늘 가격 확인</div><div class="v num g">${priced.length}</div></div>
@@ -725,6 +733,16 @@ function owGroupHTML(list) {
 // 가격은 출발일에 따라 크게 달라서 창을 하나만 주면 쓸모가 적다.
 const LIVE_NIGHTS = 10;                 // 유럽 왕복의 현실적인 기본값
 const CJJ_SEED_NIGHTS = 3;              // 근거리는 3박이 기본값
+// 이 소스는 사람들의 검색 기록이고 캐시는 2~7일이면 빠진다. 아무도 안 찾는
+// 노선은 한 번 채워도 시간이 지나면 다시 빈다. 며칠째 안 들어오면 다시
+// 눌러 달라고 말해 준다 — 사용자가 그걸 기억하고 있으라고 하면 안 된다.
+const STALE_DAYS = 4;
+
+// 이 노선이 마지막으로 가격을 받은 게 며칠 전인가. 기록이 없으면 null.
+function routeAge(dep, arr) {
+  const f = (S.data.route_freshness || {})[`${dep}-${arr}`];
+  return f && typeof f.days_ago === 'number' ? f.days_ago : null;
+}
 const LIVE_OFFSETS = [45, 75, 105];     // 출발일 후보 (오늘로부터)
 
 function liveSearchURL(dep, arr, offset, nights) {
@@ -740,6 +758,15 @@ function liveSearchURL(dep, arr, offset, nights) {
 }
 
 function liveSearchHTML(dep, arr, cityName) {
+  // 이 노선이 마지막으로 가격을 받은 게 언제인지 같이 적는다.
+  // "한 번 눌렀는데 왜 또 비었지" 를 설명해 주는 값이다.
+  const age = routeAge(dep, arr);
+  const ageLine = age === null ? ''
+    : (age === 0
+        ? '<p class="live-note" style="margin-top:6px">✅ 오늘 가격이 들어왔습니다.</p>'
+        : `<p class="live-note" style="margin-top:6px">🔄 마지막 가격이
+             <b>${age}일 전</b>입니다. 캐시에서 빠진 것 같으면 아래를 다시
+             한 번 눌러 주세요.</p>`);
   const btns = LIVE_OFFSETS.map(off => {
     const l = liveSearchURL(dep, arr, off, LIVE_NIGHTS);
     return `<a class="live-btn" href="${esc(l.url)}" target="_blank" rel="noopener">
@@ -754,7 +781,8 @@ function liveSearchHTML(dep, arr, cityName) {
     <p class="live-note" style="margin-top:6px">💡 <b>한 번 검색해 두면 다음
       스캔부터 이 앱이 자동으로 추적합니다.</b> 이 소스는 사람들이 검색한
       기록을 모아 두는 곳이라, 아무도 안 찾는 노선은 비어 있습니다.
-      직접 한 번 찾으면 그 기록이 남습니다.</p>
+      다만 캐시는 2~7일이면 빠지므로, 계속 아무도 안 찾으면 언젠가 다시
+      비어집니다.</p>${ageLine}
   </div>`;
 }
 
