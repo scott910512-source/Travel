@@ -416,6 +416,7 @@ function emptyBlock(title, body) {
 function headerHTML() {
   const m = S.data.meta || {};
   return `<header class="hd"><div class="wrap"><div class="row">
+    <img class="mark" src="icon.svg" alt="" width="34" height="34">
     <div class="grow"><h1>항공권 데일리 스캐너</h1>
       <div class="upd">마지막 업데이트 <b>${esc(m.ts || '—')}</b></div></div>
     <button class="iconbtn" data-reload aria-label="새로고침">

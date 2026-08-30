@@ -93,6 +93,9 @@ jobs:
         run: |
           mkdir -p public
           cp web/index.html web/app.css web/app.js public/
+          cp web/icon.svg web/icon-32.png web/icon-180.png \
+             web/icon-192.png web/icon-512.png public/
+          cp web/manifest.webmanifest public/
           cp flight-deals/state/deals.json public/deals.json
           cp flight-deals/state/brief.json public/brief.json
           ls -la public

@@ -1,0 +1,18 @@
+{
+  "name": "항공권 데일리 스캐너",
+  "short_name": "항공권 스캐너",
+  "description": "청주 기준 실부담가(항공권 + 공항 이동비)로 오늘 살 만한 항공권을 고르는 앱",
+  "lang": "ko",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F6F7FB",
+  "theme_color": "#F6F7FB",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}
