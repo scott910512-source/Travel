@@ -71,6 +71,27 @@ a{color:inherit}
 }
 .chip[aria-pressed="true"]{background:var(--pri);border-color:var(--pri);color:#fff}
 
+/* 국내 / 해외 — 출발지 칩보다 큰 구분이라 위에 두고 폭을 꽉 채운다.
+   가로 스크롤이 아니라 3등분이어야 "전체 구분" 으로 읽힌다. */
+.scopes{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:6px;
+  padding:0 var(--pad) 10px;max-width:1180px;margin:0 auto;
+}
+.scope{
+  display:flex;flex-direction:column;align-items:center;gap:2px;
+  min-height:46px;padding:7px 6px;border-radius:12px;
+  border:1px solid var(--line);background:var(--card);color:var(--tx2);
+  cursor:pointer;line-height:1.25;
+}
+.scope .l{font-size:13.5px;font-weight:800;letter-spacing:-.02em;white-space:nowrap}
+.scope .c{font-size:11px;font-weight:700;color:var(--tx3);font-family:var(--mono)}
+.scope[aria-pressed="true"]{
+  background:var(--pri);border-color:var(--pri);color:#fff;
+}
+.scope[aria-pressed="true"] .c{color:rgba(255,255,255,.82)}
+.scope.zero{opacity:.5}
+.scope.zero[aria-pressed="true"]{opacity:1}
+
 /* ── 섹션 ───────────────────────────────────────────── */
 .sec{margin:18px 0 0}
 .sec-hd{display:flex;align-items:flex-end;gap:8px;margin-bottom:10px}

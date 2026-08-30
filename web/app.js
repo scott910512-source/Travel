@@ -21,7 +21,8 @@ const S = {
   view: null,          // {name:'list'|'analysis', ...} — 탭 위에 얹히는 화면
   detail: null,        // 열려 있는 상세 offer
   range: 30,           // 그래프 구간(일)
-  origin: 'all',       // 출발지 칩
+  origin: 'all',       // 출발지 칩 (어디서 뜨나)
+  scope: 'all',        // 국내 / 해외 (어디로 가나) — 출발지와 다른 축이다
   listFilter: null,    // 전체 특가 리스트 필터 (등급·성격 축)
   listMonth: null,     // 출발 월 필터 (독립 축). null = 전체
   weekendSpan: 'all',
@@ -90,6 +91,28 @@ const tieBreak = () => Number((S.data && S.data.tie_break_krw) || 0);
 const accessOf = dep => Number(S.settings.access[dep] || 0);
 const effective = o => o.price_krw + accessOf(o.dep);
 const originOn = dep => S.settings.origins[dep] !== false;
+
+/* ── 국내 / 해외 ───────────────────────────────────────
+   출발지 칩(어디서 뜨나)과 완전히 다른 축이다. 이건 도착지로 가른다.
+   두 축은 곱해서 걸린다: "청주 + 해외" 같은 조합이 그대로 나온다. */
+// region 은 스캐너와 config 가 같이 쓰는 값이라 이게 1순위다.
+// region 이 비어 있는 옛 offer 를 위해 공항 코드로 한 번 더 받친다.
+const KR_ARR = ['CJU', 'GMP', 'ICN', 'PUS', 'TAE', 'KWJ', 'USN', 'RSU',
+                'KUV', 'HIN', 'WJU', 'YNY', 'MWX', 'CJJ', 'KPO'];
+const isDom = (arr, region) => region === '국내선' || KR_ARR.indexOf(arr) !== -1;
+const offerDom = o => isDom(o.arr, o.region);
+
+const SCOPES = [
+  { key: 'all',  label: '전체',     sub: '국내 + 해외' },
+  { key: 'dom',  label: '🇰🇷 국내', sub: '제주 등' },
+  { key: 'intl', label: '✈️ 해외',  sub: '해외 노선' },
+];
+function inScope(o, key) {
+  if (!key || key === 'all') return true;
+  return key === 'dom' ? offerDom(o) : !offerDom(o);
+}
+const scopeLabel = () =>
+  (SCOPES.find(s => s.key === S.scope) || SCOPES[0]).label.replace(/^\S+\s/, '');
 
 function inGroup(dep, key) {
   if (key === 'all') return true;
@@ -176,8 +199,13 @@ function visibleOffers() {
     (st.stops !== 'direct' || o.stops === 0) &&
     (st.stops !== 'one' || o.stops == null || o.stops <= 1));
 }
-function homeOffers() {
+// 국내/해외 칩을 걸기 *전* 단계. 칩에 적는 건수의 기준이다 —
+// 걸고 나서 세면 고른 칩만 0 이 아니게 되어 아무 정보도 못 준다.
+function originOffers() {
   return visibleOffers().filter(o => inGroup(o.dep, S.origin));
+}
+function homeOffers() {
+  return originOffers().filter(o => inScope(o, S.scope));
 }
 function ranked(list) {
   const home = (S.data && S.data.home) || 'CJJ';
@@ -393,18 +421,34 @@ function viewHome() {
   const ok = pool.filter(o => o.data_ok);
   const top = ranked(ok).slice(0, 5);
   const strong = ok.filter(o => dealTier(o) === 'strong');
-  const st = S.data.stats || {};
+  // ★ 타일 숫자는 "누르면 열릴 목록" 과 같은 pool 에서 센다.
+  //   예전에는 meta.stats(전 노선 합계)를 적어서, 청주나 국내만 골라 놓고
+  //   타일을 누르면 숫자보다 적은 목록이 나왔다.
+  const newN = pool.filter(o => o.change === 'new').length;
+  const downN = pool.filter(o => o.change === 'down').length;
 
   let deals;
   if (!pool.length) {
-    deals = emptyBlock('조건에 맞는 항공권이 없습니다',
-      '설정에서 출발지나 여행 기간 범위를 넓혀 보세요.');
+    deals = emptyBlock(
+      S.scope === 'all' ? '조건에 맞는 항공권이 없습니다'
+                        : `${scopeLabel()} 노선에 조건에 맞는 항공권이 없습니다`,
+      S.scope === 'all'
+        ? '설정에서 출발지나 여행 기간 범위를 넓혀 보세요.'
+        : `위 "전체" 를 누르면 ${S.scope === 'dom' ? '해외' : '국내'} 노선까지 같이 봅니다. 여행 기간 범위를 넓혀 봐도 됩니다.`);
   } else if (!top.length) {
     deals = emptyBlock('비교 가능한 항공권이 없습니다',
       '표본이 모자라 평균가를 만들지 못했습니다. 며칠 더 쌓이면 판정이 살아납니다.');
   } else if (!strong.length) {
     const c = cheapest(ok);
     const r = (S.data.routes || {})[`${c.dep}-${c.arr}`] || {};
+    // ★ 같은 항공편을 "저가 TOP 3" 와 "그다음으로 볼 만한 것" 에 두 번 싣지
+    //   않는다. 한 화면에 같은 편이 번호만 다르게 두 번 나오면 몇 개가
+    //   있는 건지 알 수 없다. 국내처럼 건수가 적은 목록에서 특히 그렇다.
+    const rest = ok.filter(o => o.id !== c.id);
+    const shown = new Set([c.id].concat(
+      rest.slice().sort((x, y) => effective(x) - effective(y))
+          .slice(0, 3).map(o => o.id)));
+    const more = top.filter(o => !shown.has(o.id)).slice(0, 4);
     deals = `<div class="note hot"><b>🔥 오늘 강력 특가가 없습니다</b>
         <p>기준(평균 대비 ${S.settings.strongPct}% 이상 저렴 · 표본 10건 이상)을 넘는 항공권이 없습니다.
         지금 가장 저렴한 항공권은 아래와 같습니다.</p></div>
@@ -418,10 +462,10 @@ function viewHome() {
           ? `<div class="kv"><span class="k">30일 최저 대비</span><span class="v is-up">+${won(c.price_krw - r.low30)}원</span></div>`
           : ''}
       </div>` +
-      lowList(ok.filter(o => o.id !== c.id), 3, '💰 저가 TOP 3',
-              '실부담가 낮은 순 · 등급 무관') +
-      (top.length > 1 ? `<div class="sec"><div class="sec-hd"><div><h2>그다음으로 볼 만한 것</h2></div></div>
-        <div class="list two">${top.slice(1, 5).map((o, i) => cardHTML(o, i + 2)).join('')}</div></div>` : '');
+      lowList(rest, 3, '💰 저가 TOP 3', '실부담가 낮은 순 · 등급 무관') +
+      (more.length ? `<div class="sec"><div class="sec-hd"><div><h2>그다음으로 볼 만한 것</h2>
+          <p>위에 안 나온 것만</p></div></div>
+        <div class="list two">${more.map((o, i) => cardHTML(o, i + 2)).join('')}</div></div>` : '');
   } else {
     deals = `<div class="top-grid">${heroHTML(top[0], 1, '🥇 오늘 1순위')}
       <div class="list">${top.slice(1).map((o, i) => cardHTML(o, i + 2)).join('')}</div></div>`;
@@ -432,7 +476,8 @@ function viewHome() {
     <section class="sec">
       <div class="sec-hd">
         <div><h2>🔥 오늘의 강력 특가</h2>
-          <p>청주 기준 이동비 포함 실부담가 순</p></div>
+          <p>${S.scope === 'all' ? '국내 + 해외' : esc(scopeLabel())} ·
+            ${esc(homeCity())} 기준 이동비 포함 실부담가 순</p></div>
         <button class="more" data-view="list">전체 보기 →</button>
       </div>
       ${deals}
@@ -443,9 +488,9 @@ function viewHome() {
         <p>어제 스캔 대비</p></div></div>
       <div class="tiles">
         <button class="tile new" data-list="new"><div class="k">🆕 신규 특가</div>
-          <div class="v">${st.new || 0}</div></button>
+          <div class="v">${newN}</div></button>
         <button class="tile dn" data-list="down"><div class="k">📉 가격 하락</div>
-          <div class="v">${st.down || 0}</div></button>
+          <div class="v">${downN}</div></button>
         <button class="tile hot" data-list="strong"><div class="k">🔥 강력 특가</div>
           <div class="v">${strong.length}</div></button>
         <button class="tile mon" data-list="all"><div class="k">👀 모니터링</div>
@@ -469,10 +514,21 @@ function viewHome() {
    가격이 없는 노선은 0원이나 "-" 가 아니라 "가격 데이터 부족"으로 적는다. */
 function cjjSection(pool) {
   const c = (S.data.cjj) || {};
-  const cfg = c.config || {};
+  const all = c.config || {};
   const st = c.status || [];
+  // 위에서 국내/해외를 골랐으면 노선표도 같이 좁힌다. 해외를 보는 중에
+  // 제주가 섞여 나오면 화면 전체가 같은 말을 하지 않게 된다.
+  const cfg = {};
+  Object.keys(all).forEach(code => {
+    if (inScope({ arr: code, region: all[code].region }, S.scope)) cfg[code] = all[code];
+  });
   const total = Object.keys(cfg).length;
-  if (!total) return '';
+  if (!total) {
+    return `<section class="sec">
+      <div class="sec-hd"><div><h2>🛫 청주 직항</h2></div></div>
+      ${emptyBlock(`청주에서 가는 ${scopeLabel()} 직항이 목록에 없습니다`,
+        '위 "전체" 를 누르면 청주 직항 전체를 봅니다.')}</section>`;
+  }
 
   const priced = st.filter(x => x.price_status === 'available');
   const missing = st.filter(x => x.price_status === 'missing');
@@ -631,10 +687,27 @@ function headerHTML() {
 }
 
 function chipsHTML() {
-  return `<div class="chips" role="group" aria-label="출발 공항">` +
+  return scopeChipsHTML() +
+    `<div class="chips" role="group" aria-label="출발 공항">` +
     GROUPS.map(g => `<button class="chip" data-origin="${g.key}"
       aria-pressed="${S.origin === g.key}">${esc(g.label)}</button>`).join('') +
     `</div>`;
+}
+
+/* 국내 / 해외. 출발지 칩보다 위에 둔다 — 이쪽이 더 큰 구분이고,
+   출발지는 그 안에서 다시 좁히는 것이라 순서가 그래야 읽힌다.
+   ★ 0건인 칸도 지우지 않는다. "국내는 오늘 0건" 도 정보다. 없애 버리면
+     칸이 사라져서 왜 안 보이는지 알 수 없게 된다 (월 칩과 같은 이유). */
+function scopeChipsHTML() {
+  const base = originOffers();
+  return `<div class="scopes" role="group" aria-label="국내 · 해외">` +
+    SCOPES.map(s => {
+      const n = base.filter(o => inScope(o, s.key)).length;
+      return `<button class="scope${n ? '' : ' zero'}" data-scope="${s.key}"
+        aria-pressed="${S.scope === s.key}">
+        <span class="l">${esc(s.label)}</span>
+        <span class="c">${n}건</span></button>`;
+    }).join('') + `</div>`;
 }
 
 function footerHTML() {
@@ -930,13 +1003,16 @@ function seedTargets() {
     // 오늘 조회 순번이 아닌 노선은 판단하지 않는다 (있을지도 모른다)
     if (st.price_status === 'error') return;
     const info = (c.config || {})[st.destination] || {};
+    // 국내/해외를 골라 둔 동안에는 그 밖의 노선을 채우라고 하지 않는다
+    if (!inScope({ arr: st.destination, region: info.region }, S.scope)) return;
     const known = st.price_status === 'available' || st.price_status === 'missing';
     if (!known) return;
     add('CJJ', st.destination, info.city || st.city || st.destination,
         CJJ_SEED_NIGHTS, st.price_status === 'available');
   });
 
-  SWISS_ORDER.forEach(code => {
+  // 스위스는 전부 해외다. 국내를 보고 있으면 넣지 않는다.
+  if (S.scope !== 'dom') SWISS_ORDER.forEach(code => {
     const has = S.data.offers.some(o => o.arr === code && o.price_krw);
     add('ICN', code, SWISS_CITY[code], LIVE_NIGHTS, has);
   });
@@ -1563,7 +1639,7 @@ function errorScreen() {
 
 /* ── 이벤트 ───────────────────────────────────────────── */
 document.addEventListener('click', ev => {
-  const t = ev.target.closest('[data-tab],[data-origin],[data-open],[data-view],'
+  const t = ev.target.closest('[data-tab],[data-origin],[data-scope],[data-open],[data-view],'
     + '[data-list],[data-month],[data-seed],[data-back],[data-close],[data-sheet],[data-range],[data-wspan],'
     + '[data-origin-toggle],[data-stops],[data-reset],[data-reload],[data-retry]');
   if (!t) return;
@@ -1578,6 +1654,8 @@ document.addEventListener('click', ev => {
 
   const og = t.getAttribute('data-origin');
   if (og) { S.origin = og; return render(); }
+  const sc = t.getAttribute('data-scope');
+  if (sc) { S.scope = sc; return render(); }
 
   const open = t.getAttribute('data-open');
   if (open) {
