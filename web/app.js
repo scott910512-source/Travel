@@ -881,32 +881,42 @@ function seedChecklist() {
   const done = t.filter(x => seededToday(`${x.dep}-${x.arr}`)).length;
   return `<section class="sec">
     <div class="sec-hd"><div><h2>🌱 비어 있는 노선 채우기</h2>
-      <p>가격이 안 들어오는 노선 ${t.length}곳. 눌러서 검색 화면이 뜨면
-        그걸로 끝입니다.</p></div></div>
+      <p>가격이 안 들어오는 노선 ${t.length}곳입니다.</p></div></div>
+    <div class="note"><b>누르는 것만으로는 부족할 수 있습니다</b>
+      <p>버튼을 누르면 aviasales 검색이 열립니다. <b>항공권 목록이 실제로
+      뜰 때까지 기다렸다가</b> 닫으세요. 결과가 나오기 전에 닫으면 검색이
+      끝나지 않아 기록이 안 남을 수 있습니다.
+      아래 "열어봄" 표시는 <b>회원님이 눌렀다는 것만</b> 뜻합니다 —
+      실제로 기록됐는지는 다음 스캔이 알려 줍니다(그때 목록에서 사라집니다).</p></div>
     <div class="panel">
-      <div class="kv"><span class="k">오늘 진행</span>
+      <div class="kv"><span class="k">오늘 열어본 노선</span>
         <span class="v">${done} / ${t.length}</span></div>
       ${t.map(x => {
         const key = `${x.dep}-${x.arr}`;
         const l = liveSearchURL(x.dep, x.arr, x.off, x.nights);
-        const ok = seededToday(key);
+        const opened = seededToday(key);
         const age = routeAge(x.dep, x.arr);
-        return `<a class="kv seedrow${ok ? ' done' : ''}" href="${esc(l.url)}"
+        // ★ "눌렀다" 와 "캐시에 남았다" 는 다르다.
+        //   버튼을 눌러도 검색 결과가 뜨기 전에 닫으면 기록이 안 남을 수
+        //   있다. 우리가 아는 것은 '눌렀다' 까지뿐이므로 그렇게만 적는다.
+        //   실제로 남았는지는 다음 스캔이 답한다 (그때 목록에서 사라진다).
+        return `<a class="kv seedrow${opened ? ' done' : ''}" href="${esc(l.url)}"
             target="_blank" rel="noopener" data-seed="${esc(key)}">
           <span class="k" style="color:var(--tx);font-weight:700">
-            ${ok ? '✅ ' : ''}${esc(x.city)}
+            ${opened ? '🕐 ' : ''}${esc(x.city)}
             <span style="font-family:var(--mono);font-size:11.5px;color:var(--tx3)"
               >${esc(x.dep)}→${esc(x.arr)}</span></span>
           <span class="v" style="font-size:12px;font-family:var(--sans);font-weight:700;
-            color:${ok ? 'var(--down)' : 'var(--pri)'}">
-            ${ok ? '오늘 완료 · 내일 반영' : (age === null ? '검색하기 →' : `${age}일째 없음 →`)}
+            color:${opened ? 'var(--tx3)' : 'var(--pri)'}">
+            ${opened ? '오늘 열어봄 · 결과 대기' : (age === null ? '검색하기 →' : `${age}일째 없음 →`)}
           </span></a>`;
       }).join('')}
     </div>
     <p style="margin:8px 2px 0;font-size:12px;color:var(--tx3);font-weight:600;line-height:1.5">
       이 앱이 대신 검색해 줄 수는 없습니다. 소스가 <b>실제 사람의 검색</b>만
-      기록하기 때문입니다. 대신 무엇을 눌렀는지는 앱이 기억합니다.
-      결과는 <b>다음 스캔(매일 오전 7시)</b> 이후에 보입니다.</p>
+      기록하기 때문입니다. 결과는 <b>다음 스캔(매일 오전 7시)</b> 이후에
+      보입니다. 내일도 목록에 남아 있으면 검색이 끝까지 안 돌았다는 뜻이니
+      한 번 더 눌러 주세요.</p>
   </section>`;
 }
 
