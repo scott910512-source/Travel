@@ -925,6 +925,45 @@ def _oneway_offer(org, dst, city, region, d0, v):
     }
 
 
+# 항공사명을 주지 않는 엔드포인트가 있다(month-matrix, latest 일부). 그 행은
+# airline 을 "?" 로 둔다. 그런데 같은 항공편이 이름을 주는 엔드포인트에서도
+# 오면, 한 편이 두 줄이 된다.
+#
+# 2026-08-30 실측: 15개 일정에서 "?" 행과 실제 항공사 행이 겹쳤고 가격 차는
+# 0.2~0.7% 였다. 같은 편이다. 반면 진짜 다른 편은 18~27% 차이가 났다.
+# 그래서 2% 를 경계로 삼는다.
+#
+# 화면에 같은 편이 두 번 뜨는 것도 문제지만, 더 나쁜 건 표본 수가 부풀어
+# build_baselines() 의 평균가와 신뢰도가 틀어지는 것이다. 편 3개짜리 노선이
+# 표본 6으로 보이면 "표본 충분" 판정이 잘못 내려간다.
+UNNAMED_TOL = 0.02
+
+
+def merge_unnamed(offers):
+    """이름 없는 '?' 행이 같은 일정의 실제 항공사 행과 겹치면 버린다.
+
+    필드를 섞지 않는다. 값을 조합해 새 행을 만들면 어느 응답에도 없던
+    항공권이 생긴다. 정보가 더 많은 쪽(항공사명이 있는 행)을 남길 뿐이다.
+    """
+    named = {}
+    for o in offers:
+        if o["airline"] != "?":
+            k = (o["dep"], o["arr"], o["depart_date"], o["return_date"], o["stops"])
+            named.setdefault(k, []).append(o["price_krw"])
+    out, dropped = [], 0
+    for o in offers:
+        if o["airline"] == "?":
+            k = (o["dep"], o["arr"], o["depart_date"], o["return_date"], o["stops"])
+            ref = named.get(k)
+            if ref and any(abs(o["price_krw"] - p) <= p * UNNAMED_TOL for p in ref):
+                dropped += 1
+                continue
+        out.append(o)
+    if dropped:
+        print(f"  · 이름 없는 중복 제거 {dropped}건 (같은 일정·같은 값의 '?' 행)")
+    return out
+
+
 def aviasales_link(org, dst, d0, d1):
     return (f"https://www.aviasales.com/search/"
             f"{org}{d0.strftime('%d%m')}{dst}{d1.strftime('%d%m')}1")
@@ -1795,6 +1834,7 @@ def main():
     if dedup_n:
         print(f"  · 중복 제거 {dedup_n}건 (도시코드 병합)")
         offers = list(uniq.values())
+    offers = merge_unnamed(offers)
     if CIRCUIT.tripped:
         print(f"\n⛔ 연속 실패 {CIRCUIT.LIMIT}회 — 조기 중단")
         print(f"   원인: {CIRCUIT.cause}")
