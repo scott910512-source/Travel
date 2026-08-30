@@ -443,9 +443,12 @@ def fetch_latest(org, dst, city, region, flex, window):
     바꿔서 같은 normalize() 를 태운다. 항공편명·항공사가 없는 행이 많은데,
     없는 것을 지어내지 않고 "?" 로 둔다.
     """
+    # one_way 는 넘기지 않는다. 이 API 는 그 파라미터를 무시한다고 이미
+    # 확인됐고(README), 혹시 서버가 존중한다면 응답만 좁아진다.
+    # 왕복 여부는 아래 normalize() 가 return_at 으로 직접 검증한다.
     ok, data, err = call("/v2/prices/latest", {
         "origin": org, "destination": dst, "currency": CURRENCY,
-        "period_type": "year", "one_way": "false",
+        "period_type": "year",
         "page": 1, "limit": LATEST_LIMIT, "sorting": "price"})
     if not ok:
         ERRORS.append(f"{org}-{dst} latest: {err}")

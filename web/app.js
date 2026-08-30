@@ -584,95 +584,97 @@ function plainHeader(title, sub) {
 }
 
 /* ── 화면: 스위스 ─────────────────────────────────────── */
+// 스위스는 취리히가 1순위다. 이 순서가 화면 구성과 대표편 선택을 지배한다.
+const SWISS_ORDER = ['ZRH', 'GVA', 'BSL'];
 const SWISS_CITY = { ZRH: '취리히', GVA: '제네바', BSL: '바젤' };
+const SWISS_RANK = { ZRH: 0, GVA: 1, BSL: 2 };
 
 function viewSwiss() {
-  // 여행 기간 설정은 일부러 적용하지 않는다. 유럽은 캐시가 얇아 근거리용
-  // 박수 범위를 씌우면 있는 것마저 사라진다. 출발지 ON/OFF 는 존중한다.
+  // 여행 기간·환승 설정을 일부러 적용하지 않는다. 유럽은 캐시가 얇아
+  // 근거리용 조건을 씌우면 있는 것마저 사라진다. 환승은 제한 없이 다 본다.
   const all = S.data.offers.filter(o =>
-    ['ZRH', 'GVA', 'BSL'].includes(o.arr) && originOn(o.dep));
+    SWISS_ORDER.includes(o.arr) && originOn(o.dep));
 
   if (!all.length) {
-    return `${plainHeader('스위스', '취리히 우선 · 1회 환승 허용')}
+    return `${plainHeader('스위스', '취리히 우선 · 환승 제한 없음')}
       <div class="wrap">${swissDiag()}${swissNote()}${footerHTML()}</div>`;
   }
 
-  // 1회 환승까지 허용. 가격 → 환승 → 여행기간 순.
-  const pool = all.filter(o => o.stops == null || o.stops <= 1);
-  const byPrice = pool.slice().sort((a, b) =>
+  // 도시 안에서는 직항 → 1회 → 2회+ , 그다음 실부담가
+  const inCity = (a, b) =>
+    (a.stops == null ? 9 : a.stops) - (b.stops == null ? 9 : b.stops) ||
     effective(a) - effective(b) ||
-    (a.stops || 0) - (b.stops || 0) ||
-    a.nights - b.nights);
+    a.nights - b.nights;
 
-  const strong = byPrice.filter(o => dealTier(o) === 'strong');
-  const hero = strong.length
-    ? (strong.find(o => o.arr === 'ZRH') || strong[0])
-    : byPrice[0];
+  // 대표편: 취리히 우선, 그 안에서 강력특가 → 최저가
+  let hero = null;
+  for (const code of SWISS_ORDER) {
+    const c = all.filter(o => o.arr === code);
+    if (!c.length) continue;
+    hero = c.filter(o => dealTier(o) === 'strong').sort(inCity)[0]
+        || c.slice().sort((a, b) => effective(a) - effective(b))[0];
+    break;
+  }
 
-  // 건수가 적으면 쪼개지 않는다. 3건을 세 섹션에 나눠 담으면 같은 항공권을
-  // 세 번 보여주게 된다. 얇을 땐 한 목록으로, 두꺼울 때만 환승별로 나눈다.
-  const THIN = 5;
-  const thin = byPrice.length <= THIN;
-
-  let head, lowTop, byStops;
-
-  if (strong.length) {
-    head = `<section class="sec"><div class="sec-hd"><div>
-        <h2>🏔 오늘 가장 좋은 옵션</h2><p>1회 환승까지 허용 · 취리히 우선</p></div></div>
-        ${heroHTML(hero, 1)}</section>`;
-    lowTop = lowList(byPrice.filter(o => o.id !== hero.id), 3,
-                     '💰 저가 TOP 3', '실부담가 낮은 순 · 등급 무관');
-  } else {
-    head = `<section class="sec">
+  const heroStrong = dealTier(hero) === 'strong';
+  const head = heroStrong
+    ? `<section class="sec"><div class="sec-hd"><div>
+        <h2>🏔 오늘 가장 좋은 옵션</h2>
+        <p>취리히 우선 · 환승 제한 없음</p></div></div>
+        ${heroHTML(hero, 1)}</section>`
+    : `<section class="sec">
         <div class="note hot"><b>현재 강력 특가 없음</b>
-          <p>가격만 보고 저렴한 순으로 정리했습니다. 스위스는 캐시 표본이
-          얇아 "평균 대비 몇 %" 판정이 서지 않는 경우가 많습니다.</p></div>
+          <p>취리히를 먼저 보고, 없으면 제네바·바젤 순으로 내려갑니다.
+          가격만 보고 정리했습니다.</p></div>
         <div style="margin-top:10px">${heroHTML(hero, 1)}</div></section>`;
-    // hero 가 이미 최저가이므로 그다음 것들만 이어 붙인다
-    lowTop = lowList(byPrice.filter(o => o.id !== hero.id), 3,
-                     '💰 그다음으로 저렴한 것', '실부담가 낮은 순 · 등급 무관');
-  }
 
-  if (thin) {
-    // 얇을 땐 환승별로 또 나누지 않고, 카드마다 직항/환승만 표기한다
-    byStops = '';
-  } else {
-    const shown = { [hero.id]: 1 };
-    byPrice.filter(o => o.id !== hero.id).slice(0, 3).forEach(o => { shown[o.id] = 1; });
-    const rest = byPrice.filter(o => !shown[o.id]);
-    const direct = rest.filter(o => o.stops === 0);
-    const one = rest.filter(o => o.stops === 1);
-    byStops = [
-      direct.length ? `<section class="sec"><div class="sec-hd"><div>
-          <h2>🛫 직항</h2><p>위에 안 나온 ${direct.length}건</p></div></div>
-          <div class="list two">${direct.slice(0, 8).map(o => cardHTML(o)).join('')}</div></section>` : '',
-      one.length ? `<section class="sec"><div class="sec-hd"><div>
-          <h2>✈️ 1회 환승</h2><p>위에 안 나온 ${one.length}건 · 총 여행시간과 환승 대기시간은 소스에 없습니다</p></div></div>
-          <div class="list two">${one.slice(0, 8).map(o => cardHTML(o)).join('')}</div></section>` : '',
-    ].join('');
-  }
+  // 도시별 섹션 — 취리히부터. 가격이 없는 도시도 지우지 않는다.
+  const raw = (S.data.meta && S.data.meta.raw_counts) || {};
+  const sections = SWISS_ORDER.map((code, idx) => {
+    const cityAll = all.filter(o => o.arr === code);
+    // 대표편은 위에 크게 이미 있다. 아래 목록에 또 넣지 않는다.
+    const cands = cityAll.filter(o => o !== hero).sort(inCity);
+    const label = `${idx === 0 ? '🥇 ' : ''}${SWISS_CITY[code]} <span
+      style="font-family:var(--mono);font-size:13px;color:var(--tx3)">${code}</span>`;
 
-  // 도시별 최저 — 가격이 없는 도시도 목록에서 지우지 않는다
-  const cityRows = Object.keys(SWISS_CITY).map(code => {
-    const cands = pool.filter(o => o.arr === code);
-    const best = cands.sort((a, b) => effective(a) - effective(b))[0];
-    if (best) {
-      return `<button class="kv cjjrow" data-open="${esc(best.id)}">
-        <span class="k" style="color:var(--tx);font-weight:700">${esc(SWISS_CITY[code])}
-          <span style="font-family:var(--mono);color:var(--tx3);font-weight:600">${code}</span></span>
-        <span class="v">${won(effective(best))}원
-          <span style="color:var(--tx3);font-size:11.5px">${stopTxt(best.stops)}</span></span></button>`;
+    if (!cityAll.length) {
+      const got = Object.keys(raw).some(k => k.endsWith('-' + code) && raw[k]);
+      return `<section class="sec"><div class="sec-hd"><div>
+          <h2>${label}</h2><p>${idx === 0 ? '1순위 도시' : ''}</p></div></div>
+        <div class="note warn"><b>가격 데이터 부족</b>
+          <p>${got
+            ? '조회는 됐지만 왕복으로 확인되는 편이 없습니다.'
+            : '두 엔드포인트 모두 응답이 비었습니다. 소스 캐시에 이 노선이 없습니다.'}
+          운항이 없다는 뜻은 아닙니다.</p></div></section>`;
     }
-    const raw = ((S.data.meta && S.data.meta.raw_counts) || {});
-    const got = Object.keys(raw).some(k => k.endsWith('-' + code) && raw[k]);
-    return `<div class="kv">
-      <span class="k" style="color:var(--tx2);font-weight:700">${esc(SWISS_CITY[code])}
-        <span style="font-family:var(--mono);color:var(--tx3);font-weight:600">${code}</span></span>
-      <span class="v" style="font-family:var(--sans);font-size:12px;color:var(--tx3);font-weight:600;text-align:right">
-        가격 데이터 부족<br><span style="font-size:11px">${got ? '조회는 됐으나 조건에 맞는 편 없음' : '응답 자체가 빔'}</span></span></div>`;
+
+    // 이 도시에 있는 게 대표편 하나뿐이면 빈 목록 대신 그렇다고 말한다.
+    if (!cands.length) {
+      return `<section class="sec"><div class="sec-hd"><div>
+          <h2>${label}</h2>
+          <p>${idx === 0 ? '1순위 도시 · ' : ''}1건 · 위 대표편이 전부입니다</p>
+        </div></div></section>`;
+    }
+
+    const d0 = cands.filter(o => o.stops === 0);
+    const d1 = cands.filter(o => o.stops === 1);
+    const d2 = cands.filter(o => o.stops != null && o.stops >= 2);
+    const dU = cands.filter(o => o.stops == null);
+    const grp = (list, title) => list.length
+      ? `<p style="margin:14px 0 8px;font-size:12.5px;font-weight:800;color:var(--tx2)">
+           ${title} ${list.length}건</p>
+         <div class="list two">${list.slice(0, 6).map(o => cardHTML(o)).join('')}</div>`
+      : '';
+
+    return `<section class="sec"><div class="sec-hd"><div>
+        <h2>${label}</h2>
+        <p>${idx === 0 ? '1순위 도시 · ' : ''}${cityAll.length}건${
+          hero.arr === code ? ' (대표편 1건은 위에)' : ''} · 직항 → 환승 순</p></div></div>
+      ${grp(d0, '🛫 직항')}${grp(d1, '✈️ 1회 환승')}${grp(d2, '🔁 2회 이상 환승')}
+      ${grp(dU, '❔ 환승 정보 없음')}</section>`;
   }).join('');
 
-  // 가격 위치 (hero 기준)
+  // 가격 위치 (대표편 기준)
   const r = (S.data.routes || {})[`${hero.dep}-${hero.arr}`] || {};
   const wait = r.low30 && hero.price_krw > r.low30;
   const pos = `<div class="panel"><h4>가격 위치 · ${esc(SWISS_CITY[hero.arr] || hero.arr)}</h4>
@@ -687,23 +689,19 @@ function viewSwiss() {
       : `<p style="margin:10px 0 0;font-size:12.5px;color:var(--tx3);font-weight:600">
          기록이 ${(r.series || []).length || 1}일치뿐이라 아직 "싸다/비싸다"를 말할 수
          없습니다. 위 세 값이 같은 것도 그 때문입니다 — 오늘 가격이 곧 최저이자
-         최고입니다. 며칠 쌓이면 30일 최저가 의미를 갖습니다.</p>`}
+         최고입니다.</p>`}
   </div>`;
 
-  return `${plainHeader('스위스', '취리히 우선 · 1회 환승 허용')}
-  <div class="wrap">
-    ${head}${lowTop}${byStops}
-    <section class="sec"><div class="sec-hd"><div>
-      <h2>도시별 최저</h2><p>가격이 없어도 노선은 목록에 남깁니다</p></div></div>
-      <div class="panel">${cityRows}</div></section>
-    ${pos}${swissNote()}${footerHTML()}</div>`;
+  return `${plainHeader('스위스', '취리히 우선 · 환승 제한 없음')}
+  <div class="wrap">${head}${sections}${pos}${swissNote()}${footerHTML()}</div>`;
 }
 
 function swissNote() {
   return `<div class="note" style="margin-top:16px"><b>이 소스로 알 수 없는 것</b>
-    <p>Travelpayouts 캘린더 응답에는 총 여행시간과 환승 대기시간이 들어 있지
+    <p>Travelpayouts 응답에는 총 여행시간과 환승 대기시간이 들어 있지
     않습니다. 그래서 그 두 가지는 정렬에 넣지 못했고, 화면에도 지어내지
-    않았습니다. 실제 소요시간은 예약 페이지에서 확인하세요.</p></div>`;
+    않았습니다. 환승 횟수만 표시합니다. 실제 소요시간은 예약 페이지에서
+    확인하세요.</p></div>`;
 }
 
 function swissDiag() {
