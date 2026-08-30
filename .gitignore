@@ -2,3 +2,4 @@ __pycache__/
 *.pyc
 tp_config.json
 .travelpayouts.json
+public/

@@ -5,6 +5,11 @@ on:
     # 07:00 KST = 22:00 UTC (전날). GitHub cron 은 UTC 기준.
     - cron: "0 22 * * *"
   workflow_dispatch:        # 수동 실행 버튼
+  push:                     # 화면(web/) 만 고쳐도 바로 반영되도록
+    branches: ["**"]
+    paths:
+      - "web/**"
+      - ".github/workflows/daily.yml"
 
 permissions:
   contents: write           # price_history.json 커밋
@@ -19,6 +24,8 @@ jobs:
   scan:
     runs-on: ubuntu-latest
     timeout-minutes: 30      # 응답 지연으로 러너가 매달리는 것 방지
+    outputs:
+      scanned: ${{ steps.mode.outputs.scan }}
     steps:
       - uses: actions/checkout@v4
 
@@ -26,7 +33,20 @@ jobs:
         with:
           python-version: "3.13"
 
+      # web/ 만 바뀐 push 는 API 를 다시 때리지 않는다.
+      # 이미 레포에 있는 deals.json 을 그대로 쓰고 화면만 재배포한다.
+      - name: 실행 모드 결정
+        id: mode
+        run: |
+          if [ "${{ github.event_name }}" = "push" ] && [ -f flight-deals/state/deals.json ]; then
+            echo "scan=false" >> "$GITHUB_OUTPUT"
+            echo "web/ 변경 → 스캔 생략, 기존 데이터로 재배포"
+          else
+            echo "scan=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: 스캔 실행
+        if: steps.mode.outputs.scan == 'true'
         env:
           TP_TOKEN: ${{ secrets.TP_TOKEN }}
         run: |
@@ -38,20 +58,25 @@ jobs:
 
       - name: 결과 확인
         run: |
-          test -f flight-deals/latest.html || { echo "::error::latest.html 이 생성되지 않았습니다"; exit 1; }
+          test -f flight-deals/state/deals.json || { echo "::error::deals.json 이 없습니다"; exit 1; }
           python - <<'EOF'
           import json, sys
+          d = json.load(open("flight-deals/state/deals.json", encoding="utf-8"))
           b = json.load(open("flight-deals/state/brief.json", encoding="utf-8"))
+          print(f"schema={d['schema']} offers={len(d['offers'])} routes={len(d['routes'])}")
           print(f"status={b['status']}  {b['headline']}")
           print("counts:", b["counts"])
+          for k in ("meta", "routes", "offers", "access_cost_default"):
+              if k not in d:
+                  print(f"::error::deals.json 에 {k} 가 없습니다"); sys.exit(1)
           if b["status"] == "FAILED":
-              print(f"::error::스캔 실패 — {b.get('reason')}")
-              sys.exit(1)
+              print(f"::error::스캔 실패 — {b.get('reason')}"); sys.exit(1)
           if b["status"] == "PARTIAL":
-              print("::warning::기준을 넘는 딜이 없습니다 (정상일 수 있음)")
+              print("::warning::비교 가능한 항공권이 없습니다 (정상일 수 있음)")
           EOF
 
       - name: 상태 파일 커밋
+        if: steps.mode.outputs.scan == 'true'
         run: |
           git config user.name  "flight-scanner"
           git config user.email "actions@github.com"
@@ -63,13 +88,15 @@ jobs:
             git push
           fi
 
+      # Pages 산출물 = 정적 앱(web/) + 데이터(deals.json, brief.json)
       - name: Pages 산출물 준비
         run: |
           mkdir -p public
-          cp flight-deals/latest.html public/index.html
+          cp web/index.html web/app.css web/app.js public/
+          cp flight-deals/state/deals.json public/deals.json
           cp flight-deals/state/brief.json public/brief.json
-          mkdir -p public/archive
-          cp -r flight-deals/archive/. public/archive/ 2>/dev/null || true
+          ls -la public
+          echo "deals.json $(du -h public/deals.json | cut -f1)"
 
       - uses: actions/upload-pages-artifact@v3
         with:

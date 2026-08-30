@@ -376,6 +376,7 @@ def normalize(org, dst, city, region, dep, nights, v, flex=None, window=None):
         "expires_at": v.get("expires_at"),
         "link": aviasales_link(org, dst, d0, d1),
         "dep_hour": dep_hour,
+        "ret_hour": parse_hour(v.get("return_at")),
         "holiday": tp["holiday"],
         "weekend": tp["weekend"],
         "red_days": tp["red"],
@@ -383,7 +384,7 @@ def normalize(org, dst, city, region, dep, nights, v, flex=None, window=None):
         "night_departure": tp["night_departure"],
         # 사용자 기준: 주말(토·일) 포함 + 연차 0~1일.
         # 빨간날이 붙으면 그만큼 일정이 길어져도 조건을 유지한다.
-        "weekend_trip": tp["weekend"] and tp["leave"] <= 1,
+        "weekend_trip": tp["weekend"] and tp["leave"] <= 1.0,
     }
 
 
@@ -407,16 +408,37 @@ def parse_hour(ts):
     return h if 0 <= h <= 23 else None
 
 
+def leave_for_departure_day(dep_hour):
+    """출국일이 평일일 때 드는 연차. 출발 시각으로 0 / 0.5 / 1 을 가른다.
+
+      20시 이후  → 0    퇴근하고 그대로 공항
+      18~20시    → 0.5  반차
+      그 외       → 1
+    시각을 모르면(=None) 보수적으로 1 로 센다.
+    """
+    if dep_hour is None:
+        return 1.0
+    if dep_hour >= 20:
+        return 0.0
+    if dep_hour >= 18:
+        return 0.5
+    return 1.0
+
+
 def trip_profile(d0, d1, dep_hour=None):
     """여행 구간의 빨간날·연차 구성.
 
     연차 기준 (청주 거주자 시점):
       - 토·일·공휴일은 연차가 들지 않는다.
-      - 그 외 평일은 출국일·귀국일을 포함해 전부 연차 1일로 센다.
+      - 그 외 평일은 출국일·귀국일을 포함해 연차 1일로 센다.
         토·일·월(공휴일)·화 일정이면 화요일 1일만 연차다.
-      - 단, 평일 19시 이후 출발이면 그 날은 퇴근 후 탑승이므로 세지 않는다.
+      - 출국일이 평일이면 출발 시각에 따라 0 / 0.5 / 1 로 나눈다.
+
+    귀국일은 항상 1로 센다. 캘린더 API 의 return_at 은 도착이 아니라
+    현지 출발 시각이라 한국 도착 시각을 알 수 없기 때문이다. 모르는 것을
+    유리하게 반올림하지 않는다.
     """
-    weekend, red, leave, holi = False, 0, 0, None
+    weekend, red, leave, holi = False, 0, 0.0, None
     night_dep = False
     d = d0
     while d <= d1:
@@ -428,12 +450,14 @@ def trip_profile(d0, d1, dep_hour=None):
             weekend = True
         if d.weekday() >= 5 or is_hol:
             red += 1
-        elif d == d0 and dep_hour is not None and dep_hour >= 19:
-            night_dep = True          # 퇴근 후 심야 출발 → 연차 불필요
+        elif d == d0:
+            cost = leave_for_departure_day(dep_hour)
+            leave += cost
+            night_dep = cost < 1.0
         else:
-            leave += 1
+            leave += 1.0
         d += timedelta(days=1)
-    return {"weekend": weekend, "red": red, "leave": leave,
+    return {"weekend": weekend, "red": red, "leave": round(leave, 1),
             "holiday": holi, "night_departure": night_dep}
 
 
@@ -551,93 +575,130 @@ def pick_baseline(o, baselines):
     return None, None
 
 
-def grade(o):
-    """A는 이 소스로 불가. B가 천장."""
-    if not o["roundtrip_verified"]:
-        return "C", "왕복 미검증 (return_at 없음)"
-    if o.get("baseline") is None:
-        return "C", "정상가 표본 부족 (3단 기준선 모두 실패)"
-    if not o.get("link"):
-        return "C", "링크 없음"
-    return "B", "캐시 데이터 · 실시간 아님"
+# ── 특가 판정 ─────────────────────────────────────────────
+# ★ 이 판정식은 web/app.js 의 dealTier()/dealScore() 와 같은 규칙이다.
+#   여기(파이썬)는 brief.json — 설정 없이 읽히는 아침 브리프 — 전용이고,
+#   화면에 보이는 값은 항상 app.js 가 사용자 설정으로 다시 계산한다.
+#   한쪽을 고치면 반드시 다른 쪽도 같이 고쳐야 한다.
+
+STRONG_PCT_DEFAULT = 30      # 강력 특가 기준: 평균 대비 몇 % 이상 저렴한가
 
 
-def verdict(pct):
-    if pct is None:      return "판정 제외"
-    if pct >= 70:        return "🚨 Error Fare 검증"
-    if pct >= 50:        return "초특가"
-    if pct >= 35:        return "강력 특가"
-    if pct >= 20:        return "특가"
-    if pct >= 10:        return "괜찮은 가격"
-    return "일반 저가"
+def confidence(n):
+    """표본 수 → 신뢰도. 표본이 적으면 가격이 싸도 강력 특가로 올리지 않는다."""
+    if n >= 10:
+        return "높음"
+    if n >= 5:
+        return "보통"
+    if n >= 3:
+        return "낮음"
+    return "참고"
 
 
-def score(o):
-    """청주 거주자 + 주말여행 기준 배점.
+def deal_tier(pct, n, strong=STRONG_PCT_DEFAULT):
+    """평균 대비 할인율 + 표본 수 → 특가 등급.
 
-    할인율 35 · 실부담가 15 · 주말적합도 22 · 접근성 10 · 직항 8 · 연휴 6
-    = 96점 만점. B등급 계수 0.85 를 곱하므로 실질 상한은 82점이다.
+    strong / deal 은 표본 문턱을 함께 넘어야 한다. 표본 3건짜리 노선에서
+    '평균보다 60% 싸다'는 말은 평균이 곧 그 3건이라는 뜻이라 근거가 못 된다.
     """
-    if o["grade"] == "C":
-        return None
-    pct = o.get("discount_pct") or 0
-    s = min(pct, 60) / 60 * 35                                     # 할인율 0~35
+    if pct is None:
+        return "unknown"
+    if pct >= strong and n >= 10:
+        return "strong"
+    if pct >= 20 and n >= 5:
+        return "deal"
+    if pct >= 10 and n >= 3:
+        return "candidate"
+    if pct >= strong:            # 싸지만 표본이 모자라 확정 못 함
+        return "candidate"
+    return "normal"
+
+
+TIER_LABEL = {"strong": "강력 특가", "deal": "특가",
+              "candidate": "특가 후보", "normal": "일반",
+              "unknown": "비교 불가"}
+
+
+def deal_score(o, access=0, strong=STRONG_PCT_DEFAULT):
+    """0~100. 정렬 보조용이며 화면에 숫자로 노출하지 않는다.
+
+    할인율 40 · 과거 최저 근접 15 · 실부담 절대수준 15
+    · 직항 10 · 신규 5 · 최근 하락 7 · 주말 적합 8
+    합계에 표본 신뢰도 계수를 곱한다.
+    """
+    pct = o.get("discount_pct")
+    if pct is None:
+        return 0
+    sc = max(0.0, min(pct / max(strong, 1), 1.0)) * 40
+
+    lo = o.get("low_all")
+    if lo:
+        # 추적기간 최저와 같거나 낮으면 만점, 30% 위면 0점
+        gap = (o["price_krw"] - lo) / lo
+        sc += max(0.0, 1 - gap / 0.30) * 15
 
     base = REGION_BASE.get(o["region"], 300000)
-    eff = o.get("effective_krw") or o["price_krw"]
-    s += max(0.0, min((base - eff) / base, .5)) / .5 * 15          # 실부담가 0~15
-
-    # 주말 적합도 — 주말이 안 걸린 일정은 이 항목에서 0점이다.
-    if o.get("weekend"):
-        s += {0: 22, 1: 17, 2: 8}.get(o["annual_leave"], 0)
-
-    s += ACCESS_SCORE.get(o["dep"], 0)                             # 접근성 0~10
+    eff = o["price_krw"] + access
+    sc += max(0.0, min((base - eff) / base, .5)) / .5 * 15
 
     st = o.get("stops")
-    s += 8 if st == 0 else (4 if st == 1 else 0)                   # 직항 0~8
-    if o["holiday"]:
-        s += 6                                                      # 연휴 보너스
-    return round(min(s, 100) * (1.0 if o["grade"] == "A" else .85))
+    sc += 10 if st == 0 else (5 if st == 1 else 0)
+    if o.get("change") == "new":
+        sc += 5
+    if o.get("change") == "down":
+        sc += 7
+    if o.get("weekend_trip"):
+        sc += 8
+
+    mult = {"높음": 1.0, "보통": .9, "낮음": .75}.get(
+        confidence(o.get("baseline_n", 0)), .55)
+    return round(min(sc * mult, 100))
 
 
 def enrich(offers, baselines):
+    """offer 에 기준선·할인율·등급을 붙인다.
+
+    실부담가와 최종 점수는 여기서 확정하지 않는다. 교통비가 사용자 설정이라
+    화면에서 다시 계산해야 하기 때문이다. 여기서는 교통비와 무관한 사실
+    (기준선, 할인율, 표본, 신뢰도)까지만 확정한다.
+    """
     for o in offers:
         bl, tier = pick_baseline(o, baselines)
         o["baseline_tier"] = tier
         o["baseline"] = bl["median"] if bl else None
+        o["baseline_avg"] = bl["mean"] if bl else None
         o["baseline_n"] = bl["n"] if bl else 0
-        if bl:
-            o["bl_mean"], o["bl_min"], o["bl_max"] = bl["mean"], bl["min"], bl["max"]
-            span = bl["max"] - bl["min"]
-            # 0 = 그 노선·박수 최저가, 100 = 최고가
-            o["band_pos"] = round((o["price_krw"] - bl["min"]) / span * 100) if span else 0
-            o["vs_mean"] = round((o["price_krw"] - bl["mean"]) / bl["mean"] * 100, 1)
-        else:
-            o["bl_mean"] = o["bl_min"] = o["bl_max"] = None
-            o["band_pos"] = o["vs_mean"] = None
-        if o["baseline"]:
-            # 할인율은 실가격 기준이다. 이동비용은 같은 출발지 안에서 상수라
-            # 어차피 상쇄되고, 사용자에게 익숙한 숫자는 항공권 실가격이다.
-            o["saving"] = o["baseline"] - o["price_krw"]
-            o["discount_pct"] = round(o["saving"] / o["baseline"] * 100, 1)
-            o["eff_baseline"] = o["baseline"] + o.get("access_cost", 0)
-        else:
-            o["saving"] = o["discount_pct"] = o["eff_baseline"] = None
-        g, why = grade(o)
-        o["grade"], o["grade_reason"] = g, why
-        o["verdict"] = verdict(o["discount_pct"]) if g != "C" else "판정 제외"
-        o["deal_score"] = score(o)
+        o["confidence"] = confidence(o["baseline_n"])
 
-    if offers and all(o["grade"] == "C" for o in offers):
+        if o["baseline"]:
+            # 평균가 대비 차액. 양수 = 그만큼 싸다, 음수 = 그만큼 비싸다.
+            # 화면에서는 부호를 그대로 노출하지 않고 "저렴/비쌈"으로 바꿔 쓴다.
+            o["diff_krw"] = o["baseline"] - o["price_krw"]
+            o["discount_pct"] = round(o["diff_krw"] / o["baseline"] * 100, 1)
+        else:
+            o["diff_krw"] = o["discount_pct"] = None
+
+        # 데이터 품질 — 등급이 아니라 "이 값을 믿을 수 있는가"
+        if not o["roundtrip_verified"]:
+            o["data_ok"], o["data_note"] = False, "왕복 총액 미확인"
+        elif o["baseline"] is None:
+            o["data_ok"], o["data_note"] = False, "비교할 표본 없음"
+        else:
+            o["data_ok"], o["data_note"] = True, None
+
+        o["tier"] = deal_tier(o["discount_pct"], o["baseline_n"]) \
+            if o["data_ok"] else "unknown"
+        o["tier_label"] = TIER_LABEL[o["tier"]]
+
+    bad = [o for o in offers if not o["data_ok"]]
+    if offers and len(bad) == len(offers):
         reasons = {}
-        for o in offers:
-            reasons[o["grade_reason"]] = reasons.get(o["grade_reason"], 0) + 1
+        for o in bad:
+            reasons[o["data_note"]] = reasons.get(o["data_note"], 0) + 1
         top = max(reasons.items(), key=lambda x: x[1])
-        print(f"\n⚠️  전체 {len(offers)}건이 모두 C등급 → 브리프가 비게 됩니다.")
+        print(f"\n⚠️  전체 {len(offers)}건이 비교 불가 → 브리프가 비게 됩니다.")
         print(f"    최다 사유: {top[0]} ({top[1]}건)")
-        if "return_at" in top[0]:
-            print("    → python3 scanner.py --raw 로 응답 구조를 재확인하세요.")
-        ERRORS.append(f"전건 C등급 강등: {top[0]}")
+        ERRORS.append(f"전건 비교 불가: {top[0]}")
     return offers
 
 
@@ -670,6 +731,70 @@ def track_lows(offers, hist):
                        "city": o["city"]}
     hist["route_lows"] = lows
     return lows
+
+
+def track_routes(offers, hist):
+    """노선별 일자 최저가를 누적한다. 30일 최저·90일 그래프의 근거.
+
+    price_history 의 deals 는 offer 단위(출발일까지 포함)라 노선 전체의
+    시세 흐름을 못 본다. 노선 단위 일별 최저가를 따로 쌓는다.
+    90일이 지난 것은 버린다 — 파일이 무한히 커지면 매 실행 커밋이 무거워진다.
+    """
+    daily = hist.get("route_daily", {})
+    today = str(date.today())
+    todays = {}
+    for o in offers:
+        k = f"{o['dep']}-{o['arr']}"
+        p = o["price_krw"]
+        if k not in todays or p < todays[k]:
+            todays[k] = p
+    for k, p in todays.items():
+        daily.setdefault(k, {})[today] = p
+
+    cut = str(date.today() - timedelta(days=90))
+    for k in list(daily):
+        kept = {d: p for d, p in daily[k].items() if d >= cut}
+        if kept:
+            daily[k] = kept
+        else:
+            del daily[k]
+    hist["route_daily"] = daily
+    return daily
+
+
+def route_stats(offers, daily, lows):
+    """노선별 집계. 용어를 여기서 한 번만 정의하고 화면은 그대로 쓴다.
+
+      today_low  오늘 최저가      — 이번 스캔에서 가장 싼 값
+      avg        노선 평균가      — 이번 스캔 평균
+      low30      최근 30일 최저   — route_daily 30일 구간의 최저
+      low_all    추적 기간 최저   — 추적 시작 이후 전체 최저
+    """
+    groups = {}
+    for o in offers:
+        groups.setdefault(f"{o['dep']}-{o['arr']}", []).append(o)
+
+    c30 = str(date.today() - timedelta(days=30))
+    out = {}
+    for k, pool in groups.items():
+        pr = sorted(p["price_krw"] for p in pool)
+        h30 = {d: p for d, p in daily.get(k, {}).items() if d >= c30}
+        rec = lows.get(k) or {}
+        first = pool[0]
+        out[k] = {
+            "dep": first["dep"], "arr": first["arr"], "city": first["city"],
+            "region": first["region"], "n": len(pr),
+            "today_low": pr[0],
+            "avg": int(statistics.fmean(pr)),
+            "median": int(statistics.median(pr)),
+            "low30": min(h30.values()) if h30 else None,
+            "low30_date": min(h30, key=h30.get) if h30 else None,
+            "low_all": rec.get("price"),
+            "low_all_date": rec.get("date"),
+            # 그래프용 일별 시계열 (오래된 것부터)
+            "series": [{"d": d, "p": p} for d, p in sorted(daily.get(k, {}).items())],
+        }
+    return out
 
 
 def diff(offers, hist):
@@ -717,726 +842,6 @@ def diff(offers, hist):
     return stats, gone
 
 
-# ══════════════════════════════════════════════════════════
-# 렌더
-# ══════════════════════════════════════════════════════════
-
-CSS = """
-:root{
---bg:#F4F5FA;--surf:#FFF;--surf2:#F8F9FD;--line:#E7E9F2;--line2:#EFF1F8;
---tx:#191C2A;--tx2:#666D85;--tx3:#9BA2B6;
---pri:#6C4CE6;--priw:#F1EDFE;--prib:#DCD3FB;
---good:#12A150;--goodw:#E8F8EF;--bad:#E5484D;--badw:#FDECEC;
---warn:#DF8A1F;--warnw:#FDF4E7;--info:#2E6BE6;--infow:#EBF1FE;
---mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
---sans:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo",Pretendard,system-ui,sans-serif;
---sh:0 1px 2px rgba(20,24,44,.05),0 2px 10px rgba(20,24,44,.04);
---nav:64px}
-*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{margin:0;padding:0}
-body{background:var(--bg);color:var(--tx);font-family:var(--sans);font-size:15px;
-line-height:1.5;-webkit-text-size-adjust:100%;
-padding-bottom:calc(var(--nav) + env(safe-area-inset-bottom))}
-.num{font-family:var(--mono);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
-.mut{color:var(--tx3);font-size:11.5px;font-weight:500}
-h3,h4{margin:0}
-
-/* ── 헤더 ───────────────────────────────────────────── */
-.bar{display:block}
-.hd{background:var(--surf);border-bottom:1px solid var(--line);
-padding:calc(12px + env(safe-area-inset-top)) 16px 12px;
-display:flex;align-items:center;gap:12px;position:relative;z-index:5}
-.hd .logo{width:38px;height:38px;border-radius:11px;background:var(--priw);
-display:grid;place-items:center;font-size:19px;flex:0 0 auto}
-.hd .ttl{flex:1;min-width:0}
-.hd h1{margin:0;font-size:16.5px;font-weight:800;letter-spacing:-.02em}
-.hd .sub{font-size:11.5px;color:var(--tx3);margin-top:1px}
-.hd .upd{text-align:right;font-size:10.5px;color:var(--tx3);line-height:1.45;flex:0 0 auto}
-.hd .upd b{display:block;color:var(--tx2);font-family:var(--mono);font-size:11px;font-weight:600}
-
-/* ── 출발지 칩 ──────────────────────────────────────── */
-nav.chips{display:flex;gap:8px;overflow-x:auto;padding:12px 16px;background:var(--surf);
-border-bottom:1px solid var(--line);scrollbar-width:none}
-nav.chips::-webkit-scrollbar{display:none}
-nav.chips button{flex:0 0 auto;display:flex;align-items:center;gap:6px;
-background:var(--surf);border:1px solid var(--line);border-radius:12px;
-color:var(--tx2);font-family:var(--sans);font-size:13.5px;font-weight:700;
-padding:10px 15px;cursor:pointer;white-space:nowrap;box-shadow:var(--sh)}
-nav.chips button.on{background:var(--pri);border-color:var(--pri);color:#fff}
-
-/* ── 메인 탭: 데스크톱 상단 알약 / 모바일 하단 바 ───── */
-nav.main{position:fixed;left:0;right:0;bottom:0;z-index:40;display:flex;
-background:rgba(255,255,255,.97);backdrop-filter:blur(12px);
-border-top:1px solid var(--line);overflow-x:auto;scrollbar-width:none;
-padding-bottom:env(safe-area-inset-bottom)}
-nav.main::-webkit-scrollbar{display:none}
-nav.main button{flex:1 1 0;min-width:0;background:none;border:none;cursor:pointer;
-display:flex;flex-direction:column;align-items:center;gap:3px;padding:9px 2px 8px;
-color:var(--tx3);font-family:var(--sans);font-size:10px;font-weight:700;
-white-space:nowrap}
-nav.main button .ic{font-size:18px;line-height:1}
-nav.main button .lg{display:none}
-nav.main button[aria-selected=true]{color:var(--pri)}
-
-/* ── 레이아웃 ───────────────────────────────────────── */
-.app{display:block}
-.side{display:none}
-main{padding:16px;max-width:1180px;margin:0 auto}
-.panel[hidden],div.sub[hidden]{display:none}
-
-/* ── 서브 탭 ────────────────────────────────────────── */
-nav.sub{display:flex;gap:7px;overflow-x:auto;padding:2px 0 6px;scrollbar-width:none}
-nav.sub::-webkit-scrollbar{display:none}
-nav.sub button{flex:0 0 auto;background:var(--surf);border:1px solid var(--line);
-border-radius:999px;color:var(--tx2);font-family:var(--sans);font-size:12.5px;
-font-weight:700;padding:8px 15px;cursor:pointer;white-space:nowrap}
-nav.sub button[aria-selected=true]{background:var(--pri);border-color:var(--pri);color:#fff}
-
-/* ── 요약 스트립 ────────────────────────────────────── */
-.strip{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:14px}
-.strip>div{background:var(--surf);border:1px solid var(--line);border-radius:13px;
-padding:11px 12px;box-shadow:var(--sh);min-width:0}
-.strip .k{font-size:10.5px;color:var(--tx3);margin-bottom:3px;font-weight:600;
-white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.strip .v{font-family:var(--mono);font-size:21px;font-weight:800;letter-spacing:-.03em}
-.strip .v.zero{color:var(--tx3)}.strip .v.g{color:var(--good)}
-.strip .v.w{color:var(--warn)}.strip .v.r{color:var(--bad)}
-.strip .v.i{color:var(--info)}.strip .v.p{color:var(--pri)}
-
-/* ── TOP5 타일 ──────────────────────────────────────── */
-.top5{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.top5 .tile:first-child{grid-column:1/-1}
-.tile{background:var(--surf);border:1px solid var(--line);border-radius:14px;
-padding:13px 14px;box-shadow:var(--sh);display:flex;flex-direction:column;
-text-decoration:none;color:inherit;position:relative;overflow:hidden}
-.tile:first-child{background:linear-gradient(160deg,#FFF5F6 0%,#FFF 55%);border-color:#FADCE0}
-.tile .rk{display:inline-flex;align-items:center;gap:5px;font-family:var(--mono);
-font-size:10.5px;font-weight:800;margin-bottom:8px}
-.tile .rk i{width:19px;height:19px;border-radius:6px;display:grid;place-items:center;
-font-style:normal;color:#fff;background:var(--tx3);font-size:11px}
-.tile.r1 .rk i{background:#E5484D}.tile.r2 .rk i{background:#F0770B}
-.tile.r3 .rk i{background:#E0A21C}
-.tile.r1 .rk{color:#E5484D}.tile.r2 .rk{color:#F0770B}.tile.r3 .rk{color:#B9860F}
-.tile .rt2{font-size:15px;font-weight:800;letter-spacing:-.02em;line-height:1.3;
-white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.tile .rc{font-family:var(--mono);font-size:11.5px;font-weight:700;color:var(--tx3);
-margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.tile .dt{font-size:11px;color:var(--tx2);margin-top:5px;font-family:var(--mono);
-white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.tile .pw{margin-top:auto;padding-top:10px}
-.tile .lb{display:inline-block;font-size:10px;font-weight:800;color:var(--bad);
-background:var(--badw);border-radius:6px;padding:3px 7px;margin-bottom:5px}
-.tile .pv{font-family:var(--mono);font-size:21px;font-weight:800;color:var(--bad);
-letter-spacing:-.03em}
-.tile .pv small{font-size:12px;font-weight:700}
-.tile .bd{font-family:var(--mono);font-size:10.5px;color:var(--tx3);margin-top:4px}
-.tile .sm{font-family:var(--mono);font-size:10px;color:var(--tx3);margin-top:7px;
-border-top:1px solid var(--line2);padding-top:7px;white-space:nowrap;
-overflow:hidden;text-overflow:ellipsis}
-.tile .bd{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.tile:first-child .rt2{font-size:19px}
-.tile:first-child .pv{font-size:27px}
-
-/* ── 카드 ───────────────────────────────────────────── */
-.card{background:var(--surf);border:1px solid var(--line);border-radius:14px;
-padding:14px 15px;margin-bottom:10px;box-shadow:var(--sh)}
-.card.c{border-style:dashed;box-shadow:none;background:var(--surf2)}
-.card .top{display:block}
-.pblock{margin-top:10px;padding-top:10px;border-top:1px solid var(--line2)}
-.card .route{font-family:var(--mono);font-size:11.5px;color:var(--tx3);font-weight:600}
-.card .city{font-size:16px;font-weight:800;margin-top:2px;letter-spacing:-.02em}
-.price{font-family:var(--mono);font-weight:800;letter-spacing:-.035em;line-height:1.1;
-font-size:25px;color:var(--tx)}
-.price .unit{font-size:12.5px;color:var(--tx2);margin-left:2px;font-weight:700}
-.tot{font-family:var(--mono);font-size:12.5px;font-weight:800;color:var(--bad);margin-top:4px}
-.sub-price{font-family:var(--mono);font-size:11px;color:var(--tx3);margin-top:3px}
-.row{display:flex;flex-wrap:wrap;gap:6px;margin-top:11px}
-.kv{display:flex;justify-content:space-between;gap:12px;padding:8px 0;
-border-top:1px solid var(--line2);font-size:12.5px}
-.kv .k{color:var(--tx3);flex:0 0 auto;font-weight:600}
-.kv .v{font-family:var(--mono);text-align:right}
-.b{display:inline-flex;font-family:var(--sans);font-size:10.5px;font-weight:800;
-padding:4px 8px;border-radius:7px;border:1px solid var(--line);color:var(--tx2);
-background:var(--surf2)}
-.b.g{color:var(--good);border-color:#BFE8D0;background:var(--goodw)}
-.b.w{color:var(--warn);border-color:#F5DFBB;background:var(--warnw)}
-.b.r{color:var(--bad);border-color:#F7C9CB;background:var(--badw)}
-.b.i{color:var(--info);border-color:#C6D9FB;background:var(--infow)}
-.b.p{color:var(--pri);border-color:var(--prib);background:var(--priw)}
-a.book{display:block;margin-top:11px;padding:11px;text-align:center;background:var(--pri);
-border-radius:10px;color:#fff;text-decoration:none;font-size:13px;font-weight:800}
-
-/* ── 존 / 표 / 밴드 ─────────────────────────────────── */
-.zone{background:var(--surf);border:1px solid var(--line);border-radius:16px;
-padding:15px 15px 16px;margin-bottom:14px;box-shadow:var(--sh)}
-.zone>h3{font-size:14px;font-weight:800;letter-spacing:-.02em;margin-bottom:3px}
-.zone>.desc{margin:0 0 12px;font-size:11.5px;color:var(--tx3);font-weight:500}
-.zone .card{background:var(--surf2);box-shadow:none}
-.zone .top5{margin-top:2px}
-.empty{border:1px dashed var(--line);border-radius:11px;padding:20px 15px;color:var(--tx3);
-font-size:13px;text-align:center;line-height:1.6;background:var(--surf2)}
-.empty b{display:block;color:var(--tx2);margin-bottom:4px}
-table.rt{width:100%;border-collapse:collapse;font-size:13px}
-table.rt th{text-align:right;font-size:11px;color:var(--tx3);padding:7px 8px;
-border-bottom:1px solid var(--line);font-weight:700}
-table.rt th:first-child{text-align:left}
-table.rt td{padding:11px 8px;border-bottom:1px solid var(--line2);text-align:right}
-table.rt td:first-child{text-align:left;line-height:1.35;font-weight:700}
-table.rt tr:last-child td{border-bottom:none}
-table.rt td.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
-table.rt td.g{color:var(--good);font-weight:800}
-table.rt td.w{color:var(--warn);font-weight:700}
-table.rt td.r{color:var(--bad);font-weight:800}
-.tw{overflow-x:auto;-webkit-overflow-scrolling:touch}
-.band{display:grid;gap:6px;padding:12px 2px;border-bottom:1px solid var(--line2)}
-.band:last-child{border-bottom:none}
-.band .bl{font-size:13px;line-height:1.35;font-weight:700}
-.band .br{display:flex;justify-content:space-between;align-items:baseline;
-font-family:var(--mono);font-size:13px;font-weight:700}
-.band .bar{position:relative;height:6px;border-radius:3px;
-background:linear-gradient(90deg,var(--good),var(--warn),var(--bad));opacity:.22}
-.band .bar i{position:absolute;top:-3px;width:3px;height:12px;border-radius:2px;
-margin-left:-1px;opacity:1}
-.band .bar i.g{background:var(--good)}.band .bar i.w{background:var(--warn)}
-.band .bar i.r{background:var(--bad)}
-.secstat{border-radius:13px;padding:13px 15px;margin-bottom:14px;font-size:13px;
-border:1px solid var(--line);background:var(--surf);line-height:1.6;box-shadow:var(--sh)}
-.secstat.part{border-left:4px solid var(--warn)}
-.secstat.fail{border-left:4px solid var(--bad)}
-.secstat b{display:block;margin-bottom:3px;font-weight:800}
-.secstat span{color:var(--tx2);font-size:12.5px}
-footer{padding:20px 16px 26px;color:var(--tx3);font-size:11px;line-height:1.75;
-text-align:center;font-family:var(--mono)}
-
-/* ── 데스크톱 ───────────────────────────────────────── */
-@media(min-width:1024px){
-body{padding-bottom:0}
-.app{display:grid;grid-template-columns:264px 1fr;align-items:start;
-min-height:100vh;max-width:1560px;margin:0 auto}
-.side{display:block;position:sticky;top:0;height:100vh;overflow-y:auto;
-background:var(--surf);border-right:1px solid var(--line);padding:20px 16px 26px}
-.side .brand{display:flex;align-items:center;gap:11px;margin-bottom:26px}
-.side .brand .logo{width:42px;height:42px;border-radius:12px;background:var(--priw);
-display:grid;place-items:center;font-size:21px}
-.side .brand h1{font-size:16px;font-weight:800;letter-spacing:-.02em}
-.side .brand .sub{font-size:11px;color:var(--tx3);margin-top:2px}
-.side h4{font-size:11px;color:var(--tx3);font-weight:700;margin:0 0 9px 3px;
-letter-spacing:.02em}
-.side .sgroup{margin-bottom:22px}
-.side .ob{display:flex;align-items:center;gap:9px;width:100%;background:var(--surf);
-border:1px solid var(--line);border-radius:12px;padding:11px 13px;margin-bottom:7px;
-font-family:var(--sans);font-size:13.5px;font-weight:700;color:var(--tx2);
-cursor:pointer;text-align:left}
-.side .ob .ic{font-size:15px}
-.side .ob b{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--tx3);font-weight:700}
-.side .ob.on{background:var(--pri);border-color:var(--pri);color:#fff}
-.side .ob.on b{color:rgba(255,255,255,.8)}
-.side .sum{background:var(--surf2);border:1px solid var(--line);border-radius:13px;padding:13px}
-.side .sum .r{display:flex;justify-content:space-between;align-items:center;
-padding:6px 0;font-size:12.5px;color:var(--tx2);font-weight:600}
-.side .sum .r b{font-family:var(--mono);font-size:12px;font-weight:800;color:#fff;
-background:var(--tx3);border-radius:7px;padding:2px 8px;min-width:32px;text-align:center}
-.side .sum .r b.g{background:var(--good)}.side .sum .r b.r{background:var(--bad)}
-.side .sum .r b.p{background:var(--pri)}.side .sum .r b.i{background:var(--info)}
-.side .tip{margin-top:18px;background:var(--warnw);border:1px solid #F3E2C4;
-border-radius:13px;padding:13px;font-size:11.5px;color:#8A6316;line-height:1.65}
-.side .tip b{display:block;margin-bottom:4px;font-size:12px}
-.bar{display:flex;align-items:center;gap:16px;padding:14px 26px;
-background:var(--surf);border-bottom:1px solid var(--line);
-position:sticky;top:0;z-index:30}
-.hd{order:2;margin-left:auto;padding:0;border:none;background:none;flex:0 0 auto}
-.hd .logo,.hd .ttl{display:none}
-nav.chips{display:none}
-nav.main{order:1;position:static;border-top:none;background:none;backdrop-filter:none;
-padding:0;gap:9px;max-width:none;flex:0 1 auto}
-nav.main button{flex:0 0 auto;min-width:0;flex-direction:row;gap:7px;
-background:var(--surf);border:1px solid var(--line);border-radius:13px;
-padding:10px 15px;font-size:13px;box-shadow:var(--sh);color:var(--tx2)}
-nav.main button .ic{font-size:15px}
-nav.main button .lg{display:inline}
-nav.main button .sm2{display:none}
-nav.main button[aria-selected=true]{background:var(--priw);border-color:var(--prib);color:var(--pri)}
-main{padding:18px 26px 40px}
-.strip{grid-template-columns:repeat(6,1fr)}
-.top5{grid-template-columns:repeat(5,1fr)}
-.top5 .tile:first-child{grid-column:auto}
-.tile:first-child .rt2{font-size:15px}
-.tile:first-child .pv{font-size:21px}
-.cards2{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
-.cards2 .card{margin-bottom:0}
-.card .top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
-.pblock{margin-top:0;padding-top:0;border-top:none;text-align:right;flex:0 0 auto}
-}
-@media(min-width:1440px){.cards2{grid-template-columns:repeat(3,1fr)}}
-"""
-
-
-JS = """
-function selMain(id){
-  document.querySelectorAll('nav.main button').forEach(function(x){
-    x.setAttribute('aria-selected', x.getAttribute('data-id')===id?'true':'false');});
-  document.querySelectorAll('section.panel').forEach(function(p){p.hidden=(p.id!=='p-'+id);});
-  window.scrollTo(0,0);
-}
-function selSub(pid,sid){
-  var root=document.getElementById('p-'+pid); if(!root) return;
-  root.querySelectorAll(':scope > nav.sub button').forEach(function(x){
-    x.setAttribute('aria-selected', x.getAttribute('data-id')===sid?'true':'false');});
-  root.querySelectorAll(':scope > div.sub').forEach(function(d){d.hidden=(d.id!=='s-'+sid);});
-  document.querySelectorAll('[data-go]').forEach(function(x){
-    x.classList.toggle('on', x.getAttribute('data-sub')===sid);});
-}
-document.querySelectorAll('nav.main button').forEach(function(b){
-  b.addEventListener('click',function(){selMain(b.getAttribute('data-id'));},false);});
-document.querySelectorAll('nav.sub button').forEach(function(b){
-  var pid=b.closest('section.panel').id.slice(2);
-  b.addEventListener('click',function(){selSub(pid,b.getAttribute('data-id'));},false);});
-document.querySelectorAll('[data-go]').forEach(function(b){
-  b.addEventListener('click',function(){
-    var g=b.getAttribute('data-go');selMain(g);selSub(g,b.getAttribute('data-sub'));},false);});
-document.querySelectorAll('[data-reload]').forEach(function(b){
-  b.addEventListener('click',function(){location.reload();},false);});
-"""
-
-
-
-def esc(x):
-    return (str(x).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"))
-
-
-def tile(o, rank):
-    """TOP 타일. 실가격이 큰 숫자, 교통비 포함 총액은 바로 아래 보조 표기."""
-    cls = f"tile r{rank}" if rank <= 3 else "tile"
-    if o.get("access_cost"):
-        bd = (f'<div class="bd">총액 {o["effective_krw"]:,} '
-              f'· 이동 +{o["access_cost"]:,}</div>')
-    else:
-        bd = '<div class="bd">이동비 0원 · 집 앞 공항</div>'
-    wkd = (f' · 주말 연차{o["annual_leave"]}' if o.get("weekend_trip") else "")
-    return (f'<a class="{cls}" href="{o["link"]}" target="_blank" rel="noopener">'
-            f'<div class="rk"><i>{rank}</i>{esc(o.get("verdict") or "")}</div>'
-            f'<div class="rt2">{esc(o["city"])}</div>'
-            f'<div class="rc">{o["dep"]} → {o["arr"]} · {esc(o["airline_kr"])}</div>'
-            f'<div class="dt">{o["depart_date"][5:]}~{o["return_date"][5:]} · '
-            f'{o["nights"]}박{o["nights"]+1}일</div>'
-            f'<div class="pw"><span class="lb">항공권 실가격</span>'
-            f'<div class="pv">{o["price_krw"]:,}<small>원</small></div>{bd}</div>'
-            f'<div class="sm">표본 {o.get("baseline_n", 0)} · '
-            f'SCORE {o.get("deal_score") or "-"}{wkd}</div></a>')
-
-
-def tiles(items, empty_msg):
-    if not items:
-        return f'<div class="empty"><b>0건</b>{empty_msg}</div>'
-    return ('<div class="top5">'
-            + "".join(tile(o, i + 1) for i, o in enumerate(items)) + '</div>')
-
-
-def card(o):
-    ch = {"new": '<span class="b i">🆕 NEW</span>',
-          "down": f'<span class="b g">📉 {o["delta"]:+,}원</span>' if o.get("delta") else "",
-          "up": f'<span class="b w">📈 {o["delta"]:+,}원</span>' if o.get("delta") else "",
-          }.get(o.get("change"), "")
-    extra = ""
-    if o.get("weekend_trip"):
-        extra += f'<span class="b g">🔥 주말+연차{o["annual_leave"]}일</span>'
-    elif o.get("weekend"):
-        extra += f'<span class="b">주말 · 연차{o["annual_leave"]}일</span>'
-    else:
-        extra += f'<span class="b">주말 없음 · 연차{o["annual_leave"]}일</span>'
-    if o.get("night_departure"): extra += '<span class="b i">🌙 퇴근후 출발</span>'
-    if o.get("record_low"):   extra += '<span class="b g">🏆 추적내 최저</span>'
-    if o.get("route_record_low") and o.get("route_low_prev"):
-        extra += '<span class="b g">🔻 노선 역대최저</span>'
-    if o.get("streak_down"):  extra += '<span class="b g">📉 연속하락</span>'
-    if o.get("holiday"):      extra += f'<span class="b r">🎉 {esc(o["holiday"])}</span>'
-
-    gb = {"A": '<span class="b g">A</span>', "B": '<span class="b w">B · 캐시</span>',
-          "C": '<span class="b">C</span>'}[o["grade"]]
-    sc = (f'<span class="b i">SCORE {o["deal_score"]}</span>'
-          if o.get("deal_score") else "")
-    st = {0: "직항", 1: "1회 환승"}.get(o.get("stops"), "환승")
-    eff = (f'<div class="tot">총액 {o["effective_krw"]:,}원</div>'
-           f'<div class="sub-price">항공 {o["price_krw"]:,} + 이동 '
-           f'{o["access_cost"]:,}</div>') if o.get("access_cost") else ""
-
-    kv = (f'<div class="kv"><span class="k">일정 구성</span><span class="v">'
-          f'{"주말 포함" if o.get("weekend") else "주말 없음"} · '
-          f'빨간날 {o.get("red_days", 0)}일 · 연차 {o["annual_leave"]}일'
-          f'</span></div>')
-    if o.get("access_cost"):
-        kv += (f'<div class="kv"><span class="k">실부담가 ({HOME} 기준)</span>'
-               f'<span class="v">{o["effective_krw"]:,}원 '
-               f'<span style="color:var(--tx3)">= {o["price_krw"]:,} + 이동 '
-               f'{o["access_cost"]:,}</span></span></div>')
-    if o.get("route_low_prev"):
-        kv += (f'<div class="kv"><span class="k">노선 역대최저</span>'
-               f'<span class="v">{o["route_low_prev"]:,}원 '
-               f'<span style="color:var(--tx3)">{esc(o.get("route_low_date") or "")}</span>'
-               f'</span></div>')
-    if o.get("baseline"):
-        kv += (f'<div class="kv"><span class="k">기준선(중앙값)</span>'
-               f'<span class="v">{o["baseline"]:,}원 · 표본 {o["baseline_n"]}'
-               f'<span style="color:var(--tx3)"> · {esc(o.get("baseline_tier") or "")}'
-               f'</span></span></div>'
-               f'<div class="kv"><span class="k">절감 / 할인율</span>'
-               f'<span class="v">{o["saving"]:,}원 · {o["discount_pct"]}%</span></div>')
-    kv += (f'<div class="kv"><span class="k">판정</span><span class="v">{esc(o["verdict"])}</span></div>'
-           f'<div class="kv"><span class="k">등급 사유</span>'
-           f'<span class="v" style="color:var(--tx3)">{esc(o["grade_reason"])}</span></div>')
-    if not o["roundtrip_verified"]:
-        kv += ('<div class="kv"><span class="k">⚠️ 주의</span>'
-               '<span class="v" style="color:var(--warn)">왕복 총액 미확인</span></div>')
-
-    return f"""<article class="card{' c' if o['grade']=='C' else ''}">
-<div class="top"><div><div class="route">{o['dep']} → {o['arr']} · {esc(o['airline_kr'])} · {st}</div>
-<div class="city">{esc(o['city'])}</div></div>
-<div class="pblock"><div class="price">{o['price_krw']:,}<span class="unit">원</span></div>
-<div class="sub-price">{o['depart_date'][5:]} → {o['return_date'][5:]} · {o['nights']}박{o['nights']+1}일</div>
-{eff}</div></div>
-<div class="row">{gb}{sc}{ch}{extra}</div>{kv}
-<a class="book" href="{o['link']}" target="_blank" rel="noopener">항공권 검색 →</a></article>"""
-
-
-def route_summary(offers):
-    """노선별 요약 표. '지금 이 노선이 싼가'에 한 줄로 답한다."""
-    g = {}
-    for o in offers:
-        g.setdefault((o["dep"], o["arr"], o["city"]), []).append(o)
-    rows = []
-    for (dep, arr, city), pool in g.items():
-        pr = sorted(p["price_krw"] for p in pool)
-        lo, mid = pr[0], int(statistics.median(pr))
-        best = min(pool, key=lambda x: x["price_krw"])
-        gap = round((lo - mid) / mid * 100) if mid else 0
-        rows.append({"dep": dep, "arr": arr, "city": city, "n": len(pool),
-                     "min": lo, "median": mid, "max": pr[-1], "gap": gap,
-                     "best": best})
-    rows.sort(key=lambda r: r["gap"])          # 평균 대비 많이 싼 노선 먼저
-
-    out = ['<div class="tw"><table class="rt"><thead><tr><th>노선</th><th>건수</th>'
-           '<th>최저</th><th>중앙</th><th>최저-중앙</th></tr></thead><tbody>']
-    for r in rows:
-        cls = "g" if r["gap"] <= -15 else ("w" if r["gap"] <= -5 else "")
-        out.append(
-            f'<tr><td><b>{esc(r["city"])}</b><br><span class="mut">{r["dep"]}→{r["arr"]}</span></td>'
-            f'<td class="num">{r["n"]}</td>'
-            f'<td class="num">{r["min"]:,}</td>'
-            f'<td class="num mut">{r["median"]:,}</td>'
-            f'<td class="num {cls}">{r["gap"]:+d}%</td></tr>')
-    out.append("</tbody></table></div>")
-    return "".join(out)
-
-
-def band_rows(offers, limit=40):
-    """가격대 안에서 지금 어디쯤인지 막대로. 특가가 아니어도 전부 보인다."""
-    pool = [o for o in offers if o.get("band_pos") is not None]
-    pool.sort(key=lambda x: (x["band_pos"], x["price_krw"]))
-    out = []
-    for o in pool[:limit]:
-        p = o["band_pos"]
-        cls = "g" if p <= 20 else ("w" if p <= 60 else "r")
-        vm = o["vs_mean"]
-        out.append(
-            f'<div class="band"><div class="bl">'
-            f'<b>{esc(o["city"])}</b> <span class="mut">{o["dep"]}→{o["arr"]} · '
-            f'{o["depart_date"][5:]} {o["nights"]}박</span></div>'
-            f'<div class="bar"><i class="{cls}" style="left:{p}%"></i></div>'
-            f'<div class="br"><b>{o["price_krw"]:,}</b>'
-            f'<span class="mut">평균 {vm:+.0f}% · 표본 {o["baseline_n"]}</span></div></div>')
-    if not out:
-        return '<div class="empty"><b>0건</b>기준선이 만들어진 노선이 없습니다.</div>'
-    return "".join(out)
-
-
-def origin_compare(offers):
-    """같은 도시를 어느 공항에서 뜨는 게 유리한가.
-
-    청주 거주자에게 실제로 필요한 판단이다. 인천이 5만원 싸도 리무진 왕복
-    4만원이면 실이득은 1만원이라는 것을 한 줄로 보여준다.
-    실가격이 주 표기이고, 실부담가는 그 옆에 보조로 붙는다.
-    """
-    by_city = {}
-    for o in offers:
-        if o["grade"] == "C":
-            continue
-        cur = by_city.setdefault(o["city"], {}).get(o["dep"])
-        if cur is None or o["price_krw"] < cur["price_krw"]:
-            by_city[o["city"]][o["dep"]] = o
-    if not by_city:
-        return '<div class="empty"><b>0건</b>비교할 검증 딜이 없습니다.</div>'
-
-    # 실부담가 최저를 기준으로, 청주 대비 이득이 큰 도시부터
-    def city_key(item):
-        _, per = item
-        best = min(per.values(), key=lambda x: x["effective_krw"])
-        home = per.get(HOME)
-        return -((home["effective_krw"] - best["effective_krw"]) if home else 0)
-
-    out = []
-    for city, per in sorted(by_city.items(), key=city_key):
-        rows = sorted(per.values(), key=lambda x: x["effective_krw"])
-        cheap_air = min(r["price_krw"] for r in rows)
-        cheap_eff = rows[0]["effective_krw"]
-        body = []
-        for r in rows:
-            marks = []
-            if r["price_krw"] == cheap_air: marks.append('<span class="b w">항공권 최저</span>')
-            if r["effective_krw"] == cheap_eff: marks.append('<span class="b g">실부담 최저</span>')
-            if r["dep"] == HOME: marks.append('<span class="b i">홈</span>')
-            body.append(
-                f'<tr><td><b>{r["dep"]}</b>→{r["arr"]}<br>'
-                f'<span class="mut">{r["depart_date"][5:]} {r["nights"]}박 · '
-                f'{esc(r["airline_kr"])}</span></td>'
-                f'<td class="num">{r["price_krw"]:,}</td>'
-                f'<td class="num mut">+{r["access_cost"]:,}</td>'
-                f'<td class="num{" g" if r["effective_krw"] == cheap_eff else ""}">'
-                f'{r["effective_krw"]:,}</td>'
-                f'<td>{"".join(marks)}</td></tr>')
-        home = per.get(HOME)
-        if home:
-            gap = home["effective_krw"] - cheap_eff
-            note = (f'{HOME} 가 실부담 최저' if gap <= 0 else
-                    f'{HOME} 대비 실이득 {gap:,}원')
-        else:
-            note = f'{HOME} 출발 없음'
-        out.append(
-            f'<div class="zone"><h3>{esc(city)}</h3><p class="desc">{note}</p>'
-            f'<div class="tw"><table class="rt"><thead><tr><th>공항</th><th>실가격</th>'
-            f'<th>이동비</th><th>총액</th><th></th></tr></thead>'
-            f'<tbody>{"".join(body)}</tbody></table></div></div>')
-    return "".join(out)
-
-
-def zone(title, desc, items, empty_msg):
-    # .cards2 는 데스크톱에서만 그리드가 된다 (모바일은 그대로 세로 적층).
-    body = (f'<div class="cards2">{"".join(card(o) for o in items)}</div>'
-            if items else f'<div class="empty"><b>0건</b>{empty_msg}</div>')
-    return (f'<div class="zone"><h3>{title}</h3>'
-            f'<p class="desc">{desc}</p>{body}</div>')
-
-
-def render(offers, stats, gone, meta):
-    by_grade = lambda g, pool: sorted(
-        [o for o in pool if o["grade"] == g],
-        key=lambda x: -(x.get("deal_score") or 0))
-
-    tabs, panels = [], []
-
-    # 요약
-    a = by_grade("A", offers); b = by_grade("B", offers); c = by_grade("C", offers)
-    good = a + b
-    top = good[:5]
-    home_top = [o for o in good if o["dep"] == HOME][:5]
-    wk_all = [o for o in good if o.get("weekend_trip")]
-    strip = f"""<div class="strip">
-<div><div class="k">🏠 {HOME} 출발</div><div class="v {'g' if home_top else 'zero'} num">{sum(1 for o in good if o['dep'] == HOME)}</div></div>
-<div><div class="k">🔥 주말여행</div><div class="v {'g' if wk_all else 'zero'} num">{len(wk_all)}</div></div>
-<div><div class="k">👀 현재 저가 (B)</div><div class="v {'w' if b else 'zero'} num">{len(b)}</div></div>
-<div><div class="k">🆕 신규</div><div class="v {'i' if stats['new'] else 'zero'} num">{stats['new']}</div></div>
-<div><div class="k">📉 하락</div><div class="v {'g' if stats['down'] else 'zero'} num">{stats['down']}</div></div>
-<div><div class="k">⚰️ 소멸</div><div class="v {'r' if stats['gone'] else 'zero'} num">{stats['gone']}</div></div></div>"""
-
-    note = ""
-    if not a and not b:
-        note = ('<div class="secstat fail"><b>오늘은 기준을 넘는 딜이 없습니다</b>'
-                '<span>C등급 후보만 있습니다. 예약 판단 근거로 쓰지 마세요.</span></div>')
-    summary = strip + note + (
-        f'<div class="zone"><h3>👑 오늘의 강력 특가 TOP 5</h3>'
-        f'<p class="desc">네 공항 통합 · DEAL SCORE 순 (주말 적합도 22점 반영) · '
-        f'항공권 실가격 기준</p>'
-        + tiles(top, "표시할 딜이 없습니다.") + '</div>'
-        + f'<div class="zone"><h3>🏠 {HOME} 출발 TOP</h3>'
-        f'<p class="desc">집 앞 공항. 이동비용 0원.</p>'
-        + tiles(home_top, f"오늘 {HOME} 출발 중 기준을 넘는 딜이 없습니다. "
-                          f"청주는 캐시가 얇아 자주 비어 있습니다.") + '</div>')
-    if gone:
-        g = "".join(f'<div class="kv"><span class="k">{esc(x.get("city",""))} '
-                    f'{x.get("depart_date","")}</span><span class="v">'
-                    f'{x.get("price_krw",0):,}원</span></div>' for x in gone[:10])
-        summary += f'<div class="zone"><h3>⚰️ 어제 사라진 딜</h3><p class="desc">재등장 추적 중</p>{g}</div>'
-    tabs.append(("sum", "요약")); panels.append(("sum", summary, None))
-
-    # 주말여행 — 사용자 기준: 주말(토·일) 포함 + 연차 0~1일
-    wk = [o for o in offers if o.get("weekend_trip") and o["grade"] != "C"]
-    wk.sort(key=lambda x: (x["annual_leave"], -(x.get("deal_score") or 0)))
-    wk_home = [o for o in wk if o["dep"] == HOME]
-    tabs.append(("wkd", "주말여행"))
-    panels.append(("wkd",
-                   zone(f"🏠 {HOME} 출발", "청주에서 바로 뜨는 주말 일정",
-                        wk_home[:8], f"{HOME} 출발 중 조건을 만족하는 딜이 없습니다.")
-                   + zone("전 출발지", "주말 포함 · 연차 0~1일 · SCORE 순",
-                          wk[:20],
-                          "주말 포함 + 연차 0~1일 조건을 만족하는 검증 딜이 없습니다."),
-                   None))
-
-    # 어디서 뜰까 — 출발지 비교
-    tabs.append(("cmp", "어디서 뜰까"))
-    panels.append(("cmp", '<div class="secstat part"><b>실가격이 기준입니다</b>'
-                   f'<span>실부담가 = 항공권 + {HOME} 기준 왕복 교통비(추정치). '
-                   '교통비는 scanner.py 의 ACCESS_COST 에서 조정합니다.</span></div>'
-                   + origin_compare(offers), None))
-
-    # 출발지별 (청주가 첫 서브탭)
-    subs = []
-    for key, label in (("cjj", "🏠 CJJ"), ("icn", "ICN / GMP"),
-                       ("tae", "TAE"), ("pus", "PUS")):
-        codes = {r[0] for r in ROUTES[key]}
-        pool = [o for o in offers if o["dep"] in codes]
-        html = (zone("🔥 주말여행", "주말 포함 · 연차 0~1일",
-                     [o for o in by_grade("B", pool) + by_grade("A", pool)
-                      if o.get("weekend_trip")][:10],
-                     "이 출발지에는 주말 조건을 만족하는 딜이 없습니다.")
-                + zone("👀 현재 저가", "B등급 · 캐시 데이터", by_grade("B", pool)[:20],
-                       "왕복 실판매가 확인 건이 없습니다.")
-                + zone("🔎 추가 확인 후보", "C등급 · SCORE 미부여",
-                       by_grade("C", pool)[:10], "후보가 없습니다."))
-        subs.append((key, label, html))
-    tabs.append(("dep", "출발지별")); panels.append(("dep", "", subs))
-
-    # 스위스 — 특가와 별개로 "지금 최저가"를 항상 보여준다
-    sw = [o for o in offers if o["arr"] in ("ZRH", "GVA", "BSL")]
-    if sw:
-        cheap = sorted(sw, key=lambda x: x["price_krw"])
-        deals = sorted([o for o in sw if o["grade"] != "C"],
-                       key=lambda x: -(x.get("deal_score") or 0))
-        lo = cheap[0]
-        head = (f'<div class="secstat"><b>현재 최저 {lo["price_krw"]:,}원</b>'
-                f'<span>{esc(lo["city"])} {lo["dep"]}→{lo["arr"]} · '
-                f'{lo["depart_date"]} ~ {lo["return_date"]} · {lo["nights"]}박 · '
-                f'{esc(lo["airline_kr"])}</span></div>')
-        swi_html = head + zone(
-            "💰 최저가 순", f"등급 무관 · 캐시에 있는 것 전부 "
-            f"({SWISS_NIGHTS[0]}~{SWISS_NIGHTS[1]}박 · "
-            f"출발 D+{SWISS_WINDOW[0]}~{SWISS_WINDOW[1]}) · 박수는 카드에 표시",
-            cheap[:10], "스위스 데이터가 없습니다.") + zone(
-            "🔥 특가 순", "B등급 · SCORE 순", deals[:10],
-            "정상가 비교가 성립한 스위스 딜이 없습니다.")
-    else:
-        diag = []
-        for k in sorted(RAWCOUNT):
-            if k.split("-")[1] not in ("ZRH", "GVA", "BSL"):
-                continue
-            raw = RAWCOUNT[k]
-            d = DROPS.get(k, {})
-            reason = (", ".join(f"{a} {b}건" for a, b in
-                                sorted(d.items(), key=lambda x: -x[1])[:3])
-                      if d else ("응답 자체가 빔" if not raw else "-"))
-            diag.append(f'<div class="kv"><span class="k">{esc(k)}</span>'
-                        f'<span class="v">원본 {raw}건 · {esc(reason)}</span></div>')
-        swi_html = ('<div class="secstat fail"><b>스위스 데이터 없음</b>'
-                    '<span>조회 실패가 아니라 소스(Travelpayouts) 캐시에 '
-                    '한국→스위스 왕복이 거의 없습니다. 노선별 실제 응답은 '
-                    '아래와 같습니다.</span></div>'
-                    '<div class="zone"><h3>🔍 노선별 응답 진단</h3>'
-                    '<p class="desc">원본 = API 가 실제로 준 레코드 수. '
-                    '0 이면 소스에 데이터가 없는 것이고, 0 이 아닌데 결과가 '
-                    '비면 오른쪽이 탈락 사유다.</p>'
-                    + "".join(diag) + '</div>')
-    tabs.append(("swi", "스위스")); panels.append(("swi", swi_html, None))
-
-    # 노선별 요약
-    tabs.append(("rts", "노선별"))
-    panels.append(("rts", '<div class="zone"><h3>노선별 요약</h3>'
-                   '<p class="desc">최저-중앙 격차가 큰 노선이 위. 지금 어느 노선이 눌려 있는지 본다.</p>'
-                   + (route_summary(offers) if offers else
-                      '<div class="empty"><b>0건</b>수집된 노선이 없습니다.</div>')
-                   + '</div>', None))
-
-    # 평균 비교
-    tabs.append(("avg", "평균 비교"))
-    panels.append(("avg", '<div class="zone"><h3>가격대 위치</h3>'
-                   '<p class="desc">같은 노선·박수 안에서 지금 가격이 어디쯤인지. '
-                   '왼쪽일수록 싸다. 특가 등급과 무관하게 전부 표시한다.</p>'
-                   + band_rows(offers) + '</div>', None))
-
-    body = ""
-    for pid, html, sub in panels:
-        if sub:
-            nav = '<nav class="sub" role="tablist">' + "".join(
-                f'<button role="tab" aria-selected="{"true" if i==0 else "false"}" '
-                f'data-id="{k}">{esc(l)}</button>' for i, (k, l, _) in enumerate(sub)) + "</nav>"
-            inner = "".join(f'<div class="sub" id="s-{k}"{"" if i==0 else " hidden"}>{h}</div>'
-                            for i, (k, _, h) in enumerate(sub))
-            html = nav + inner
-        body += (f'<section class="panel" id="p-{pid}"'
-                 f'{"" if pid=="sum" else " hidden"}>{html}</section>')
-
-    ICON = {"sum": "🏠", "wkd": "📅", "cmp": "✈️", "dep": "🛫",
-            "swi": "🏔️", "rts": "🧭", "avg": "📐"}
-    SHORT = {"sum": "요약", "wkd": "주말", "cmp": "어디서", "dep": "출발지",
-             "swi": "스위스", "rts": "노선", "avg": "평균"}
-    navmain = '<nav class="main" role="tablist">' + "".join(
-        f'<button role="tab" aria-selected="{"true" if i==0 else "false"}" data-id="{k}">'
-        f'<span class="ic">{ICON.get(k, "•")}</span>'
-        f'<span class="lg">{esc(l)}</span>'
-        f'<span class="sm2">{esc(SHORT.get(k, l))}</span></button>'
-        for i, (k, l) in enumerate(tabs)) + "</nav>"
-
-    # 출발지 바로가기 — 사이드바(데스크톱)와 칩(모바일)이 같은 동작을 공유한다
-    ORIGINS = (("cjj", "청주", "CJJ", "🏠"), ("icn", "인천·김포", "ICN·GMP", "✈️"),
-               ("tae", "대구", "TAE", "✈️"), ("pus", "부산", "PUS", "✈️"))
-    side_ob = "".join(
-        f'<button class="ob{" on" if k == "cjj" else ""}" data-go="dep" data-sub="{k}">'
-        f'<span class="ic">{ic}</span>{esc(nm)}<b>{code}</b></button>'
-        for k, nm, code, ic in ORIGINS)
-    chips = '<nav class="chips">' + "".join(
-        f'<button class="{"on" if k == "cjj" else ""}" data-go="dep" data-sub="{k}">'
-        f'{ic} {esc(nm)}</button>' for k, nm, code, ic in ORIGINS) + "</nav>"
-
-    hol = (f'<div class="tip"><b>⚠️ 공휴일 표 만료</b>{esc(meta["holiday_gap"])} 까지만 '
-           f'채워져 있어 그 이후 일정의 연차 계산이 부정확합니다. scanner.py 의 '
-           f'HOLIDAYS 를 갱신하세요.</div>') if meta.get("holiday_gap") else (
-           '<div class="tip"><b>💡 실부담가란</b>항공권 + 청주에서 그 공항까지 '
-           '왕복 교통비(추정치)입니다. 인천이 싸도 리무진 값을 더하면 '
-           '역전되는 경우를 잡아냅니다.</div>')
-
-    return f"""<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="color-scheme" content="light"><title>항공권 데일리 스캐너 · {meta['date']}</title>
-<style>{CSS}</style></head><body>
-<div class="app">
-<aside class="side">
-<div class="brand"><div class="logo">✈️</div><div>
-<h1>항공권 데일리 스캐너</h1><div class="sub">매일 07:00 KST 업데이트</div></div></div>
-<div class="sgroup"><h4>출발지 (홈: {meta.get('home', HOME)})</h4>{side_ob}</div>
-<div class="sgroup"><h4>검색 범위</h4>
-<div class="sum"><div class="r">출발일<b>D+{WINDOW_MIN}~{WINDOW_MAX}</b></div>
-<div class="r">근거리<b>{NIGHTS[0]}~{NIGHTS[-1]}박</b></div>
-<div class="r">스위스<b>{SWISS_NIGHTS[0]}~{SWISS_NIGHTS[1]}박</b></div>
-<div class="r">스위스 출발<b>D+{SWISS_WINDOW[0]}~{SWISS_WINDOW[1]}</b></div></div></div>
-<div class="sgroup"><h4>오늘의 요약</h4><div class="sum">
-<div class="r">🆕 신규<b class="i">{stats['new']}</b></div>
-<div class="r">📉 가격 하락<b class="g">{stats['down']}</b></div>
-<div class="r">📈 가격 상승<b class="r">{stats['up']}</b></div>
-<div class="r">🔥 주말여행<b class="p">{len(wk_all)}</b></div>
-<div class="r">👀 모니터링 중<b>{len(offers)}</b></div></div></div>
-{hol}</aside>
-<div class="mainwrap">
-<div class="bar">
-<header class="hd">
-<div class="logo">✈️</div>
-<div class="ttl"><h1>항공권 데일리 스캐너</h1>
-<div class="sub">매일 07:00 KST 업데이트</div></div>
-<div class="upd">마지막 업데이트<b>{esc(meta['ts'])}</b></div>
-</header>
-{navmain}
-</div>
-{chips}
-<main>{body}</main>
-<footer>수집 {meta['count']}건 · 검색 {meta['used']}/{meta['cap']} · A {len(a)} · B {len(b)} · C {len(c)}<br>
-🆕 {stats['new']} · 📉 {stats['down']} · 📈 {stats['up']} · ⚰️ {stats['gone']}<br>
-소스 Travelpayouts (캐시) · A등급 불가, B가 천장<br>
-{('오류 ' + str(len(ERRORS)) + '건<br>') if ERRORS else ''}
-가격은 캐시 기반 참고값입니다. 예약 전 판매처에서 직접 확인하세요.</footer>
-</div></div>
-<script>{JS}</script></body></html>"""
-
-
-# ══════════════════════════════════════════════════════════
-# 실행
-# ══════════════════════════════════════════════════════════
-
 def months_ahead():
     """검색창(D+3~D+75)과 겹치는 달만 반환. 남은 날이 5일 미만인 달은 제외."""
     lo = date.today() + timedelta(days=WINDOW_MIN)
@@ -1462,30 +867,41 @@ def rotation():
 
 
 def brief_line(o):
-    """브리프 한 줄. 실가격이 주 표기, 실부담가는 괄호 안 보조."""
+    """브리프 한 줄. 항공권 실가격이 주 표기, 실부담가는 괄호 안 보조.
+
+    설정이 없는 곳에서 읽히므로 기본 교통비(ACCESS_COST)로 계산한다.
+    """
+    access = ACCESS_COST.get(o["dep"], 0)
+    eff = o["price_krw"] + access
     txt = (f"{o['city']} {o['dep']}→{o['arr']} · "
            f"{o['depart_date'][5:]}~{o['return_date'][5:]} {o['nights']}박 · "
            f"{o['price_krw']:,}원")
-    if o.get("access_cost"):
-        txt += f" (실부담 {o['effective_krw']:,})"
-    if o.get("discount_pct"):
-        txt += f" -{o['discount_pct']:.0f}%"
-    if o.get("deal_score"):
-        txt += f" · SCORE {o['deal_score']}"
+    if access:
+        txt += f" (실부담 {eff:,})"
+    pct = o.get("discount_pct")
+    if pct is not None and pct > 0:
+        txt += f" · 평균보다 {pct:.0f}% 저렴"
+    elif pct is not None and pct < 0:
+        txt += f" · 평균보다 {abs(pct):.0f}% 비쌈"
+    if o.get("tier") in ("strong", "deal"):
+        txt += f" · {o['tier_label']}"
+    lv = o.get("annual_leave")
     if o.get("weekend_trip"):
-        txt += f" · 주말+연차{o['annual_leave']}일"
+        txt += f" · 주말 연차{lv:g}일"
     if o.get("holiday"):
         txt += f" · {o['holiday']}"
     if o.get("change") == "new":
         txt += "  🆕"
-    elif o.get("change") == "down":
+    elif o.get("change") == "down" and o.get("delta"):
         txt += f"  📉{o['delta']:+,}"
-    if o.get("route_record_low") and o.get("route_low_prev"):
-        txt += "  🔻역대최저"
-    return {"text": txt, "grade": o["grade"], "verdict": o.get("verdict"),
-            "price": o["price_krw"], "effective": o.get("effective_krw"),
+    lo = o.get("low_all")
+    if lo and o["price_krw"] <= lo:
+        txt += "  🔻추적기간 최저"
+    return {"text": txt, "tier": o.get("tier"), "tier_label": o.get("tier_label"),
+            "confidence": o.get("confidence"), "sample": o.get("baseline_n"),
+            "price": o["price_krw"], "access": access, "effective": eff,
             "weekend_trip": bool(o.get("weekend_trip")),
-            "leave": o.get("annual_leave"), "link": o["link"]}
+            "leave": lv, "link": o["link"]}
 
 
 def load(path, default):
@@ -1494,6 +910,49 @@ def load(path, default):
             return json.load(f)
     except Exception:
         return default
+
+
+# ══════════════════════════════════════════════════════════
+# 산출물 — 화면이 읽는 단일 데이터 파일
+# ══════════════════════════════════════════════════════════
+
+# 화면에 필요한 필드만 골라 내보낸다. price_history 는 내부 상태라
+# 그대로 노출하지 않는다 (파일이 커지고, 화면이 안 쓰는 필드까지 딸려간다).
+OFFER_FIELDS = (
+    "id dep arr city region depart_date return_date nights airline airline_kr "
+    "stops price_krw link dep_hour ret_hour holiday weekend red_days "
+    "annual_leave weekend_trip night_departure roundtrip_verified "
+    "baseline baseline_avg baseline_n baseline_tier confidence diff_krw "
+    "discount_pct data_ok data_note tier tier_label deal_score "
+    "low30 low_all route_avg change delta first_seen last_seen price_log"
+).split()
+
+
+def write_deals(offers, routes, meta, stats, gone):
+    """web/ 앱이 읽는 deals.json.
+
+    실부담가·최종 정렬은 여기서 굳히지 않는다. 교통비가 사용자 설정이라
+    화면에서 계산해야 하기 때문이다. 기본 교통비는 같이 실어 보낸다.
+    """
+    out = {
+        "schema": 2,
+        "meta": meta,
+        "stats": stats,
+        "home": HOME,
+        "access_cost_default": ACCESS_COST,
+        "airlines": AIRLINES,
+        "holidays": HOLIDAYS,
+        "region_base": REGION_BASE,
+        "routes": routes,
+        "offers": [{k: o.get(k) for k in OFFER_FIELDS} for o in offers],
+        "gone": [{k: g.get(k) for k in
+                  ("id", "dep", "arr", "city", "depart_date", "return_date",
+                   "nights", "price_krw", "last_seen")} for g in gone[:40]],
+    }
+    p = os.path.join(ROOT, "state", "deals.json")
+    with open(p, "w", encoding="utf-8") as f:
+        json.dump(out, f, ensure_ascii=False, separators=(",", ":"))
+    return p
 
 
 def main():
@@ -1585,50 +1044,61 @@ def main():
     offers = enrich(offers, baselines)
 
     hist = load(os.path.join(ROOT, "state", "price_history.json"), {"deals": {}})
-    track_lows(offers, hist)
+    lows = track_lows(offers, hist)
+    daily = track_routes(offers, hist)
     stats, gone = diff(offers, hist)
+
+    # 노선 집계를 offer 에 되먹인다 (30일/추적기간 최저는 점수와 화면 양쪽에 쓰인다)
+    routes = route_stats(offers, daily, lows)
+    for o in offers:
+        r = routes.get(f"{o['dep']}-{o['arr']}", {})
+        o["low30"] = r.get("low30")
+        o["low_all"] = r.get("low_all")
+        o["route_avg"] = r.get("avg")
+    for o in offers:
+        o["deal_score"] = deal_score(o, ACCESS_COST.get(o["dep"], 0))
 
     meta = {"date": str(date.today()),
             "ts": datetime.now(KST).strftime("%Y-%m-%d %H:%M KST"),
+            "generated_at": datetime.now(KST).isoformat(timespec="seconds"),
             "rotation": rot_name, "used": BUDGET.used, "cap": BUDGET.cap,
             "count": len(offers), "home": HOME,
-            "holiday_gap": HOLIDAY_MAX if holiday_gap else None}
-    html = render(offers, stats, gone, meta)
+            "holiday_gap": HOLIDAY_MAX if holiday_gap else None,
+            "window": [WINDOW_MIN, WINDOW_MAX],
+            "nights": [NIGHTS[0], NIGHTS[-1]],
+            "swiss_nights": list(SWISS_NIGHTS),
+            "swiss_window": list(SWISS_WINDOW),
+            "strong_pct_default": STRONG_PCT_DEFAULT,
+            "errors": ERRORS[:30],
+            "raw_counts": RAWCOUNT,
+            "drops": DROPS}
 
-    for p in (os.path.join(ROOT, "latest.html"),
-              os.path.join(ROOT, "archive", f"deals-{date.today()}.html")):
-        with open(p, "w", encoding="utf-8") as f:
-            f.write(html)
+    write_deals(offers, routes, meta, stats, gone)
 
-    # ── 아침 브리프용 요약 (morning 스킬이 읽는 파일) ──
-    A = [o for o in offers if o["grade"] == "A"]
-    B = [o for o in offers if o["grade"] == "B"]
-    C = [o for o in offers if o["grade"] == "C"]
-    good = A + B
-    top = sorted(good, key=lambda x: -(x.get("deal_score") or 0))[:3]
-
-    # 주말여행 (주말 포함 + 연차 0~1) · 청주 출발 · 스위스 최저가
-    wk = sorted([o for o in good if o.get("weekend_trip")],
-                key=lambda x: -(x.get("deal_score") or 0))[:3]
-    home = sorted([o for o in good if o["dep"] == HOME],
-                  key=lambda x: -(x.get("deal_score") or 0))[:3]
+    # ── 아침 브리프용 요약 (설정 없이 읽히는 파일) ──
+    ok = [o for o in offers if o["data_ok"]]
+    by_score = sorted(ok, key=lambda x: -(x.get("deal_score") or 0))
+    strong = [o for o in ok if o["tier"] == "strong"]
+    top = by_score[:3]
+    wk = [o for o in by_score if o.get("weekend_trip")][:3]
+    home = [o for o in by_score if o["dep"] == HOME][:3]
     swiss = sorted([o for o in offers if o["region"] == "유럽"],
                    key=lambda x: x["price_krw"])[:3]
 
     degraded = None
     if CIRCUIT.tripped:
         status, headline = "FAILED", f"스캔 실패 — {CIRCUIT.cause}"
-    elif not (A or B):
-        status, headline = "PARTIAL", "오늘은 기준을 넘는 딜이 없습니다"
-        if C and len(C) >= 20:
-            rc = {}
-            for o in C:
-                rc[o["grade_reason"]] = rc.get(o["grade_reason"], 0) + 1
-            top_reason, n = max(rc.items(), key=lambda x: x[1])
-            if n / len(C) >= 0.9:
-                degraded = f"전건 강등 · {top_reason} ({n}건)"
+    elif not ok:
+        status, headline = "PARTIAL", "비교 가능한 항공권이 없습니다"
+        notes = {}
+        for o in offers:
+            notes[o["data_note"]] = notes.get(o["data_note"], 0) + 1
+        if notes:
+            top_reason, cnt = max(notes.items(), key=lambda x: x[1])
+            degraded = f"{top_reason} ({cnt}건)"
     else:
-        bits = [f"볼 것 {len(good)}건"]
+        bits = [f"볼 것 {len(ok)}건"]
+        if strong:        bits.append(f"강력특가 {len(strong)}")
         if wk:            bits.append(f"주말여행 {len(wk)}")
         if home:          bits.append(f"{HOME} {len(home)}")
         if stats["new"]:  bits.append(f"신규 {stats['new']}")
@@ -1637,20 +1107,24 @@ def main():
 
     brief = {
         "date": meta["date"], "ts": meta["ts"], "status": status,
-        "headline": headline, "rotation": rot_name, "home": HOME,
+        "headline": headline, "home": HOME,
         "reason": CIRCUIT.cause if CIRCUIT.tripped else None,
         "degraded": degraded,
         "holiday_gap": meta["holiday_gap"],
-        "counts": {"a": len(A), "b": len(B), "c": len(C),
-                   "weekend": sum(1 for o in good if o.get("weekend_trip")),
-                   "home": sum(1 for o in good if o["dep"] == HOME), **stats},
-        "source_note": "Travelpayouts 캐시 데이터 · A등급 불가, B가 천장",
+        "counts": {
+            "total": len(offers), "comparable": len(ok),
+            "strong": len(strong),
+            "deal": sum(1 for o in ok if o["tier"] == "deal"),
+            "candidate": sum(1 for o in ok if o["tier"] == "candidate"),
+            "weekend": sum(1 for o in ok if o.get("weekend_trip")),
+            "home": sum(1 for o in ok if o["dep"] == HOME), **stats},
+        "source_note": "Travelpayouts 캐시 데이터 · 실시간 확정가 아님",
         "access_note": f"실부담가 = 항공권 + {HOME} 기준 왕복 교통비 (추정치)",
         "top": [brief_line(o) for o in top],
         "weekend": [brief_line(o) for o in wk],
         "home_airport": [brief_line(o) for o in home],
         "swiss": [brief_line(o) for o in swiss],
-        "dashboard": os.path.join(ROOT, "latest.html"),
+        "dashboard": "index.html",
     }
     with open(os.path.join(ROOT, "state", "brief.json"), "w", encoding="utf-8") as f:
         json.dump(brief, f, ensure_ascii=False, indent=1)
@@ -1660,23 +1134,27 @@ def main():
     with open(os.path.join(ROOT, "state", "price_history.json"), "w", encoding="utf-8") as f:
         json.dump(hist, f, ensure_ascii=False, indent=1)
 
+    tiers = {t: sum(1 for o in offers if o["tier"] == t)
+             for t in ("strong", "deal", "candidate", "normal", "unknown")}
     with open(os.path.join(ROOT, "logs", f"run-{date.today()}.md"), "w", encoding="utf-8") as f:
-        f.write(f"# 실행 {meta['ts']}\n\n로테이션: {rot_name}\n"
+        f.write(f"# 실행 {meta['ts']}\n\n"
                 f"검색: {BUDGET.used}/{BUDGET.cap}\n수집: {len(offers)}건\n\n"
-                f"A {sum(1 for o in offers if o['grade']=='A')} · "
-                f"B {sum(1 for o in offers if o['grade']=='B')} · "
-                f"C {sum(1 for o in offers if o['grade']=='C')}\n\n"
-                f"🆕 {stats['new']} · 📉 {stats['down']} · 📈 {stats['up']} · ⚰️ {stats['gone']}\n\n"
-                + ("## 오류\n" + "\n".join(f"- {e}" for e in ERRORS[:30]) if ERRORS else ""))
+                f"강력특가 {tiers['strong']} · 특가 {tiers['deal']} · "
+                f"후보 {tiers['candidate']} · 일반 {tiers['normal']} · "
+                f"비교불가 {tiers['unknown']}\n\n"
+                f"🆕 {stats['new']} · 📉 {stats['down']} · 📈 {stats['up']} · "
+                f"⚰️ {stats['gone']}\n\n"
+                + ("## 오류\n" + "\n".join(f"- {e}" for e in ERRORS[:30])
+                   if ERRORS else ""))
 
     print(f"\n✅ 완료 · 수집 {len(offers)}건 · 검색 {BUDGET.used}/{BUDGET.cap}")
-    print(f"   A {sum(1 for o in offers if o['grade']=='A')} / "
-          f"B {sum(1 for o in offers if o['grade']=='B')} / "
-          f"C {sum(1 for o in offers if o['grade']=='C')}")
+    print(f"   🔥강력특가 {tiers['strong']} / 특가 {tiers['deal']} / "
+          f"후보 {tiers['candidate']} / 일반 {tiers['normal']} / "
+          f"비교불가 {tiers['unknown']}")
     print(f"   🆕{stats['new']} 📉{stats['down']} 📈{stats['up']} ⚰️{stats['gone']}")
     if ERRORS:
         print(f"   ⚠️ 오류 {len(ERRORS)}건 — 로그 확인")
-    print(f"\n   → {os.path.join(ROOT, 'latest.html')}")
+    print(f"\n   → {os.path.join(ROOT, 'state', 'deals.json')}")
 
 
 if __name__ == "__main__":
