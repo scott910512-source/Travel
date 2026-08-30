@@ -1013,27 +1013,49 @@ function viewSwiss() {
     effective(a) - effective(b) ||
     a.nights - b.nights;
 
-  // 대표편: 취리히 우선, 그 안에서 강력특가 → 최저가
+  // 대표편: 취리히 우선. 그 안에서는 직항·1회 환승을 먼저 본다.
+  //
+  // 2회 이상 환승은 목록에는 남기되 대표로 세우지 않는다. 값이 조금 싸다고
+  // 20시간짜리 2회 환승을 첫 화면에 올리면, 실제로 살 만한 편(직항·1회)이
+  // 아래로 밀린다. 사용자가 원한 것은 "직항 또는 1회 환승" 이다.
+  const usable = o => o.stops != null && o.stops <= 1;
   let hero = null;
   for (const code of SWISS_ORDER) {
     const c = all.filter(o => o.arr === code);
     if (!c.length) continue;
-    hero = c.filter(o => dealTier(o) === 'strong').sort(inCity)[0]
-        || c.slice().sort((a, b) => effective(a) - effective(b))[0];
+    const good = c.filter(usable);
+    const pick = good.length ? good : c;      // 직항·1회가 없으면 있는 것으로
+    hero = pick.filter(o => dealTier(o) === 'strong').sort(inCity)[0]
+        || pick.slice().sort(inCity)[0];      // inCity = 직항 → 환승 → 값
     break;
   }
+
+  // 대표편 배지는 '어떤 기준으로 뽑혔는지' 를 말해야 한다.
+  // 직항 우선으로 뽑아 놓고 "현재 최저가" 라고 적으면, 더 싼 2회 환승이
+  // 아래에 있는데도 이게 제일 싸다고 말하는 셈이 된다.
+  const cityPool = all.filter(o => o.arr === hero.arr);
+  const cheapestInCity = cityPool.reduce(
+    (a, b) => (effective(b) < effective(a) ? b : a), cityPool[0]);
+  const heroLabel =
+    hero.id === cheapestInCity.id ? '💰 현재 최저가'
+    : hero.stops === 0 ? '🛫 직항 우선'
+    : '✈️ 1회 환승 이내 최저가';
 
   const heroStrong = dealTier(hero) === 'strong';
   const head = heroStrong
     ? `<section class="sec"><div class="sec-hd"><div>
         <h2>🏔 오늘 가장 좋은 옵션</h2>
         <p>취리히 우선 · 환승 제한 없음</p></div></div>
-        ${heroHTML(hero, 1)}</section>`
+        ${heroHTML(hero, 1, heroLabel)}</section>`
     : `<section class="sec">
         <div class="note hot"><b>현재 강력 특가 없음</b>
           <p>취리히를 먼저 보고, 없으면 제네바·바젤 순으로 내려갑니다.
-          가격만 보고 정리했습니다.</p></div>
-        <div style="margin-top:10px">${heroHTML(hero, 1)}</div></section>`;
+          직항·1회 환승을 먼저 봅니다.${
+            hero.id !== cheapestInCity.id
+              ? ` 더 싼 편(${won(effective(cheapestInCity))}원 ·
+                  ${stopTxt(cheapestInCity.stops)})이 아래에 있습니다.`
+              : ''}</p></div>
+        <div style="margin-top:10px">${heroHTML(hero, 1, heroLabel)}</div></section>`;
 
   // 도시별 섹션 — 취리히부터. 가격이 없는 도시도 지우지 않는다.
   const raw = (S.data.meta && S.data.meta.raw_counts) || {};
@@ -1080,10 +1102,13 @@ function viewSwiss() {
          <div class="list two">${list.slice(0, 6).map(o => cardHTML(o)).join('')}</div>`
       : '';
 
+    const nDirect = cityAll.filter(o => o.stops === 0).length;
+    const n1 = cityAll.filter(o => o.stops === 1).length;
     return `<section class="sec"><div class="sec-hd"><div>
         <h2>${label}</h2>
         <p>${idx === 0 ? '1순위 도시 · ' : ''}${cityAll.length}건${
-          hero.arr === code ? ' (대표편 1건은 위에)' : ''} · 직항 → 환승 순</p></div></div>
+          hero.arr === code ? ' (대표편 1건은 위에)' : ''}${
+          (nDirect || n1) ? ` · 직항 ${nDirect} · 1회 환승 ${n1}` : ''}</p></div></div>
       ${grp(d0, '🛫 직항')}${grp(d1, '✈️ 1회 환승')}${grp(d2, '🔁 2회 이상 환승')}
       ${grp(dU, '❔ 환승 정보 없음')}${owGroupHTML(ow)}</section>`;
   }).join('');
