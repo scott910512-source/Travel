@@ -137,6 +137,8 @@ def to_legacy(o, city="", region=""):
         "duration_min": o.get("duration_min"),
         "duration_rt_min": o.get("duration_rt_min"),
         "found_at": o.get("found_at"),
+        # provider 가 실제 구간을 준 경우. scanner 가 이걸 보고 추정 대신 확정으로 쓴다.
+        "via_airports": o.get("via_airports"),
         "expires_at": None,
         # provider 꼬리표. scanner.normalize() 가 그대로 실어 보낸다.
         "source": o["source"],

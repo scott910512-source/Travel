@@ -536,7 +536,36 @@ HOLIDAY_MAX = max(HOLIDAYS)
 
 AIRLINES = {"KE": "대한항공", "OZ": "아시아나", "7C": "제주항공", "TW": "티웨이",
             "LJ": "진에어", "BX": "에어부산", "RS": "에어서울", "ZE": "이스타",
-            "RF": "에어로케이", "YP": "에어프레미아"}
+            "RF": "에어로케이", "YP": "에어프레미아",
+            # 장거리에서 자주 걸리는 외항사. 코드만 보여주면 누군지 알 수 없다.
+            "MU": "중국동방", "CA": "중국국제", "CZ": "중국남방", "HU": "하이난",
+            "EY": "에티하드", "EK": "에미레이트", "QR": "카타르", "TK": "터키",
+            "LH": "루프트한자", "AF": "에어프랑스", "KL": "KLM", "LX": "스위스",
+            "AZ": "ITA", "BA": "브리티시", "AY": "핀에어", "SU": "아에로플로트",
+            "SQ": "싱가포르", "CX": "캐세이", "TG": "타이", "VN": "베트남",
+            "PR": "필리핀", "MH": "말레이시아", "GA": "가루다", "UZ": "우즈벡",
+            "NH": "ANA", "JL": "JAL", "CI": "중화항공", "BR": "에바"}
+
+# 항공사별 주요 허브. 경유 공항을 **추정**하는 데만 쓴다.
+#
+# ★ Travelpayouts 는 환승 '횟수' 만 주고 '어디서' 갈아타는지는 주지 않는다.
+#   그래서 이건 확정이 아니라 추정이다. 화면에도 반드시 '추정' 이라고 적는다.
+#   허브가 둘 이상인 항공사(루프트한자 FRA/MUC)는 둘 다 적는다.
+#   Duffel 이 켜지면 실제 구간이 오므로 그때는 확정 값으로 덮어쓴다.
+AIRLINE_HUB = {
+    "MU": ("PVG", "상하이"), "CA": ("PEK", "베이징"), "CZ": ("CAN", "광저우"),
+    "EY": ("AUH", "아부다비"), "EK": ("DXB", "두바이"), "QR": ("DOH", "도하"),
+    "TK": ("IST", "이스탄불"), "AF": ("CDG", "파리"), "KL": ("AMS", "암스테르담"),
+    "LX": ("ZRH", "취리히"), "AZ": ("FCO", "로마"), "BA": ("LHR", "런던"),
+    "AY": ("HEL", "헬싱키"), "SU": ("SVO", "모스크바"), "SQ": ("SIN", "싱가포르"),
+    "CX": ("HKG", "홍콩"), "TG": ("BKK", "방콕"), "PR": ("MNL", "마닐라"),
+    "MH": ("KUL", "쿠알라룸푸르"), "GA": ("CGK", "자카르타"),
+    "UZ": ("TAS", "타슈켄트"), "CI": ("TPE", "타이베이"), "BR": ("TPE", "타이베이"),
+    "NH": ("NRT", "도쿄"), "JL": ("NRT", "도쿄"),
+    "LH": ("FRA/MUC", "프랑크푸르트 또는 뮌헨"),
+    "VN": ("HAN/SGN", "하노이 또는 호치민"),
+    "HU": ("PEK/HAK", "베이징 또는 하이커우"),
+}
 
 
 # ══════════════════════════════════════════════════════════
@@ -1099,6 +1128,9 @@ def normalize(org, dst, city, region, dep, nights, v, flex=None, window=None):
         "dep": org, "arr": dst, "city": city, "region": region,
         "depart_date": str(d0), "return_date": str(d1), "nights": nights,
         "airline": al, "airline_kr": AIRLINES.get(al, al),
+        # 경유지. via_src 가 'segment' 면 provider 가 준 실제 값,
+        # 'hub' 면 항공사 허브로 추정한 값이다. 둘을 절대 같이 취급하지 않는다.
+        **_via_fields(al, stops, v),
         "api_origin": v.get("origin"), "api_destination": v.get("destination"),
         "flight_no": v.get("flight_number"),
         "stops": stops,
@@ -1204,6 +1236,20 @@ def merge_unnamed(offers):
     if dropped:
         print(f"  · 이름 없는 중복 제거 {dropped}건 (같은 일정·같은 값의 '?' 행)")
     return out
+
+
+def _via_fields(airline, stops, v):
+    """경유지 정보. 확정과 추정을 구분해서 담는다."""
+    seg = v.get("via_airports")          # provider 가 실제 구간을 준 경우
+    if seg:
+        return {"via": list(seg), "via_name": None, "via_src": "segment"}
+    if not stops:                        # 직항이거나 환승 정보 없음
+        return {"via": None, "via_name": None, "via_src": None}
+    hub = AIRLINE_HUB.get(airline)
+    if not hub or stops != 1:
+        # 2회 이상 환승은 허브 하나로 설명되지 않는다. 추정하지 않는다.
+        return {"via": None, "via_name": None, "via_src": None}
+    return {"via": [hub[0]], "via_name": hub[1], "via_src": "hub"}
 
 
 def aviasales_link(org, dst, d0, d1):
@@ -1935,7 +1981,7 @@ def load(path, default):
 # 그대로 노출하지 않는다 (파일이 커지고, 화면이 안 쓰는 필드까지 딸려간다).
 OFFER_FIELDS = (
     "id dep arr city region depart_date return_date nights airline airline_kr "
-    "stops duration_min duration_rt_min price_krw found_at link dep_hour ret_hour holiday weekend red_days "
+    "stops duration_min duration_rt_min price_krw found_at via via_name via_src link dep_hour ret_hour holiday weekend red_days "
     "source source_confidence live booking_url sources best_price "
     "annual_leave weekend_trip night_departure roundtrip_verified "
     "baseline baseline_avg baseline_n baseline_tier confidence diff_krw "

@@ -93,6 +93,10 @@ class DuffelProvider(Provider):
         if price is None:
             return None
         owner = (row.get("owner") or {}).get("iata_code")
+        # 실제 경유 공항. Duffel 은 구간을 다 주므로 추정할 필요가 없다.
+        # (가는 편 기준. 중간 세그먼트의 도착지가 곧 경유지다.)
+        via = [sg.get("destination", {}).get("iata_code") for sg in out_seg[:-1]]
+        via = [x for x in via if x]
         o = make_offer(
             self.name, out_seg[0].get("origin", {}).get("iata_code"),
             out_seg[-1].get("destination", {}).get("iata_code"),
@@ -105,6 +109,8 @@ class DuffelProvider(Provider):
             return_stops=(len(back_seg) - 1) if back_seg else None,
             booking_url=None, live=True,
             found_at=row.get("created_at"))
+        if via:
+            o["via_airports"] = via
         if fx:
             o["fx"] = fx
         return o

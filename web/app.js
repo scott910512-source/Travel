@@ -238,6 +238,14 @@ function badgesHTML(o) {
   } else if (o.duration_rt_min) {
     b.push(`<span class="bg">✈ 왕복 합 ${durTxt(o.duration_rt_min)}</span>`);
   }
+  // 경유지는 sub 줄 끝에 붙이면 말줄임으로 잘려 안 보인다(소요시간 때와 같다).
+  // 배지는 줄바꿈되므로 여기 둔다. 확정/추정을 색으로도 구분한다.
+  if (o.stops) {
+    const v = viaTxt(o);
+    b.push(v
+      ? `<span class="bg${o.via_src === 'segment' ? ' down' : ''}">🔀 ${esc(v)}</span>`
+      : `<span class="bg">🔀 ${stopTxt(o.stops)} · 경유지 미상</span>`);
+  }
   // 출처는 항상 표시한다. 어디서 온 값인지 모르면 판단할 수 없다.
   b.push(srcBadge(o));
   // provider 마다 값이 다르면 그것도 보여준다. 하나로 뭉개지 않는다.
@@ -287,6 +295,23 @@ function ageTxt(iso) {
   if (h < 24) return `${h}시간 전 검색된 값`;
   return `${Math.floor(h / 24)}일 전 검색된 값`;
 }
+// 경유지. 확정과 추정을 절대 같은 얼굴로 보여주지 않는다.
+//   via_src === 'segment'  provider 가 준 실제 구간 → 그대로 적는다
+//   via_src === 'hub'      항공사 허브로 추정 → "추정" 을 붙인다
+//   그 외                   모른다 → 아무것도 지어내지 않는다
+function viaTxt(o) {
+  if (!o.via || !o.via.length) return '';
+  const codes = o.via.join('·');
+  if (o.via_src === 'segment') return `${codes} 경유`;
+  return `${codes}${o.via_name ? ` ${o.via_name}` : ''} 경유(추정)`;
+}
+// 경유를 모를 때는 모른다고 적는다. 빈칸으로 두면 정보가 없다는 것조차 모른다.
+function stopDetail(o) {
+  if (o.stops === 0) return '직항';
+  if (o.stops == null) return '환승 정보 없음';
+  const v = viaTxt(o);
+  return v ? `${stopTxt(o.stops)} · ${v}` : `${stopTxt(o.stops)} · 경유지 미상`;
+}
 const stopTxt = s => (s === 0 ? '직항' : (s === 1 ? '1회 환승' : (s == null ? '환승 정보 없음' : `${s}회 환승`)));
 
 function heroHTML(o, rank, plainLabel) {
@@ -301,7 +326,8 @@ function heroHTML(o, rank, plainLabel) {
       ? `${rank === 1 ? '🥇' : '🏅'} ${esc(TIER_TEXT[t])}`
       : esc(plainLabel || '💰 현재 최저가')}</span>
     <div class="route">${esc(depCity(o.dep))} <span style="color:var(--tx3)">→</span> ${esc(o.city)}</div>
-    <div class="codes">${esc(o.dep)} → ${esc(o.arr)} · ${esc(o.airline_kr || o.airline)} · ${stopTxt(o.stops)}</div>
+    <div class="codes">${esc(o.dep)} → ${esc(o.arr)} · ${esc(o.airline_kr || o.airline)}</div>
+    <div class="codes" style="margin-top:3px">${esc(stopDetail(o))}</div>
     <div class="when"><b>${md(o.depart_date)} ${dow(o.depart_date)}</b> → <b>${md(o.return_date)} ${dow(o.return_date)}</b></div>
     <div class="meta">${o.nights}박 ${o.nights + 1}일 · ${leaveTxt(o.annual_leave)}</div>
     <div class="grid">
