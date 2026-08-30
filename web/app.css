@@ -368,3 +368,10 @@ button.cjjrow:active{background:var(--card2)}
 .seed-btn:active{background:var(--card2)}
 .seed-btn.lapsed{color:var(--warn);background:var(--warn-soft);
   border-color:var(--warn-line)}
+
+/* 월별 행 — 누르면 그 달만 보기 */
+.kv.mrow{width:100%;text-align:left;background:transparent;border:0;
+  cursor:pointer;font:inherit}
+.kv.mrow:active{background:var(--card2)}
+/* 0건인 달도 숨기지 않는다 — "이 달엔 없다" 도 정보다 */
+.fchip.zero{opacity:.45}

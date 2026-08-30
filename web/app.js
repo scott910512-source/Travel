@@ -22,7 +22,8 @@ const S = {
   detail: null,        // 열려 있는 상세 offer
   range: 30,           // 그래프 구간(일)
   origin: 'all',       // 출발지 칩
-  listFilter: null,    // 전체 특가 리스트 필터
+  listFilter: null,    // 전체 특가 리스트 필터 (등급·성격 축)
+  listMonth: null,     // 출발 월 필터 (독립 축). null = 전체
   weekendSpan: 'all',
 };
 
@@ -403,6 +404,7 @@ function viewHome() {
       </div>
     </section>
 
+    ${monthSection(homeOffers())}
     ${S.origin === 'CJJ' ? cjjSection(ok) : ''}
 
     <section class="sec">
@@ -505,6 +507,51 @@ function cjjSection(pool) {
   </section>`;
 }
 
+/* 월별 요약. "언제 가는 게 싼가" 는 이 앱에서 가장 자주 묻게 되는 질문인데,
+   지금까지는 리스트를 훑어야만 알 수 있었다.
+
+   주의: 달마다 수집 건수가 크게 다르다 (9월 193건 · 12월 2건). 건수가
+   적은 달의 "최저가" 는 그 달이 싸다는 뜻이 아니라 표본이 없다는 뜻일 수
+   있다. 그래서 건수를 같이 적고, 얇은 달은 그렇다고 표시한다. */
+const THIN_MONTH = 10;
+
+function monthSection(pool) {
+  const months = monthsIn(pool);
+  if (months.length < 2) return '';
+  const rows = months.map(m => {
+    const v = pool.filter(o => monthKey(o) === m.k);
+    const lo = v.reduce((a, b) => (effective(b) < effective(a) ? b : a), v[0]);
+    return { ...m, lo, strong: v.filter(o => dealTier(o) === 'strong').length };
+  });
+  const cheapest = rows.reduce((a, b) =>
+    (effective(b.lo) < effective(a.lo) ? b : a), rows[0]);
+
+  return `<section class="sec">
+    <div class="sec-hd"><div><h2>📅 월별로 보기</h2>
+      <p>출발 월별 최저 실부담가. 눌러서 그 달만 볼 수 있습니다.</p></div></div>
+    <div class="panel">
+      ${rows.map(r => {
+        const thin = r.n < THIN_MONTH;
+        const best = r.k === cheapest.k && !thin;
+        return `<button class="kv mrow" data-month="${r.k}">
+          <span class="k" style="color:var(--tx);font-weight:700">
+            ${best ? '💰 ' : ''}${monthLabel(r.k)}
+            <span style="font-family:var(--mono);font-size:11.5px;color:var(--tx3);font-weight:600">
+              ${r.n}건${r.strong ? ` · 강력특가 ${r.strong}` : ''}</span></span>
+          <span class="v">${won(effective(r.lo))}원
+            <span style="display:block;font-size:11px;color:var(--tx3);font-weight:600;
+              font-family:var(--sans)">${thin
+                ? '표본 적음 · 참고만'
+                : `${esc(r.lo.city)} ${esc(r.lo.dep)}→${esc(r.lo.arr)}`}</span></span>
+        </button>`;
+      }).join('')}
+    </div>
+    <p style="margin:8px 2px 0;font-size:12px;color:var(--tx3);font-weight:600;line-height:1.5">
+      달마다 수집 건수가 다릅니다. 건수가 적은 달의 최저가는 <b>그 달이 싸다는
+      뜻이 아니라 아직 데이터가 적다는 뜻</b>일 수 있습니다.</p>
+  </section>`;
+}
+
 /* 특가가 없어도 빈손으로 두지 않는다. 실부담가 낮은 순으로 몇 개는 정리해 준다. */
 function lowList(pool, count, title, desc) {
   const items = pool.slice()
@@ -550,6 +597,22 @@ function footerHTML() {
 }
 
 /* ── 화면: 전체 특가 리스트 ───────────────────────────── */
+// 월은 등급 필터와 다른 축이다. "10월 강력특가" 를 보려면 둘이 동시에
+// 걸려야 하므로 같은 변수에 넣지 않는다.
+const monthKey = o => (o.depart_date || '').slice(0, 7);
+const monthLabel = k => {
+  const [y, m] = k.split('-');
+  const now = String(new Date().getFullYear());
+  return y === now ? `${+m}월` : `${y.slice(2)}년 ${+m}월`;
+};
+
+// 데이터에 실제로 있는 달만 만든다. 빈 달을 칩으로 만들면 눌러도 0건이다.
+function monthsIn(pool) {
+  const c = {};
+  pool.forEach(o => { const k = monthKey(o); if (k) c[k] = (c[k] || 0) + 1; });
+  return Object.keys(c).sort().map(k => ({ k, n: c[k] }));
+}
+
 const LIST_FILTERS = [
   { k: 'all', l: '전체' }, { k: 'strong', l: '🔥 강력특가' },
   { k: 'deal', l: '🟠 특가' }, { k: 'new', l: '🆕 신규' },
@@ -559,7 +622,9 @@ const LIST_FILTERS = [
 
 function viewList() {
   const f = S.listFilter || 'all';
-  let pool = homeOffers();
+  const mo = S.listMonth || null;
+  const base = homeOffers();          // 등급 필터 걸기 전 (월 축의 기준)
+  let pool = base;
   if (f === 'strong') pool = pool.filter(o => dealTier(o) === 'strong');
   else if (f === 'deal') pool = pool.filter(o => ['strong', 'deal'].includes(dealTier(o)));
   else if (f === 'new') pool = pool.filter(o => o.change === 'new');
@@ -567,18 +632,42 @@ function viewList() {
   else if (f === 'direct') pool = pool.filter(o => o.stops === 0);
   else if (f === 'weekend') pool = pool.filter(o => o.weekend_trip);
 
-  const list = ranked(pool).slice(0, 120);
+  // 달 목록은 '등급 필터 전' 기준으로 만들고, 건수만 '필터 후' 로 센다.
+  //
+  // 필터 후 기준으로 만들면 강력특가처럼 한 달에 몰린 조건에서 달이 하나만
+  // 남아 월 칩이 통째로 사라진다. 그러면 "10월엔 강력특가가 없다" 는 사실이
+  // 보이는 대신 숨겨진다. 0건인 달도 0이라고 적어 두는 편이 낫다.
+  const counts = {};
+  pool.forEach(o => { const k = monthKey(o); if (k) counts[k] = (counts[k] || 0) + 1; });
+  const months = monthsIn(base).map(m => ({ k: m.k, n: counts[m.k] || 0 }));
+  if (mo) pool = pool.filter(o => monthKey(o) === mo);
+
+  const LIST_CAP = 120;
+  const matched = pool.length;              // 실제로 조건에 맞는 건수
+  const list = ranked(pool).slice(0, LIST_CAP);
+  const monthRow = months.length > 1 ? `<div class="filters"><div class="frow">
+      <button class="fchip" data-month="all" aria-pressed="${!mo}">전체 기간</button>
+      ${months.map(m => `<button class="fchip${m.n ? '' : ' zero'}"
+        data-month="${m.k}" aria-pressed="${mo === m.k}">${monthLabel(m.k)} <span
+        style="font-family:var(--mono);opacity:.65">${m.n}</span></button>`).join('')}
+    </div></div>` : '';
+
   return `${subHeader('전체 특가')}${chipsHTML()}
   <div class="wrap">
     <div class="filters"><div class="frow">
       ${LIST_FILTERS.map(x => `<button class="fchip" data-list="${x.k}"
         aria-pressed="${f === x.k}">${esc(x.l)}</button>`).join('')}
     </div></div>
+    ${monthRow}
     <p style="font-size:12px;color:var(--tx3);margin:2px 0 12px;font-weight:600">
-      ${list.length}건 · 실부담가(항공권 + 청주 기준 이동비) 순</p>
+      ${matched}건${mo ? ` · ${monthLabel(mo)} 출발` : ''} ·
+      실부담가(항공권 + 청주 기준 이동비) 순${
+        matched > LIST_CAP ? ` · 상위 ${LIST_CAP}건 표시` : ''}</p>
     ${list.length
       ? `<div class="list two">${list.map(o => cardHTML(o)).join('')}</div>`
-      : emptyBlock('조건에 맞는 항공권이 없습니다', '필터를 넓혀 보세요.')}
+      : emptyBlock('조건에 맞는 항공권이 없습니다',
+          mo ? `${monthLabel(mo)} 출발 중에는 없습니다. 다른 달을 눌러 보세요.`
+             : '필터를 넓혀 보세요.')}
     ${footerHTML()}
   </div>`;
 }
@@ -1277,7 +1366,7 @@ function errorScreen() {
 /* ── 이벤트 ───────────────────────────────────────────── */
 document.addEventListener('click', ev => {
   const t = ev.target.closest('[data-tab],[data-origin],[data-open],[data-view],'
-    + '[data-list],[data-back],[data-close],[data-sheet],[data-range],[data-wspan],'
+    + '[data-list],[data-month],[data-back],[data-close],[data-sheet],[data-range],[data-wspan],'
     + '[data-origin-toggle],[data-stops],[data-reset],[data-reload],[data-retry]');
   if (!t) return;
 
@@ -1303,6 +1392,9 @@ document.addEventListener('click', ev => {
 
   const lf = t.getAttribute('data-list');
   if (lf) { S.listFilter = lf; S.view = 'list'; window.scrollTo(0, 0); return render(); }
+  const mf = t.getAttribute('data-month');
+  if (mf) { S.listMonth = (mf === 'all' ? null : mf); S.view = 'list';
+            window.scrollTo(0, 0); return render(); }
 
   const ws = t.getAttribute('data-wspan');
   if (ws) { S.weekendSpan = ws; return render(); }
