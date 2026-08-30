@@ -594,6 +594,13 @@ const SWISS_ORDER = ['ZRH', 'GVA', 'BSL'];
 const SWISS_CITY = { ZRH: '취리히', GVA: '제네바', BSL: '바젤' };
 const SWISS_RANK = { ZRH: 0, GVA: 1, BSL: 2 };
 
+// 이 노선에 소스를 몇 군데까지 물어봤는지. 3차까지 갔으면 5곳이다.
+// 숫자를 코드에 박아 두면 소스를 늘렸을 때 화면이 조용히 거짓말을 한다.
+function srcTried(code) {
+  const deep = (S.data.meta && S.data.meta.deep_tried) || [];
+  return deep.some(k => k.endsWith('-' + code)) ? 5 : 2;
+}
+
 function viewSwiss() {
   // 여행 기간·환승 설정을 일부러 적용하지 않는다. 유럽은 캐시가 얇아
   // 근거리용 조건을 씌우면 있는 것마저 사라진다. 환승은 제한 없이 다 본다.
@@ -649,7 +656,8 @@ function viewSwiss() {
         <div class="note warn"><b>가격 데이터 부족</b>
           <p>${got
             ? '조회는 됐지만 왕복으로 확인되는 편이 없습니다.'
-            : '두 엔드포인트 모두 응답이 비었습니다. 소스 캐시에 이 노선이 없습니다.'}
+            : `소스 ${srcTried(code)}곳을 모두 확인했지만 응답이 비었습니다.
+               캐시에 이 노선이 없습니다.`}
           운항이 없다는 뜻은 아닙니다.</p></div></section>`;
     }
 
@@ -724,7 +732,8 @@ function swissDiag() {
     }).join('');
   return `<section class="sec">
     <div class="note warn"><b>스위스 항공권이 없습니다</b>
-      <p>조회 실패가 아니라 소스(Travelpayouts) 캐시에 한국→스위스 왕복이 거의 없습니다.
+      <p>조회 실패가 아닙니다. 캘린더·최근가·최저가·직항·월별 매트릭스까지
+      훑어도 소스(Travelpayouts) 캐시에 한국→스위스 왕복이 거의 없습니다.
       노선별 실제 응답은 아래와 같습니다.</p></div>
     <div class="panel"><h4>🔍 노선별 응답 진단</h4>${rows || '<p>진단 정보 없음</p>'}</div>
   </section>`;

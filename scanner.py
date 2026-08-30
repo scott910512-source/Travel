@@ -93,9 +93,12 @@ TOKEN = ""   # main()에서 주입
 CURRENCY = "krw"
 ROOT = os.path.join(os.getcwd(), "flight-deals")
 
-SEARCH_BUDGET = 170       # CJJ 20×1 + ICN·GMP 6×4 + TAE 3×4 + PUS 4×4
-                          # + 스위스 6×1 = 78회, 여기에 얇은 노선 2차 소스
-                          # (/v2/prices/latest) 최대 26회를 더해 104회
+SEARCH_BUDGET = 210       # CJJ 20×1 + ICN·GMP 6×4 + TAE 3×4 + PUS 4×4
+                          # + 스위스 6×1 = 78회, 얇은 노선 2차 소스
+                          # (/v2/prices/latest) 최대 26회 → 104회.
+                          # 3차 소스(cheap·direct·month-matrix)는 2차까지
+                          # 쓰고도 비어 있는 노선에만 붙는다. 노선당 최대
+                          # 2+DEEP_MONTHS 회.
 REQ_SLEEP = 0.45          # rate limit 여유
 TIMEOUT = 25
 
@@ -426,6 +429,16 @@ def fetch_route(org, dst, city, region, nights=None, flex=None, window=None,
         time.sleep(REQ_SLEEP)
         seen = {o["id"] for o in out}
         out += [o for o in more if o["id"] not in seen]
+
+    # 2차까지 쓰고도 비어 있으면 캐시 슬라이스가 다른 곳을 더 본다.
+    if (latest and len(out) < DEEP_MIN and not CIRCUIT.tripped
+            and _deep_allowed(region)):
+        deep, stop = fetch_deep(org, dst, city, region,
+                                flex or (1, 30), window)
+        seen = {o["id"] for o in out}
+        out += [o for o in deep if o["id"] not in seen]
+        if stop in ("BUDGET_EXCEEDED", "CIRCUIT_OPEN"):
+            return out, stop
     return out, None
 
 
@@ -477,6 +490,139 @@ def fetch_latest(org, dst, city, region, flex, window):
         }, flex, window)
         if o:
             out.append(o)
+    return out, None
+
+
+# ── 3차 소스 ──────────────────────────────────────────────
+# 캘린더도 latest 도 0건인 노선이 있다 (2026-08-30 실측: ICN/SEL→ZRH·BSL).
+# 두 엔드포인트는 같은 "최근 캐시"를 다른 방식으로 자를 뿐이라, 그 캐시에
+# 노선이 없으면 둘 다 빈다. 그래서 캐시 슬라이스가 다른 세 곳을 더 본다.
+#
+#   /v1/prices/cheap        가장 싼 몇 건. 다른 인덱스에서 나온다
+#   /v1/prices/direct       직항만. 나오면 stops=0 을 확신할 수 있다
+#   /v2/prices/month-matrix 월 단위. 위 둘이 안 주는 조합까지 훑는다
+#
+# 값이 없다고 확인하는 것도 결과다. 셋 다 0 이면 "소스에 없다" 가 추측이
+# 아니라 다섯 엔드포인트로 확인한 사실이 된다.
+DEEP_MIN = 1            # 2차까지 쓰고도 이 미만이면 3차를 붙인다
+DEEP_MONTHS = 4         # month-matrix 로 훑을 달 수 (노선당 호출 수 = 이 값)
+
+# 3차 소스는 노선당 2+DEEP_MONTHS 회를 쓴다. 빈 노선이 많으면 예산을 통째로
+# 먹는다. 특히 청주는 main() 에서 스위스보다 먼저 돌기 때문에, 상한이 없으면
+# 정작 목표인 취리히 차례에 예산이 남지 않는다. 그래서 지역별로 따로 센다.
+DEEP_MAX = {"유럽": 6}
+DEEP_MAX_DEFAULT = 4
+DEEP_USED = {}
+DEEP_TRIED = set()      # 3차까지 간 노선. 화면이 "몇 군데를 봤는지" 말하려면 필요
+
+
+def _deep_allowed(region):
+    cap = DEEP_MAX.get(region, DEEP_MAX_DEFAULT)
+    return DEEP_USED.get(region, 0) < cap
+
+
+def _cheap_rows(data):
+    """/v1/prices/cheap · /v1/prices/direct 응답을 캘린더 모양으로 편다.
+
+    data = {"ZRH": {"0": {price, airline, flight_number, departure_at,
+                          return_at, expires_at}, "1": {...}}}
+    목적지 키가 요청과 다를 수 있어(도시코드 접힘) 키를 믿지 않고 다 훑는다.
+    """
+    out = []
+    for _dest, group in (data or {}).items():
+        if not isinstance(group, dict):
+            continue
+        for _idx, r in group.items():
+            if isinstance(r, dict) and r.get("departure_at"):
+                out.append(r)
+    return out
+
+
+def fetch_deep(org, dst, city, region, flex, window):
+    """3차 소스. 노선당 2 + DEEP_MONTHS 회를 넘지 않는다."""
+    key = f"{org}-{dst}"
+    DEEP_USED[region] = DEEP_USED.get(region, 0) + 1
+    DEEP_TRIED.add(key)
+    out, seen = [], set()
+
+    def take(v, dep):
+        o = normalize(org, dst, city, region, dep, None, v, flex, window)
+        if o and o["id"] not in seen:
+            seen.add(o["id"]); out.append(o)
+
+    def bump(n):
+        RAWCOUNT[key] = RAWCOUNT.get(key, 0) + n
+        STAGES.setdefault(key, {})
+        STAGES[key]["api_raw"] = STAGES[key].get("api_raw", 0) + n
+
+    # 1) cheap / direct — 응답 모양이 같아 한 파서로 처리한다.
+    #    direct 로 나온 건은 stops=0 을 확신할 수 있다. 지어내는 게 아니라
+    #    엔드포인트가 직항만 준다는 계약이다.
+    for path, forced_stops in (("/v1/prices/cheap", None),
+                               ("/v1/prices/direct", 0)):
+        if CIRCUIT.tripped:
+            break
+        ok, data, err = call(path, {
+            "origin": org, "destination": dst, "currency": CURRENCY})
+        time.sleep(REQ_SLEEP)
+        if not ok:
+            if err in ("BUDGET_EXCEEDED", "CIRCUIT_OPEN"):
+                return out, err
+            ERRORS.append(f"{key} {path.rsplit('/', 1)[-1]}: {err}")
+            continue
+        rows = _cheap_rows(data.get("data"))
+        bump(len(rows))
+        for r in rows:
+            take({
+                "price": r.get("price") or r.get("value"),
+                "origin": r.get("origin"), "destination": r.get("destination"),
+                "airline": r.get("airline") or "?",
+                "flight_number": r.get("flight_number"),
+                "departure_at": r.get("departure_at"),
+                "return_at": r.get("return_at"),
+                "number_of_changes": (forced_stops if forced_stops is not None
+                                      else r.get("number_of_changes")),
+                "expires_at": r.get("expires_at"),
+            }, r.get("departure_at"))
+
+    # 2) month-matrix — 달마다 따로 물어야 한다. 출발일 창과 겹치는 달만.
+    lo, hi = window or (WINDOW_MIN, WINDOW_MAX)
+    d = (date.today() + timedelta(days=lo)).replace(day=1)
+    last = date.today() + timedelta(days=hi)
+    months = []
+    while d <= last and len(months) < DEEP_MONTHS:
+        months.append(d.strftime("%Y-%m-01"))
+        d = (d + timedelta(days=32)).replace(day=1)
+
+    for m in months:
+        if CIRCUIT.tripped:
+            break
+        ok, data, err = call("/v2/prices/month-matrix", {
+            "origin": org, "destination": dst, "month": m,
+            "currency": CURRENCY, "show_to_affiliates": "false"})
+        time.sleep(REQ_SLEEP)
+        if not ok:
+            if err in ("BUDGET_EXCEEDED", "CIRCUIT_OPEN"):
+                return out, err
+            ERRORS.append(f"{key} matrix {m[:7]}: {err}")
+            continue
+        rows = data.get("data") or []
+        bump(len(rows))
+        for r in rows:
+            dep = r.get("depart_date")
+            if not dep:
+                _drop(org, dst, "출발일 없음 (matrix)")
+                continue
+            take({
+                "price": r.get("value"),
+                "origin": r.get("origin"), "destination": r.get("destination"),
+                # matrix 는 항공사·편명을 주지 않는다. 지어내지 않는다.
+                "airline": "?", "flight_number": None,
+                "departure_at": dep, "return_at": r.get("return_date"),
+                "number_of_changes": r.get("number_of_changes"),
+                "expires_at": None,
+            }, dep)
+
     return out, None
 
 
@@ -1450,6 +1596,7 @@ def main():
                                for (d, a, nn), v in baselines["pooled"].items()},
             "errors": ERRORS[:30],
             "raw_counts": RAWCOUNT,
+            "deep_tried": sorted(DEEP_TRIED),
             "drops": DROPS}
 
     write_deals(offers, routes, meta, stats, gone, cjj_status)
