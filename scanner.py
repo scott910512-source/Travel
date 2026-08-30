@@ -638,7 +638,11 @@ def fetch_v3(org, dst, city, region, flex, window):
                 "flight_number": r.get("flight_number"),
                 "departure_at": dep, "return_at": r.get("return_at"),
                 "number_of_changes": r.get("transfers"),
-                "duration_min": r.get("duration"),
+                # duration 은 왕복 총합(2026-08-30 실측 2510분 = 41시간 50분).
+                # 이걸 "비행시간" 이라고 쓰면 편도 20시간짜리를 41시간으로
+                # 읽히게 만든다. 가는 편은 duration_to 로 따로 온다.
+                "duration_min": r.get("duration_to"),
+                "duration_rt_min": r.get("duration"),
                 "expires_at": None,
             }, flex, window)
             if o and o["id"] not in seen:
@@ -814,7 +818,8 @@ def normalize(org, dst, city, region, dep, nights, v, flex=None, window=None):
         "flight_no": v.get("flight_number"),
         "stops": stops,
         # v3 에서만 온다. 다른 소스에는 없으므로 대부분 None 이다.
-        "duration_min": v.get("duration_min"),
+        "duration_min": v.get("duration_min"),        # 가는 편
+        "duration_rt_min": v.get("duration_rt_min"),  # 왕복 총합
         "price_krw": int(price),
         "access_cost": access,
         "effective_krw": int(price) + access,   # 청주 기준 실부담가 (보조 지표)
@@ -1566,7 +1571,7 @@ def load(path, default):
 # 그대로 노출하지 않는다 (파일이 커지고, 화면이 안 쓰는 필드까지 딸려간다).
 OFFER_FIELDS = (
     "id dep arr city region depart_date return_date nights airline airline_kr "
-    "stops duration_min price_krw link dep_hour ret_hour holiday weekend red_days "
+    "stops duration_min duration_rt_min price_krw link dep_hour ret_hour holiday weekend red_days "
     "annual_leave weekend_trip night_departure roundtrip_verified "
     "baseline baseline_avg baseline_n baseline_tier confidence diff_krw "
     "discount_pct data_ok data_note tier tier_label deal_score "

@@ -338,3 +338,11 @@ button.cjjrow:active{background:var(--card2)}
   text-decoration:none;color:inherit}
 .cd.ow .price .v{color:var(--tx2)}
 .cd.ow .price .k{color:var(--warn);font-weight:700}
+
+/* 소스에 없을 때 실시간 검색으로 넘기는 링크 */
+.cta-lite{
+  display:block;margin-top:10px;padding:11px 14px;border-radius:var(--r);
+  background:var(--pri-soft);border:1px solid var(--pri-line);color:var(--pri);
+  font-weight:800;font-size:14px;text-align:center;text-decoration:none;
+}
+.cta-lite:active{background:var(--card2)}

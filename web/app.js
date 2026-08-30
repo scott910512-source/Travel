@@ -230,7 +230,13 @@ function badgesHTML(o) {
   }
   // 소요시간은 sub 줄 끝에 붙이면 말줄임으로 잘려 안 보인다. 배지는
   // 줄바꿈되므로 여기 둔다. 없는 편에는 아예 안 붙인다.
-  if (o.duration_min) b.push(`<span class="bg">✈ ${durTxt(o.duration_min)}</span>`);
+  // 가는 편 / 왕복 총합을 구분해 쓴다. 소스의 duration 은 왕복 총합이라
+  // 그냥 "비행시간" 이라고 붙이면 편도 20시간짜리가 41시간으로 읽힌다.
+  if (o.duration_min) {
+    b.push(`<span class="bg">✈ 가는 편 ${durTxt(o.duration_min)}</span>`);
+  } else if (o.duration_rt_min) {
+    b.push(`<span class="bg">✈ 왕복 합 ${durTxt(o.duration_rt_min)}</span>`);
+  }
   if (o.baseline_tier && o.baseline_tier.indexOf('누적') !== -1) {
     b.push(`<span class="bg">${esc(o.baseline_tier.split(' · ')[1])} 기준</span>`);
   }
@@ -652,6 +658,22 @@ function owGroupHTML(list) {
     <div class="list two">${list.slice(0, 6).map(owCardHTML).join('')}</div>`;
 }
 
+// 이 소스에 없는 노선은 여기서 끝내지 않는다. 실시간 검색으로 넘겨준다.
+// Travelpayouts 는 "남이 검색해서 캐시에 남은 값" 이라, 실제로 파는 표가
+// 여기 없을 수 있다. 없다고 말만 하고 끝내면 앱이 할 일을 안 한 것이다.
+function liveSearchHTML(dep, arr, cityName) {
+  const d0 = new Date(); d0.setDate(d0.getDate() + 60);
+  const d1 = new Date(d0); d1.setDate(d1.getDate() + 10);
+  const dm = d => String(d.getDate()).padStart(2, '0') +
+                  String(d.getMonth() + 1).padStart(2, '0');
+  const url = `https://www.aviasales.com/search/${dep}${dm(d0)}${arr}${dm(d1)}1`;
+  return `<a class="cta-lite" href="${esc(url)}" target="_blank" rel="noopener">
+      ${esc(cityName)} 실시간으로 검색해 보기 →</a>
+    <p style="margin:8px 0 0;font-size:12px;color:var(--tx3);font-weight:600">
+      ${md(d0.toISOString().slice(0, 10))} 출발 · 10박 기준으로 열립니다.
+      날짜는 검색 화면에서 바꾸세요.</p>`;
+}
+
 function viewSwiss() {
   // 여행 기간·환승 설정을 일부러 적용하지 않는다. 유럽은 캐시가 얇아
   // 근거리용 조건을 씌우면 있는 것마저 사라진다. 환승은 제한 없이 다 본다.
@@ -713,7 +735,8 @@ function viewSwiss() {
             ? '조회는 됐지만 왕복으로 확인되는 편이 없습니다.'
             : `소스 ${srcTried(code)}곳을 모두 확인했지만 응답이 비었습니다.
                캐시에 이 노선이 없습니다.`}
-          운항이 없다는 뜻은 아닙니다.</p></div>
+          운항이 없다는 뜻은 아닙니다.</p>
+          ${liveSearchHTML('ICN', code, SWISS_CITY[code])}</div>
         ${owGroupHTML(ow)}</section>`;
     }
 
@@ -773,10 +796,11 @@ function viewSwiss() {
 
 function swissNote() {
   const withDur = S.data.offers.filter(o =>
-    SWISS_ORDER.includes(o.arr) && o.duration_min).length;
+    SWISS_ORDER.includes(o.arr) && (o.duration_min || o.duration_rt_min)).length;
   return `<div class="note" style="margin-top:16px"><b>이 소스로 알 수 있는 것과 없는 것</b>
-    <p>총 소요시간은 <b>일부 편에만</b> 들어옵니다(현재 ${withDur}건). 있는
-    편만 표시하고 없는 편은 비워 둡니다 — 지어내지 않습니다.
+    <p>비행시간은 <b>일부 편에만</b> 들어옵니다(현재 ${withDur}건). 소스가
+    주는 값은 <b>왕복 총합</b>이라, 가는 편 값이 따로 올 때만 "가는 편"으로
+    적고 아니면 "왕복 합"으로 적습니다. 없는 편은 비워 둡니다.
     <b>환승 대기시간은 어느 응답에도 없습니다.</b> 그래서 정렬 기준으로는
     쓰지 않았습니다. 실제 일정은 예약 페이지에서 확인하세요.</p></div>`;
 }
@@ -796,9 +820,10 @@ function swissDiag() {
     }).join('');
   return `<section class="sec">
     <div class="note warn"><b>스위스 항공권이 없습니다</b>
-      <p>조회 실패가 아닙니다. 캘린더·최근가·최저가·직항·월별 매트릭스까지
-      훑어도 소스(Travelpayouts) 캐시에 한국→스위스 왕복이 거의 없습니다.
-      노선별 실제 응답은 아래와 같습니다.</p></div>
+      <p>조회 실패가 아닙니다. 이 앱이 쓰는 Travelpayouts 는 <b>실시간 검색이
+      아니라 남이 검색해서 캐시에 남은 값</b>을 줍니다. 그래서 실제로 파는
+      표가 여기 없을 수 있습니다. 여섯 엔드포인트를 다 훑은 결과가
+      아래입니다.</p></div>
     <div class="panel"><h4>🔍 노선별 응답 진단</h4>${rows || '<p>진단 정보 없음</p>'}</div>
   </section>`;
 }
