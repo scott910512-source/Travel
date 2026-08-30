@@ -1,21 +1,21 @@
 {
  "date": "2026-08-30",
- "ts": "2026-08-30 18:42 KST",
+ "ts": "2026-08-30 19:03 KST",
  "status": "OK",
- "headline": "볼 것 358건 · 강력특가 28 · 주말여행 3 · CJJ 3 · 하락 2",
+ "headline": "볼 것 359건 · 강력특가 27 · 주말여행 3 · CJJ 3 · 신규 1 · 하락 2",
  "home": "CJJ",
  "reason": null,
  "degraded": null,
  "holiday_gap": null,
  "counts": {
-  "total": 361,
-  "comparable": 358,
-  "strong": 28,
+  "total": 362,
+  "comparable": 359,
+  "strong": 27,
   "deal": 31,
-  "candidate": 40,
-  "weekend": 84,
+  "candidate": 41,
+  "weekend": 85,
   "home": 25,
-  "new": 0,
+  "new": 1,
   "down": 2,
   "up": 3,
   "gone": 0
@@ -37,19 +37,6 @@
    "link": "https://www.aviasales.com/search/CJJ0209CJU03091"
   },
   {
-   "text": "오사카 TAE→KIX · 09-05~09-08 3박 · 166,259원 (실부담 196,259) · 평균보다 38% 저렴 · 강력 특가  🔻추적기간 최저",
-   "tier": "strong",
-   "tier_label": "강력 특가",
-   "confidence": "높음",
-   "sample": 32,
-   "price": 166259,
-   "access": 30000,
-   "effective": 196259,
-   "weekend_trip": false,
-   "leave": 2.0,
-   "link": "https://www.aviasales.com/search/TAE0509KIX08091"
-  },
-  {
    "text": "오사카 ICN→KIX · 09-28~09-30 2박 · 142,650원 (실부담 186,650) · 평균보다 43% 저렴 · 강력 특가  🔻추적기간 최저",
    "tier": "strong",
    "tier_label": "강력 특가",
@@ -61,6 +48,19 @@
    "weekend_trip": false,
    "leave": 2.5,
    "link": "https://www.aviasales.com/search/ICN2809KIX30091"
+  },
+  {
+   "text": "후쿠오카 ICN→FUK · 09-07~09-09 2박 · 143,722원 (실부담 187,722) · 평균보다 42% 저렴 · 강력 특가  🔻추적기간 최저",
+   "tier": "strong",
+   "tier_label": "강력 특가",
+   "confidence": "높음",
+   "sample": 11,
+   "price": 143722,
+   "access": 44000,
+   "effective": 187722,
+   "weekend_trip": false,
+   "leave": 2.5,
+   "link": "https://www.aviasales.com/search/ICN0709FUK09091"
   }
  ],
  "weekend": [
