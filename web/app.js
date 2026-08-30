@@ -1021,8 +1021,10 @@ function gatewaySection() {
       <p>스위스 직항은 캐시가 거의 비어 있습니다. 이웃 나라까지 날아가
         기차로 넘어가는 편이 더 싸고 더 자주 있습니다.</p></div></div>
     <div class="note"><p><b>스위스 도착이 아닙니다.</b> 아래는 독일·이탈리아·
-      프랑스 도착 항공권이고 거기서 기차를 타야 합니다. 기차 시간은
-      <b>대략</b>이고, <b>기차 요금은 포함돼 있지 않습니다.</b></p></div>
+      프랑스 도착 항공권이고 거기서 기차를 타야 합니다.
+      시간은 <b>공항 도착 → 스위스 도시</b> 기준이라 공항에서 역까지 가는
+      시간도 들어 있습니다. <b>기차 요금은 실부담가에 포함돼 있지
+      않습니다.</b></p></div>
     ${any ? rows.map(r => {
       if (!r.lo) {
         return `<div class="kv"><span class="k" style="color:var(--tx2);font-weight:700">
@@ -1039,10 +1041,15 @@ function gatewaySection() {
         <div class="price"><div class="v">${won(effective(r.lo))}</div>
           <div class="k">실부담 · ${r.pool.length}건</div></div></div>
         <div class="badges">
-          <span class="bg pri">🚄 ${esc(r.g.city)} → ${esc(r.g.to)} 기차 약 ${r.g.train_hours}시간</span>
-          <span class="bg">${esc(r.g.via)}</span>
+          <span class="bg ${r.g.airport_rail ? 'down' : 'pri'}">🚄 → ${esc(r.g.to)}
+            약 ${r.g.train_hours}시간</span>
+          ${r.g.airport_rail
+            ? '<span class="bg down">공항역에서 바로 탑승</span>'
+            : '<span class="bg deal">시내 역까지 이동 필요</span>'}
           <span class="bg">기차 요금 별도</span>
-        </div></button>`;
+        </div>
+        <p style="margin:8px 0 0;font-size:12px;color:var(--tx3);font-weight:600;
+          line-height:1.5;text-align:left">${esc(r.g.detail || r.g.via)}</p></button>`;
     }).join('')
       : `<div class="note warn"><b>아직 데이터가 없습니다</b>
          <p>이 노선들은 오늘 처음 조회 목록에 들어갔습니다. 다음 스캔부터
