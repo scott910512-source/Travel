@@ -17,13 +17,9 @@
     "region 을 '유럽' 으로 두면 장거리 규칙을 씁니다",
     "(왕복 전용 소스 v3 항상 사용, 체류 2~21박, 출발일 D+3~D+180, 편도도 따로 수집).",
     "",
-    "swiss_gateway 가 붙은 노선은 '스위스 인근 공항'으로 스위스 탭에 따로 표시됩니다.",
-    "한국→스위스 직항은 캐시가 거의 비지만, 프랑크푸르트·뮌헨은 인천 직항이",
-    "많아 캐시가 두껍습니다. 거기까지 날아가 기차로 넘어가는 편이 실제로 쌀 수 있습니다.",
-    "train_hours 는 '공항 도착 → 스위스 도시' 전체 소요시간(대략)입니다.",
-    "도심역 기준이 아니라 공항 기준입니다 — 뮌헨처럼 공항에 장거리역이 없으면",
-    "S-Bahn 환승 시간이 포함됩니다. airport_rail 이 true 면 터미널에서 바로 탑니다.",
-    "2026-08 조사 기준이며 실제 시각은 예약 전에 확인하세요."
+    "인근 공항 + 기차(FRA·MUC·MXP·CDG)는 뺐습니다. 스위스 도착이 아닌 항공권을",
+    "스위스 화면에 같이 두면 복잡하기만 합니다. 노선은 지우지 않고 active 를",
+    "false 로 두었으니, 다시 보고 싶어지면 true 로 바꾸기만 하면 됩니다."
   ],
   "routes": [
     {
@@ -60,14 +56,8 @@
       "country": "독일",
       "flag": "🇩🇪",
       "region": "유럽",
-      "active": true,
-      "swiss_gateway": {
-        "to": "취리히",
-        "train_hours": 4.1,
-        "airport_rail": true,
-        "via": "공항역에서 ICE 직통 · 하루 다수",
-        "detail": "공항에 장거리역(Fernbahnhof)이 있어 터미널에서 바로 탑승. 최속 4시간 4분"
-      }
+      "active": false,
+      "_메모": "인근 공항 + 기차 기능을 뺐습니다. 다시 쓰려면 active 를 true 로."
     },
     {
       "from": "ICN",
@@ -76,14 +66,8 @@
       "country": "독일",
       "flag": "🇩🇪",
       "region": "유럽",
-      "active": true,
-      "swiss_gateway": {
-        "to": "취리히",
-        "train_hours": 5.0,
-        "airport_rail": false,
-        "via": "S8로 중앙역 41분 + EC 직통 8편/일",
-        "detail": "공항에 장거리역이 없어 S-Bahn 환승 필요. 열차만 최속 3시간 57분"
-      }
+      "active": false,
+      "_메모": "인근 공항 + 기차 기능을 뺐습니다. 다시 쓰려면 active 를 true 로."
     },
     {
       "from": "ICN",
@@ -92,14 +76,8 @@
       "country": "이탈리아",
       "flag": "🇮🇹",
       "region": "유럽",
-      "active": true,
-      "swiss_gateway": {
-        "to": "취리히",
-        "train_hours": 4.5,
-        "airport_rail": false,
-        "via": "밀라노 중앙역까지 약 50분 + 직통",
-        "detail": "말펜사 익스프레스로 중앙역 이동 후 환승"
-      }
+      "active": false,
+      "_메모": "인근 공항 + 기차 기능을 뺐습니다. 다시 쓰려면 active 를 true 로."
     },
     {
       "from": "ICN",
@@ -108,14 +86,8 @@
       "country": "프랑스",
       "flag": "🇫🇷",
       "region": "유럽",
-      "active": true,
-      "swiss_gateway": {
-        "to": "제네바",
-        "train_hours": 4.5,
-        "airport_rail": false,
-        "via": "파리 리옹역까지 이동 + TGV 약 3시간 10분",
-        "detail": "CDG에서 리옹역으로 시내 환승 필요. 직통 편이 드묾"
-      }
+      "active": false,
+      "_메모": "인근 공항 + 기차 기능을 뺐습니다. 다시 쓰려면 active 를 true 로."
     }
   ]
 }
