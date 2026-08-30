@@ -477,7 +477,7 @@ def fetch_latest(org, dst, city, region, flex, window):
         ERRORS.append(f"{org}-{dst} latest: {err}")
         return [], err
 
-    rows = data.get("data") or []
+    rows = _rows(data, f"{org}-{dst} latest")
     key = f"{org}-{dst}"
     RAWCOUNT[key] = RAWCOUNT.get(key, 0) + len(rows)
     STAGES.setdefault(key, {})
@@ -496,6 +496,10 @@ def fetch_latest(org, dst, city, region, flex, window):
             "flight_number": r.get("flight_number"),
             "departure_at": dep, "return_at": r.get("return_date"),
             "number_of_changes": r.get("number_of_changes"),
+            # 이 소스는 "남이 검색해서 캐시에 남은 값" 이다. found_at 은 그게
+            # 언제 검색된 값인지를 말해 준다. 사흘 지난 값과 오늘 값을 같은
+            # 얼굴로 보여주면 안 된다.
+            "found_at": r.get("found_at"),
             "expires_at": None,
         }, flex, window)
         if o:
@@ -542,6 +546,21 @@ def _deep_allowed(region, need=1):
 def _deep_spend(region, n):
     b = _deep_bucket(region)
     DEEP_SPENT[b] = DEEP_SPENT.get(b, 0) + n
+
+
+def _rows(data, key):
+    """리스트를 주는 엔드포인트의 data 를 안전하게 꺼낸다.
+
+    응답 모양이 예상과 다르면(리스트가 아닌 것이 오면) 그 호출만 건너뛴다.
+    전에는 rows[0] 에서 그대로 터져 스캔 전체가 죽었다. 한 노선의 응답
+    하나가 나머지 스무 개 노선의 결과를 날리면 안 된다.
+    """
+    v = data.get("data") if isinstance(data, dict) else None
+    if isinstance(v, list):
+        return v
+    if v:
+        ERRORS.append(f"{key}: 응답 모양이 예상과 다름 ({type(v).__name__})")
+    return []
 
 
 def _cheap_rows(data):
@@ -616,7 +635,7 @@ def fetch_v3(org, dst, city, region, flex, window):
                 return out, err
             ERRORS.append(f"{key} v3 {m}: {err}")
             continue
-        rows = data.get("data") or []
+        rows = _rows(data, f"{key} v3 {m}")
         st["rows"] += len(rows)
         if rows and not st.get("sample"):
             # 응답 모양을 한 건만 남긴다. 필드명이 문서와 다르면 여기서 보인다.
@@ -723,7 +742,7 @@ def fetch_deep(org, dst, city, region, flex, window):
                 return out, err
             ERRORS.append(f"{key} matrix {m[:7]}: {err}")
             continue
-        rows = data.get("data") or []
+        rows = _rows(data, f"{key} matrix {m[:7]}")
         bump(len(rows))
         for r in rows:
             dep = r.get("depart_date")
@@ -737,6 +756,7 @@ def fetch_deep(org, dst, city, region, flex, window):
                 "airline": "?", "flight_number": None,
                 "departure_at": dep, "return_at": r.get("return_date"),
                 "number_of_changes": r.get("number_of_changes"),
+                "found_at": r.get("found_at"),
                 "expires_at": None,
             }, dep)
 
@@ -820,6 +840,8 @@ def normalize(org, dst, city, region, dep, nights, v, flex=None, window=None):
         # v3 에서만 온다. 다른 소스에는 없으므로 대부분 None 이다.
         "duration_min": v.get("duration_min"),        # 가는 편
         "duration_rt_min": v.get("duration_rt_min"),  # 왕복 총합
+        # 이 가격이 캐시에 들어온 시각. 소스가 줄 때만 있다.
+        "found_at": v.get("found_at"),
         "price_krw": int(price),
         "access_cost": access,
         "effective_krw": int(price) + access,   # 청주 기준 실부담가 (보조 지표)
@@ -1571,7 +1593,7 @@ def load(path, default):
 # 그대로 노출하지 않는다 (파일이 커지고, 화면이 안 쓰는 필드까지 딸려간다).
 OFFER_FIELDS = (
     "id dep arr city region depart_date return_date nights airline airline_kr "
-    "stops duration_min duration_rt_min price_krw link dep_hour ret_hour holiday weekend red_days "
+    "stops duration_min duration_rt_min price_krw found_at link dep_hour ret_hour holiday weekend red_days "
     "annual_leave weekend_trip night_departure roundtrip_verified "
     "baseline baseline_avg baseline_n baseline_tier confidence diff_krw "
     "discount_pct data_ok data_note tier tier_label deal_score "

@@ -237,6 +237,12 @@ function badgesHTML(o) {
   } else if (o.duration_rt_min) {
     b.push(`<span class="bg">✈ 왕복 합 ${durTxt(o.duration_rt_min)}</span>`);
   }
+  // 오래된 캐시값은 그렇다고 말한다. 이틀 넘으면 눈에 띄게.
+  const age = ageTxt(o.found_at);
+  if (age) {
+    const stale = (Date.now() - Date.parse(o.found_at)) > 48 * 3600000;
+    b.push(`<span class="bg${stale ? ' deal' : ''}">🕐 ${age}</span>`);
+  }
   if (o.baseline_tier && o.baseline_tier.indexOf('누적') !== -1) {
     b.push(`<span class="bg">${esc(o.baseline_tier.split(' · ')[1])} 기준</span>`);
   }
@@ -249,6 +255,18 @@ const durTxt = m => {
   const h = Math.floor(m / 60), mm = m % 60;
   return mm ? `${h}시간 ${mm}분` : `${h}시간`;
 };
+// 이 앱의 가격은 "남이 검색해서 캐시에 남은 값" 이다. 언제 남은 값인지를
+// 숨기면, 사흘 지난 값과 오늘 값이 같은 얼굴로 보인다.
+function ageTxt(iso) {
+  if (!iso) return '';
+  const t = Date.parse(iso);
+  if (!t) return '';
+  const h = Math.floor((Date.now() - t) / 3600000);
+  if (h < 0) return '';
+  if (h < 1) return '방금 검색된 값';
+  if (h < 24) return `${h}시간 전 검색된 값`;
+  return `${Math.floor(h / 24)}일 전 검색된 값`;
+}
 const stopTxt = s => (s === 0 ? '직항' : (s === 1 ? '1회 환승' : (s == null ? '환승 정보 없음' : `${s}회 환승`)));
 
 function heroHTML(o, rank, plainLabel) {
