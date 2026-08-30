@@ -242,6 +242,36 @@ def load_cjj_routes():
 
 CJJ_ROUTES = load_cjj_routes()
 
+WATCHLIST_CONFIG = os.path.join(os.getcwd(), "config", "watchlist.json")
+
+
+def load_watchlist():
+    """사용자가 직접 추가하는 관심 노선.
+
+    코드를 고치지 않고 목적지를 늘리기 위한 파일이다. 다만 이 소스는
+    "남이 검색해서 캐시에 남은 값" 이라, 여기 등록만 해서는 아무도 검색하지
+    않는 노선이 채워지지 않는다. 실제로 한 번 검색해 둬야 캐시에 들어온다.
+    그 안내는 config/watchlist.json 안에 적어 뒀다.
+    """
+    try:
+        with open(WATCHLIST_CONFIG, encoding="utf-8") as f:
+            rows = json.load(f).get("routes") or []
+    except FileNotFoundError:
+        return []
+    except Exception as e:
+        print(f"⚠️  {WATCHLIST_CONFIG} 를 읽지 못했습니다 ({e}). 관심 노선을 건너뜁니다.")
+        return []
+    out = []
+    for r in rows:
+        if not r.get("active", True):
+            continue
+        org, dst = r.get("from"), r.get("to")
+        if not org or not dst:
+            print(f"⚠️  watchlist 항목에 from/to 가 없습니다: {r}")
+            continue
+        out.append((org, dst, r.get("city") or dst, r.get("region") or ""))
+    return out
+
 # priority 별 실행 요일 (0=월). 1=매일, 2=월·수·금, 3=일요일.
 PRIORITY_DAYS = {1: None, 2: {0, 2, 4}, 3: {6}}
 
@@ -1721,6 +1751,11 @@ def main():
         targets = []
         for g in groups:
             targets += SWISS if g == "swiss" else ROUTES.get(g, [])
+        # 사용자가 추가한 관심 노선. 중복은 아래에서 걸러진다.
+        watch = load_watchlist()
+        if watch:
+            print(f"▶ 관심 노선 {len(watch)}개 (config/watchlist.json)")
+        targets += watch
         seen = set()
         targets = [t for t in targets if not (t[:2] in seen or seen.add(t[:2]))]
 

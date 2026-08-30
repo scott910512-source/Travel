@@ -713,6 +713,10 @@ function liveSearchHTML(dep, arr, cityName) {
     <p class="live-note">이 앱의 가격은 <b>캐시</b>라 실제로 파는 표가 빠질 수
       있습니다. 위 버튼은 aviasales 실시간 검색을 엽니다 — 날짜는 그 화면에서
       바꾸세요.</p>
+    <p class="live-note" style="margin-top:6px">💡 <b>한 번 검색해 두면 다음
+      스캔부터 이 앱이 자동으로 추적합니다.</b> 이 소스는 사람들이 검색한
+      기록을 모아 두는 곳이라, 아무도 안 찾는 노선은 비어 있습니다.
+      직접 한 번 찾으면 그 기록이 남습니다.</p>
   </div>`;
 }
 
