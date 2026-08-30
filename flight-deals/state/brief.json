@@ -1,0 +1,40 @@
+{
+ "date": "2026-08-30",
+ "ts": "2026-08-30 15:09 KST",
+ "status": "OK",
+ "headline": "볼 것 323건 · 신규 340",
+ "rotation": "주말 · 임박 딜",
+ "reason": null,
+ "degraded": null,
+ "counts": {
+  "a": 0,
+  "b": 323,
+  "c": 17,
+  "new": 340,
+  "down": 0,
+  "up": 0,
+  "gone": 0
+ },
+ "source_note": "Travelpayouts 캐시 데이터 · A등급 불가, B가 천장",
+ "top": [
+  {
+   "text": "오사카 PUS→KIX · 09-20~09-23 3박 · 132,482원 -54% · SCORE 54  🆕",
+   "grade": "B",
+   "verdict": "초특가",
+   "link": "https://www.aviasales.com/search/PUS2009KIX23091"
+  },
+  {
+   "text": "타이베이 PUS→TPE · 09-09~09-13 4박 · 187,135원 -58% · SCORE 53  🆕",
+   "grade": "B",
+   "verdict": "초특가",
+   "link": "https://www.aviasales.com/search/PUS0909TPE13091"
+  },
+  {
+   "text": "오사카 PUS→KIX · 09-21~09-23 2박 · 157,386원 -54% · SCORE 51  🆕",
+   "grade": "B",
+   "verdict": "초특가",
+   "link": "https://www.aviasales.com/search/PUS2109KIX23091"
+  }
+ ],
+ "dashboard": "/home/runner/work/Travel/Travel/flight-deals/latest.html"
+}
