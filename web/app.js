@@ -659,19 +659,43 @@ function owGroupHTML(list) {
 }
 
 // 이 소스에 없는 노선은 여기서 끝내지 않는다. 실시간 검색으로 넘겨준다.
-// Travelpayouts 는 "남이 검색해서 캐시에 남은 값" 이라, 실제로 파는 표가
-// 여기 없을 수 있다. 없다고 말만 하고 끝내면 앱이 할 일을 안 한 것이다.
-function liveSearchHTML(dep, arr, cityName) {
-  const d0 = new Date(); d0.setDate(d0.getDate() + 60);
-  const d1 = new Date(d0); d1.setDate(d1.getDate() + 10);
+//
+// Travelpayouts Data API 는 "남이 검색해서 캐시에 남은 값" 이다. aviasales.com
+// 웹 검색은 그때그때 항공사·GDS 를 찔러보는 메타서치라 결과가 다르다. 같은
+// 회사 제품인데 우리가 쓸 수 있는 건 캐시 쪽뿐이다(실시간 API 는 MAU 5만
+// 이상만 승인). 2026-08-30 실측: 이 링크로 연 화면에서 취리히 왕복 $614 가
+// 나왔다 — 우리 캐시에는 0건인 노선이다.
+//
+// 그래서 "없습니다" 로 끝내지 않고, 날짜를 바꿔 가며 눌러볼 수 있게 한다.
+// 가격은 출발일에 따라 크게 달라서 창을 하나만 주면 쓸모가 적다.
+const LIVE_NIGHTS = 10;                 // 유럽 왕복의 현실적인 기본값
+const LIVE_OFFSETS = [45, 75, 105];     // 출발일 후보 (오늘로부터)
+
+function liveSearchURL(dep, arr, offset, nights) {
+  const d0 = new Date(); d0.setDate(d0.getDate() + offset);
+  const d1 = new Date(d0); d1.setDate(d1.getDate() + nights);
   const dm = d => String(d.getDate()).padStart(2, '0') +
                   String(d.getMonth() + 1).padStart(2, '0');
-  const url = `https://www.aviasales.com/search/${dep}${dm(d0)}${arr}${dm(d1)}1`;
-  return `<a class="cta-lite" href="${esc(url)}" target="_blank" rel="noopener">
-      ${esc(cityName)} 실시간으로 검색해 보기 →</a>
-    <p style="margin:8px 0 0;font-size:12px;color:var(--tx3);font-weight:600">
-      ${md(d0.toISOString().slice(0, 10))} 출발 · 10박 기준으로 열립니다.
-      날짜는 검색 화면에서 바꾸세요.</p>`;
+  return {
+    url: `https://www.aviasales.com/search/${dep}${dm(d0)}${arr}${dm(d1)}1`,
+    label: `${d0.getMonth() + 1}/${d0.getDate()} 출발`,
+    sub: `${LIVE_NIGHTS}박`,
+  };
+}
+
+function liveSearchHTML(dep, arr, cityName) {
+  const btns = LIVE_OFFSETS.map(off => {
+    const l = liveSearchURL(dep, arr, off, LIVE_NIGHTS);
+    return `<a class="live-btn" href="${esc(l.url)}" target="_blank" rel="noopener">
+      <span class="d">${l.label}</span><span class="n">${l.sub}</span></a>`;
+  }).join('');
+  return `<div class="live">
+    <p class="live-hd">${esc(cityName)} 실시간으로 검색하기</p>
+    <div class="live-row">${btns}</div>
+    <p class="live-note">이 앱의 가격은 <b>캐시</b>라 실제로 파는 표가 빠질 수
+      있습니다. 위 버튼은 aviasales 실시간 검색을 엽니다 — 날짜는 그 화면에서
+      바꾸세요.</p>
+  </div>`;
 }
 
 function viewSwiss() {
@@ -790,8 +814,11 @@ function viewSwiss() {
          최고입니다.</p>`}
   </div>`;
 
+  // 데이터가 있는 도시라도 실제 예약 전에는 실시간을 보는 게 맞다.
+  // 대표편 도시 기준으로 맨 아래 한 번 더 둔다.
+  const liveAll = liveSearchHTML('ICN', hero.arr, SWISS_CITY[hero.arr] || hero.arr);
   return `${plainHeader('스위스', '취리히 우선 · 환승 제한 없음')}
-  <div class="wrap">${head}${sections}${pos}${swissNote()}${footerHTML()}</div>`;
+  <div class="wrap">${head}${sections}${pos}${liveAll}${swissNote()}${footerHTML()}</div>`;
 }
 
 function swissNote() {
