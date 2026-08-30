@@ -192,6 +192,7 @@ class Budget:
 BUDGET = Budget(SEARCH_BUDGET)
 ERRORS = []
 RAWCOUNT = {}     # 노선별 원본 레코드 수 (필터 전). 빈 응답 진단용.
+DROPS = {}        # 노선별 탈락 사유 집계. "원본은 왔는데 왜 0건인가" 에 답한다.
 
 
 class Circuit:
@@ -304,39 +305,46 @@ def fetch_route(org, dst, city, region, nights=None, flex=None, window=None):
     return out, None
 
 
+def _drop(org, dst, why):
+    DROPS.setdefault(f"{org}-{dst}", {})
+    DROPS[f"{org}-{dst}"][why] = DROPS[f"{org}-{dst}"].get(why, 0) + 1
+    return None
+
+
 def normalize(org, dst, city, region, dep, nights, v, flex=None, window=None):
     price = v.get("price")
     if not price or price <= 0:
-        return None
+        return _drop(org, dst, "가격 없음")
     try:
         d0 = datetime.strptime(dep[:10], "%Y-%m-%d").date()
     except ValueError:
-        return None
+        return _drop(org, dst, "출발일 파싱 실패")
     lo, hi = window or (WINDOW_MIN, WINDOW_MAX)
     delta = (d0 - date.today()).days
     if not (lo <= delta <= hi):
-        return None
+        return _drop(org, dst, f"출발일 창 밖 (D+{delta})")
 
     ret_at = v.get("return_at")
     if ret_at:
         try:
             d1 = datetime.strptime(ret_at[:10], "%Y-%m-%d").date()
         except ValueError:
-            return None
+            return _drop(org, dst, "귀국일 파싱 실패")
         roundtrip = True
         actual = (d1 - d0).days
         if flex:
             # length 를 안 걸었으므로 실제 체류일이 범위 안인 것만 받는다.
             if not (flex[0] <= actual <= flex[1]):
-                return None
+                return _drop(org, dst, f"체류일 범위 밖 ({actual}박)")
             nights = actual
         else:
             # length 가 무시되는 경우를 대비한 방어. 요청 박수와 다르면 버린다.
             # (length 미지정 시 7박·21박·28박까지 섞여 나오는 것을 실측 확인)
             if actual != nights:
-                return None
+                return _drop(org, dst, f"요청 박수 불일치 ({actual}≠{nights})")
     elif flex:
-        return None                # 체류일을 못 세는 flex 응답은 쓸 수 없다
+        # 체류일을 못 세면 flex 모드에서는 쓸 수 없다 (귀국일을 지어낼 수 없음)
+        return _drop(org, dst, "return_at 없음 (편도 캐시)")
     else:
         d1 = d0 + timedelta(days=nights)
         roundtrip = False          # ★ 왕복 미검증 → C등급 강등 사유
@@ -1296,9 +1304,26 @@ def render(offers, stats, gone, meta):
             "🔥 특가 순", "B등급 · SCORE 순", deals[:10],
             "정상가 비교가 성립한 스위스 딜이 없습니다.")
     else:
+        diag = []
+        for k in sorted(RAWCOUNT):
+            if k.split("-")[1] not in ("ZRH", "GVA", "BSL"):
+                continue
+            raw = RAWCOUNT[k]
+            d = DROPS.get(k, {})
+            reason = (", ".join(f"{a} {b}건" for a, b in
+                                sorted(d.items(), key=lambda x: -x[1])[:3])
+                      if d else ("응답 자체가 빔" if not raw else "-"))
+            diag.append(f'<div class="kv"><span class="k">{esc(k)}</span>'
+                        f'<span class="v">원본 {raw}건 · {esc(reason)}</span></div>')
         swi_html = ('<div class="secstat fail"><b>스위스 데이터 없음</b>'
-                    '<span>이번 스캔에서 ZRH·GVA·BSL 응답이 비었습니다. '
-                    '캐시가 얇거나 호출이 예산에서 잘렸을 수 있습니다.</span></div>')
+                    '<span>조회 실패가 아니라 소스(Travelpayouts) 캐시에 '
+                    '한국→스위스 왕복이 거의 없습니다. 노선별 실제 응답은 '
+                    '아래와 같습니다.</span></div>'
+                    '<div class="zone"><h3>🔍 노선별 응답 진단</h3>'
+                    '<p class="desc">원본 = API 가 실제로 준 레코드 수. '
+                    '0 이면 소스에 데이터가 없는 것이고, 0 이 아닌데 결과가 '
+                    '비면 오른쪽이 탈락 사유다.</p>'
+                    + "".join(diag) + '</div>')
     tabs.append(("swi", "스위스")); panels.append(("swi", swi_html, None))
 
     # 노선별 요약
@@ -1518,8 +1543,14 @@ def main():
             got, stop = fetch_route(org, dst, city, region, NIGHTS)
         tag = {"BUDGET_EXCEEDED": "  ⛔예산소진",
                "CIRCUIT_OPEN": "  ⛔중단"}.get(stop, "")
-        rawn = RAWCOUNT.get(f"{org}-{dst}", 0)
-        print(f"  {org}→{dst} {len(got):>4}건 (원본 {rawn}){tag}")
+        key = f"{org}-{dst}"
+        rawn = RAWCOUNT.get(key, 0)
+        why = ""
+        if not got and rawn:
+            d = DROPS.get(key, {})
+            why = "  ← " + ", ".join(f"{k} {v}" for k, v in
+                                     sorted(d.items(), key=lambda x: -x[1])[:3])
+        print(f"  {org}→{dst} {len(got):>4}건 (원본 {rawn}){tag}{why}")
         offers += got
         if stop:
             break
