@@ -166,6 +166,73 @@ python scanner.py --raw        # API 응답 구조 프로브 (기존 동작)
 | ICN·GMP | D+3 ~ D+75 | 2~5박 | 설정에 따름 | 출발지 단위 |
 | 스위스 | D+3 ~ D+180 | 2~21박 | **제한 없음** | 노선별 flex |
 
+## 멀티 provider
+
+Travelpayouts 는 캐시라 검색량이 적은 노선이 통째로 빈다. 그 구멍만 다른
+provider 로 메운다. 데이터가 이미 충분한 노선에는 호출을 쓰지 않는다.
+
+```
+sources/base.py            Provider 추상 (예외 격리 · 토큰 없으면 비활성)
+sources/travelpayouts.py   기존 fetch_route 를 감싸기만 한다
+sources/duffel.py          실시간 offer. confidence A
+sources/skyscanner.py      인터페이스만 확정 (구현 교체 가능)
+core/normalize.py          공통 Offer 모델
+core/merge.py              중복 병합 + 신뢰도 우선순위
+core/quality.py            커버리지 지표 · A/B 리포트
+```
+
+### 신뢰도와 가격 등급은 다른 축이다
+
+| | 뜻 | 값 |
+|---|---|---|
+| `source_confidence` | 얼마나 믿을 수 있나 | A(실시간 확정) · B(실시간/캐시) · C |
+| deal tier | 얼마나 싼가 | 강력특가 · 특가 · 후보 · 일반 |
+
+섞지 않는다. 실시간으로 확인된 비싼 표와 사흘 된 캐시의 싼 값은 서로 다른
+이야기다. 화면에도 따로 표시한다 (`LIVE · Duffel` / `CACHE · Travelpayouts`).
+
+**병합 대표는 가격이 아니라 신뢰도로 고른다.** 싼 캐시값이 실시간 확정가를
+밀어내면 눌렀을 때 없는 가격을 보여주게 된다. 최저가는 `best_price` 로,
+provider 별 값은 `sources[]` 로 함께 남긴다.
+
+### fallback 발동 조건
+
+```
+CJJ 노선 → Travelpayouts 조회
+         → 유효 왕복 5건(MIN_CJJ_ROWS) 이상이면 여기서 끝
+         → 부족하면 Skyscanner 추가 조회 → merge → 직항 필터
+```
+
+**단순 row 수가 아니라 유효 왕복 수로 판단한다.** 원본 20건이 와도 전부
+편도면 쓸 수 있는 가격은 0건이다.
+
+ICN-ZRH 는 Duffel 우선(없으면 Skyscanner). 이코노미 · 왕복 · 최대 1회 환승 ·
+4~14박. 날짜는 주 단위 seed 를 먼저 찍고 좋은 구간만 ±2일 넓힌다
+(`SEED_STEP`/`SPREAD`) — 모든 날짜를 훑으면 호출이 폭발한다.
+
+### 환경변수
+
+| 변수 | 없으면 |
+|---|---|
+| `TP_TOKEN` | **스캔 실패** (기존 정책) |
+| `DUFFEL_TOKEN` | Duffel 만 비활성 |
+| `SKYSCANNER_API_KEY` | Skyscanner 만 비활성 |
+
+부가 provider 의 토큰이 없다고 워크플로가 실패하지 않는다. provider 하나가
+예외를 던져도 나머지는 계속 돈다.
+
+### A/B 커버리지
+
+`python scanner.py --ab` 로 `baseline.json` 과 비교한다. 평가 순서는 전체
+건수가 아니라 **CJJ 0건 노선 수 → 가격 확인 목적지 수 → ZRH 유효 row →
+ZRH 직항 → 전체** 다. 전체가 늘어도 0건 노선이 그대로면 실패다.
+
+### 신규 노선 발견
+
+`python scanner.py --discover` 는 후보를 `flight-deals/state/discovered_routes.json`
+에만 적는다. **`config/cjj_routes.json` 을 자동으로 고치지 않는다.** 자동으로
+active 를 켜면 운항하지도 않는 노선에 매일 호출을 쓰게 된다.
+
 ## 표본 누적
 
 하루 표본이 **10건 미만인 (출발지·목적지·박수) 버킷**만 과거 가격을

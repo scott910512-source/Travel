@@ -39,12 +39,28 @@ chk(len(got) == 2, "출발지가 다르면 별개")
 got = S.merge_unnamed([mk("?", 844492)])
 chk(len(got) == 1, "짝이 없는 '?' 는 버리지 않는다")
 
-# 실제 스캔 데이터로 표본 부풀림이 실제로 줄어드는가
+# 실제 스캔 데이터로 검증한다.
+#
+# 처음에는 "실데이터에서 건수가 줄어든다" 로 썼는데, 그 fix 가 배포된
+# 뒤로는 deals.json 에 중복이 남아 있지 않아 테스트가 스스로 무효가 됐다.
+# (350→350 으로 '실패') 지워지는 것을 확인할 게 아니라, 지워진 상태가
+# 유지되는 것을 확인해야 한다.
 import json, io
 d = json.load(io.open('flight-deals/state/deals.json', encoding='utf-8'))
-before = d['offers']; after = S.merge_unnamed(before)
-chk(len(after) < len(before), f"실데이터에서 중복이 줄어든다 ({len(before)}→{len(after)})")
-sw_b = sum(1 for o in before if o['arr'] in ('ZRH', 'GVA', 'BSL'))
-sw_a = sum(1 for o in after if o['arr'] in ('ZRH', 'GVA', 'BSL'))
-chk(sw_a < sw_b, f"스위스 표본이 실제 편 수로 줄어든다 ({sw_b}→{sw_a})")
+live = d['offers']
+chk(len(S.merge_unnamed(live)) == len(live),
+    f"이미 정리된 데이터를 또 돌려도 그대로다 (멱등, {len(live)}건)")
+
+# 중복을 일부러 주입하면 정확히 그만큼만 지워진다
+named = next(o for o in live if o.get('airline') not in (None, '?')
+             and o.get('price_krw'))
+ghost = dict(named, airline='?', id='ghost',
+             price_krw=int(named['price_krw'] * 1.004))   # 0.4% 차이
+got = S.merge_unnamed(live + [ghost])
+chk(len(got) == len(live), "주입한 '?' 중복 1건이 지워진다")
+chk(not any(o.get('id') == 'ghost' for o in got), "지워진 것이 그 유령 행이다")
+
+far = dict(named, airline='?', id='far', price_krw=int(named['price_krw'] * 0.8))
+got2 = S.merge_unnamed(live + [far])
+chk(len(got2) == len(live) + 1, "20% 싼 '?' 는 다른 편이므로 남는다")
 sys.exit(0 if ok else 1)

@@ -195,7 +195,22 @@ ZRH_COVER = {}
 
 
 def provider_stats():
-    return {n: p.stats() for n, p in PROVIDERS.items()}
+    """provider 별 통계.
+
+    Travelpayouts 는 provider 객체를 거치지 않고 fetch_route 가 직접 불린다
+    (기존 경로를 그대로 두기 위해서다). 그래서 p.calls 가 0으로 남는다.
+    실제 호출 수는 BUDGET 이, 실제 건수는 PROVIDER_ROWS 가 안다.
+    로그에 0을 찍으면 그냥 거짓말이 되므로 여기서 채워 넣는다.
+    """
+    out = {}
+    for n, p in PROVIDERS.items():
+        st = p.stats()
+        if PROVIDER_ROWS.get(n):
+            st["rows"] = PROVIDER_ROWS[n]
+        if n == "travelpayouts":
+            st["calls"] = BUDGET.used
+        out[n] = st
+    return out
 
 
 def ingest(common_offers, city, region, flex, window):
