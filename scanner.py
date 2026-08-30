@@ -93,7 +93,7 @@ TOKEN = ""   # main()에서 주입
 CURRENCY = "krw"
 ROOT = os.path.join(os.getcwd(), "flight-deals")
 
-SEARCH_BUDGET = 130       # 국내 17노선×4박 = 68 + 스위스 3노선×6박 = 18 → 86회
+SEARCH_BUDGET = 130       # 국내 17노선×4박 = 68 + 스위스 3노선×1(flex) = 3 → 71회
 REQ_SLEEP = 0.45          # rate limit 여유
 TIMEOUT = 25
 
@@ -181,6 +181,7 @@ class Budget:
 
 BUDGET = Budget(SEARCH_BUDGET)
 ERRORS = []
+RAWCOUNT = {}     # 노선별 원본 레코드 수 (필터 전). 빈 응답 진단용.
 
 
 class Circuit:
@@ -248,10 +249,18 @@ def call(path, params, retries=2):
 # 수집
 # ══════════════════════════════════════════════════════════
 
-def fetch_route(org, dst, city, region, nights=None):
-    """노선 하나를 박수별로 조회. 정규화된 offer 리스트 반환.
+def fetch_route(org, dst, city, region, nights=None, flex=None):
+    """노선 하나를 조회. 정규화된 offer 리스트 반환.
 
-    nights 미지정 시 NIGHTS(2~5박). 유럽은 SWISS_NIGHTS(5~10박)를 넘긴다.
+    두 가지 모드가 있다.
+
+    1) nights=(2,3,4,5)  — 박수마다 length 를 지정해 따로 호출한다.
+       근거리는 캐시가 두꺼워 원하는 박수가 실제로 존재한다.
+    2) flex=(5, 10)      — length 를 아예 빼고 한 번만 호출한 뒤,
+       응답에 실린 return_at 으로 실제 체류일을 계산해 5~10박만 남긴다.
+       장거리는 캐시가 얇아서 length 를 못 박으면 응답이 통째로 빈다.
+       (2026-08-30 실측: ICN→ZRH/GVA/BSL 을 length 5~10 으로 18회 호출해
+        전부 0건. length 를 빼면 캐시에 있는 것을 그대로 받는다.)
 
     depart_date(월) 필터는 API 가 무시하고 캐시 전 구간을 반환하므로
     월 루프를 돌리지 않는다. 월별로 돌리면 같은 데이터를 중복 수집해
@@ -260,25 +269,32 @@ def fetch_route(org, dst, city, region, nights=None):
     """
     out = []
     ym = date.today().strftime("%Y-%m")   # 무시되지만 필수 파라미터
-    for n in (nights or NIGHTS):
-        ok, data, err = call("/v1/prices/calendar", {
-            "origin": org, "destination": dst, "depart_date": ym,
-            "calendar_type": "departure_date", "length": n,
-            "currency": CURRENCY})
+    raw = 0
+    plans = [None] if flex else list(nights or NIGHTS)
+    for n in plans:
+        q = {"origin": org, "destination": dst, "depart_date": ym,
+             "calendar_type": "departure_date", "currency": CURRENCY}
+        if n is not None:
+            q["length"] = n
+        ok, data, err = call("/v1/prices/calendar", q)
         time.sleep(REQ_SLEEP)
         if not ok:
             if err in ("BUDGET_EXCEEDED", "CIRCUIT_OPEN"):
                 return out, err
-            ERRORS.append(f"{org}-{dst} {n}박: {err}")
+            ERRORS.append(f"{org}-{dst} {n if n else 'flex'}박: {err}")
             continue
-        for dep, v in (data.get("data") or {}).items():
-            o = normalize(org, dst, city, region, dep, n, v)
+        recs = (data.get("data") or {})
+        raw += len(recs)
+        for dep, v in recs.items():
+            o = normalize(org, dst, city, region, dep, n, v, flex)
             if o:
                 out.append(o)
+    # 원본 건수를 같이 남긴다. 0건일 때 "응답이 없었나 / 걸러졌나" 를 구분한다.
+    RAWCOUNT[f"{org}-{dst}"] = raw
     return out, None
 
 
-def normalize(org, dst, city, region, dep, nights, v):
+def normalize(org, dst, city, region, dep, nights, v, flex=None):
     price = v.get("price")
     if not price or price <= 0:
         return None
@@ -297,11 +313,19 @@ def normalize(org, dst, city, region, dep, nights, v):
         except ValueError:
             return None
         roundtrip = True
-        # length 가 무시되는 경우를 대비한 방어. 요청 박수와 실제가 다르면 버린다.
-        # (length 미지정 시 7박·21박·28박까지 섞여 나오는 것을 실측 확인)
         actual = (d1 - d0).days
-        if actual != nights:
-            return None
+        if flex:
+            # length 를 안 걸었으므로 실제 체류일이 범위 안인 것만 받는다.
+            if not (flex[0] <= actual <= flex[1]):
+                return None
+            nights = actual
+        else:
+            # length 가 무시되는 경우를 대비한 방어. 요청 박수와 다르면 버린다.
+            # (length 미지정 시 7박·21박·28박까지 섞여 나오는 것을 실측 확인)
+            if actual != nights:
+                return None
+    elif flex:
+        return None                # 체류일을 못 세는 flex 응답은 쓸 수 없다
     else:
         d1 = d0 + timedelta(days=nights)
         roundtrip = False          # ★ 왕복 미검증 → C등급 강등 사유
@@ -453,19 +477,51 @@ def probe_raw():
 # ══════════════════════════════════════════════════════════
 
 def build_baselines(offers):
-    """노선+박수별 중앙값을 정상가 기준선으로 자체 산출."""
-    buckets = {}
+    """정상가 기준선을 3단으로 만든다.
+
+    노선·박수 버킷만 쓰면 청주처럼 캐시가 얇은 출발지는 버킷마다 1~2건이라
+    기준선이 안 생기고 전건이 C등급으로 빠진다. (2026-08-30 실측: CJJ 10건 전부 C)
+    그래서 표본이 모자라면 아래로 한 단계씩 내려간다.
+
+      1단 노선·박수  (CJJ-KIX 3박)   표본 3건 이상 — 가장 정확
+      2단 노선 전체  (CJJ-KIX 전 박수) 표본 3건 이상 — 박수 차이가 섞임
+      3단 목적지·박수 (→KIX 3박, 출발지 혼합) 표본 5건 이상 — 가장 거침
+
+    어느 단을 썼는지는 offer 에 baseline_tier 로 남기고 화면에 표시한다.
+    """
+    b1, b2, b3 = {}, {}, {}
     for o in offers:
-        buckets.setdefault((o["dep"], o["arr"], o["nights"]), []).append(o["price_krw"])
-    out = {}
-    for k, v in buckets.items():
-        if len(v) < 3:          # 표본 3건 미만은 기준선 불가 (청주 등 얇은 노선 구제)
-            continue
-        s = sorted(v)
-        out[k] = {"median": int(statistics.median(s)), "mean": int(statistics.fmean(s)),
-                  "n": len(s), "min": s[0], "max": s[-1],
-                  "p25": s[max(0, int(len(s) * .25) - 1)]}
-    return out
+        b1.setdefault((o["dep"], o["arr"], o["nights"]), []).append(o["price_krw"])
+        b2.setdefault((o["dep"], o["arr"]), []).append(o["price_krw"])
+        b3.setdefault((o["arr"], o["nights"]), []).append(o["price_krw"])
+
+    def pack(buckets, need):
+        out = {}
+        for k, v in buckets.items():
+            if len(v) < need:
+                continue
+            srt = sorted(v)
+            out[k] = {"median": int(statistics.median(srt)),
+                      "mean": int(statistics.fmean(srt)), "n": len(srt),
+                      "min": srt[0], "max": srt[-1],
+                      "p25": srt[max(0, int(len(srt) * .25) - 1)]}
+        return out
+
+    return {"exact": pack(b1, 3), "route": pack(b2, 3), "dest": pack(b3, 5)}
+
+
+def pick_baseline(o, baselines):
+    """offer 하나에 맞는 기준선을 위에서부터 찾는다. (기준선, 단계명)"""
+    bl = baselines["exact"].get((o["dep"], o["arr"], o["nights"]))
+    if bl:
+        return bl, "노선·박수"
+    bl = baselines["route"].get((o["dep"], o["arr"]))
+    if bl:
+        return bl, "노선 전체 박수"
+    bl = baselines["dest"].get((o["arr"], o["nights"]))
+    if bl:
+        return bl, "목적지 기준 (출발지 혼합)"
+    return None, None
 
 
 def grade(o):
@@ -473,7 +529,7 @@ def grade(o):
     if not o["roundtrip_verified"]:
         return "C", "왕복 미검증 (return_at 없음)"
     if o.get("baseline") is None:
-        return "C", "정상가 표본 부족"
+        return "C", "정상가 표본 부족 (3단 기준선 모두 실패)"
     if not o.get("link"):
         return "C", "링크 없음"
     return "B", "캐시 데이터 · 실시간 아님"
@@ -519,7 +575,8 @@ def score(o):
 
 def enrich(offers, baselines):
     for o in offers:
-        bl = baselines.get((o["dep"], o["arr"], o["nights"]))
+        bl, tier = pick_baseline(o, baselines)
+        o["baseline_tier"] = tier
         o["baseline"] = bl["median"] if bl else None
         o["baseline_n"] = bl["n"] if bl else 0
         if bl:
@@ -992,7 +1049,9 @@ def card(o):
                f'</span></div>')
     if o.get("baseline"):
         kv += (f'<div class="kv"><span class="k">기준선(중앙값)</span>'
-               f'<span class="v">{o["baseline"]:,}원 · 표본 {o["baseline_n"]}</span></div>'
+               f'<span class="v">{o["baseline"]:,}원 · 표본 {o["baseline_n"]}'
+               f'<span style="color:var(--tx3)"> · {esc(o.get("baseline_tier") or "")}'
+               f'</span></span></div>'
                f'<div class="kv"><span class="k">절감 / 할인율</span>'
                f'<span class="v">{o["saving"]:,}원 · {o["discount_pct"]}%</span></div>')
     kv += (f'<div class="kv"><span class="k">판정</span><span class="v">{esc(o["verdict"])}</span></div>'
@@ -1439,11 +1498,15 @@ def main():
 
     offers = []
     for org, dst, city, region in targets:
-        nights = SWISS_NIGHTS if region == "유럽" else NIGHTS
-        got, stop = fetch_route(org, dst, city, region, nights)
+        if region == "유럽":
+            got, stop = fetch_route(org, dst, city, region,
+                                    flex=(SWISS_NIGHTS[0], SWISS_NIGHTS[-1]))
+        else:
+            got, stop = fetch_route(org, dst, city, region, NIGHTS)
         tag = {"BUDGET_EXCEEDED": "  ⛔예산소진",
                "CIRCUIT_OPEN": "  ⛔중단"}.get(stop, "")
-        print(f"  {org}→{dst} {len(got):>4}건{tag}")
+        rawn = RAWCOUNT.get(f"{org}-{dst}", 0)
+        print(f"  {org}→{dst} {len(got):>4}건 (원본 {rawn}){tag}")
         offers += got
         if stop:
             break
