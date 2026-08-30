@@ -474,6 +474,28 @@ def load_watchlist():
         out.append((org, dst, r.get("city") or dst, r.get("region") or ""))
     return out
 
+
+def swiss_gateways():
+    """스위스 인근 공항 정보. 화면이 '기차로 몇 시간' 을 적으려면 필요하다.
+
+    한국→스위스 직항은 캐시가 거의 비어 있는데(실측 0~9건), 프랑크푸르트·
+    뮌헨은 인천 직항이 많아 캐시가 두껍다. 거기까지 날아가 기차로 넘어가는
+    편이 실제로 더 싸고 더 자주 있다.
+    """
+    out = {}
+    try:
+        with open(WATCHLIST_CONFIG, encoding="utf-8") as f:
+            rows = json.load(f).get("routes") or []
+    except Exception:
+        return out
+    for r in rows:
+        g = r.get("swiss_gateway")
+        if g and r.get("active", True) and r.get("to"):
+            out[r["to"]] = {"city": r.get("city") or r["to"],
+                            "country": r.get("country", ""),
+                            "flag": r.get("flag", ""), **g}
+    return out
+
 # 청주 직항은 매일 전부 조회한다.
 #
 # 예전에는 priority 로 나눠 돌렸다 (2=월수금, 3=일요일). 예산이 빠듯했기
@@ -1968,6 +1990,7 @@ def write_deals(offers, routes, meta, stats, gone, cjj_status=None,
         # 오늘 0건이라 routes 에서 빠진 노선까지 포함한다.
         # "며칠째 가격이 안 들어오는가" 를 화면이 계산할 수 있어야 한다.
         "route_freshness": freshness or {},
+        "swiss_gateways": swiss_gateways(),
         "cjj": {
             "config": {k: v for k, v in CJJ_ROUTES.items()},
             "status": cjj_status or [],

@@ -15,14 +15,96 @@
     "지우면 price_history 의 과거 가격과 연결이 끊깁니다.",
     "",
     "region 을 '유럽' 으로 두면 장거리 규칙을 씁니다",
-    "(왕복 전용 소스 v3 항상 사용, 체류 2~21박, 출발일 D+3~D+180, 편도도 따로 수집)."
+    "(왕복 전용 소스 v3 항상 사용, 체류 2~21박, 출발일 D+3~D+180, 편도도 따로 수집).",
+    "",
+    "swiss_gateway 가 붙은 노선은 '스위스 인근 공항'으로 스위스 탭에 따로 표시됩니다.",
+    "한국→스위스 직항은 캐시가 거의 비지만, 프랑크푸르트·뮌헨은 인천 직항이",
+    "많아 캐시가 두껍습니다. 거기까지 날아가 기차로 넘어가는 편이 실제로 쌀 수 있습니다.",
+    "train_hours 는 대략적인 직통 열차 소요시간입니다. 정확한 시각은 예약 전에 확인하세요."
   ],
   "routes": [
-    { "from": "ICN", "to": "ZRH", "city": "취리히", "country": "스위스",
-      "flag": "🇨🇭", "region": "유럽", "active": true },
-    { "from": "ICN", "to": "GVA", "city": "제네바", "country": "스위스",
-      "flag": "🇨🇭", "region": "유럽", "active": true },
-    { "from": "ICN", "to": "BSL", "city": "바젤", "country": "스위스",
-      "flag": "🇨🇭", "region": "유럽", "active": true }
+    {
+      "from": "ICN",
+      "to": "ZRH",
+      "city": "취리히",
+      "country": "스위스",
+      "flag": "🇨🇭",
+      "region": "유럽",
+      "active": true
+    },
+    {
+      "from": "ICN",
+      "to": "GVA",
+      "city": "제네바",
+      "country": "스위스",
+      "flag": "🇨🇭",
+      "region": "유럽",
+      "active": true
+    },
+    {
+      "from": "ICN",
+      "to": "BSL",
+      "city": "바젤",
+      "country": "스위스",
+      "flag": "🇨🇭",
+      "region": "유럽",
+      "active": true
+    },
+    {
+      "from": "ICN",
+      "to": "FRA",
+      "city": "프랑크푸르트",
+      "country": "독일",
+      "flag": "🇩🇪",
+      "region": "유럽",
+      "active": true,
+      "swiss_gateway": {
+        "to": "취리히",
+        "train_hours": 4.0,
+        "via": "ICE 직통"
+      }
+    },
+    {
+      "from": "ICN",
+      "to": "MUC",
+      "city": "뮌헨",
+      "country": "독일",
+      "flag": "🇩🇪",
+      "region": "유럽",
+      "active": true,
+      "swiss_gateway": {
+        "to": "취리히",
+        "train_hours": 3.5,
+        "via": "EC 직통"
+      }
+    },
+    {
+      "from": "ICN",
+      "to": "MXP",
+      "city": "밀라노",
+      "country": "이탈리아",
+      "flag": "🇮🇹",
+      "region": "유럽",
+      "active": true,
+      "swiss_gateway": {
+        "to": "취리히",
+        "train_hours": 4.0,
+        "via": "밀라노 중앙역 경유"
+      }
+    },
+    {
+      "from": "ICN",
+      "to": "CDG",
+      "city": "파리",
+      "country": "프랑스",
+      "flag": "🇫🇷",
+      "region": "유럽",
+      "active": true,
+      "swiss_gateway": {
+        "to": "제네바",
+        "train_hours": 3.2,
+        "via": "TGV 직통"
+      }
+    }
   ]
 }

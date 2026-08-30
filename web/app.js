@@ -996,9 +996,67 @@ function liveSearchHTML(dep, arr, cityName) {
   </div>`;
 }
 
+/* 스위스 인근 공항 + 기차.
+   ★ 스위스 도착이 아니다. 절대 위쪽 취리히·제네바 목록과 섞지 않는다.
+     "인천 → 뮌헨" 을 스위스 항공권인 것처럼 보여주면 거짓이 된다.
+     기차 시간을 같이 적어야 실부담을 판단할 수 있다. */
+function gatewaySection() {
+  const gw = S.data.swiss_gateways || {};
+  const codes = Object.keys(gw);
+  if (!codes.length) return '';
+
+  const rows = codes.map(code => {
+    const pool = S.data.offers.filter(o =>
+      o.arr === code && o.price_krw && originOn(o.dep));
+    return { code, g: gw[code], pool,
+             lo: pool.length
+               ? pool.reduce((a, b) => (effective(b) < effective(a) ? b : a), pool[0])
+               : null };
+  }).sort((a, b) => (a.lo ? effective(a.lo) : Infinity)
+                  - (b.lo ? effective(b.lo) : Infinity));
+  const any = rows.some(r => r.lo);
+
+  return `<section class="sec">
+    <div class="sec-hd"><div><h2>🚄 인근 공항 + 기차</h2>
+      <p>스위스 직항은 캐시가 거의 비어 있습니다. 이웃 나라까지 날아가
+        기차로 넘어가는 편이 더 싸고 더 자주 있습니다.</p></div></div>
+    <div class="note"><p><b>스위스 도착이 아닙니다.</b> 아래는 독일·이탈리아·
+      프랑스 도착 항공권이고 거기서 기차를 타야 합니다. 기차 시간은
+      <b>대략</b>이고, <b>기차 요금은 포함돼 있지 않습니다.</b></p></div>
+    ${any ? rows.map(r => {
+      if (!r.lo) {
+        return `<div class="kv"><span class="k" style="color:var(--tx2);font-weight:700">
+            ${esc(r.g.flag)} ${esc(r.g.city)} <span
+            style="font-family:var(--mono);font-size:11.5px;color:var(--tx3)">${esc(r.code)}</span></span>
+          <span class="v" style="font-size:12px;font-family:var(--sans);color:var(--tx3);font-weight:600">
+            가격 데이터 없음</span></div>`;
+      }
+      return `<button class="cd" data-open="${esc(r.lo.id)}" style="margin-bottom:10px">
+        <div class="top"><div class="ttl">
+          <div class="route">${esc(r.g.flag)} ${esc(depCity(r.lo.dep))} → ${esc(r.g.city)}</div>
+          <div class="sub">${esc(r.lo.dep)}→${esc(r.code)} · ${md(r.lo.depart_date)} → ${md(r.lo.return_date)} · ${r.lo.nights}박 · ${stopTxt(r.lo.stops)}</div>
+        </div>
+        <div class="price"><div class="v">${won(effective(r.lo))}</div>
+          <div class="k">실부담 · ${r.pool.length}건</div></div></div>
+        <div class="badges">
+          <span class="bg pri">🚄 ${esc(r.g.city)} → ${esc(r.g.to)} 기차 약 ${r.g.train_hours}시간</span>
+          <span class="bg">${esc(r.g.via)}</span>
+          <span class="bg">기차 요금 별도</span>
+        </div></button>`;
+    }).join('')
+      : `<div class="note warn"><b>아직 데이터가 없습니다</b>
+         <p>이 노선들은 오늘 처음 조회 목록에 들어갔습니다. 다음 스캔부터
+         가격이 보입니다.</p></div>`}
+  </section>`;
+}
+
 function viewSwiss() {
   // 여행 기간·환승 설정을 일부러 적용하지 않는다. 유럽은 캐시가 얇아
   // 근거리용 조건을 씌우면 있는 것마저 사라진다. 환승은 제한 없이 다 본다.
+  //
+  // SWISS_ORDER 만 본다. 인근 공항(FRA·MUC·MXP·CDG)은 여기 절대 안 섞인다 —
+  // 스위스 도착이 아니므로 같은 목록에 놓으면 거짓이 된다. 그쪽은
+  // gatewaySection() 이 따로 그린다.
   const all = S.data.offers.filter(o =>
     SWISS_ORDER.includes(o.arr) && originOn(o.dep));
 
@@ -1141,7 +1199,7 @@ function viewSwiss() {
   // 대표편 도시 기준으로 맨 아래 한 번 더 둔다.
   const liveAll = liveSearchHTML('ICN', hero.arr, SWISS_CITY[hero.arr] || hero.arr);
   return `${plainHeader('스위스', '취리히 우선 · 환승 제한 없음')}
-  <div class="wrap">${head}${sections}${pos}${liveAll}${swissNote()}${footerHTML()}</div>`;
+  <div class="wrap">${head}${sections}${gatewaySection()}${pos}${liveAll}${swissNote()}${footerHTML()}</div>`;
 }
 
 function swissNote() {
