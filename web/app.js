@@ -623,9 +623,13 @@ function owCardHTML(o) {
 
 // 도시별 편도. 왕복이 하나도 없을 때 이게 그 도시의 유일한 단서가 된다.
 function owOf(code) {
+  // 위쪽 왕복 그룹과 같은 순서 규칙을 쓴다: 직항 → 환승, 그다음 값.
+  // 같은 탭 안에서 정렬 기준이 두 가지면 읽는 사람이 헷갈린다.
   return (S.data.oneway || [])
     .filter(o => o.arr === code && originOn(o.dep))
-    .sort((a, b) => a.price_krw - b.price_krw);
+    .sort((x, y) =>
+      (x.stops == null ? 9 : x.stops) - (y.stops == null ? 9 : y.stops) ||
+      x.price_krw - y.price_krw);
 }
 
 function owGroupHTML(list) {

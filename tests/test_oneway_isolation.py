@@ -57,4 +57,25 @@ chk(row["oneway"] is True, "편도 행은 oneway=True 로 표시된다")
 chk("effective_krw" not in row and "baseline" not in row,
     "편도 행에는 실부담가·기준가 필드가 아예 없다")
 chk(row["link"].endswith("ZRH1"), "편도 링크는 귀국일 없이 만든다")
+
+# ── 도시코드 접힘 중복 제거 ────────────────────────────────
+# ICN→ZRH 과 SEL→ZRH 은 API 가 둘 다 SEL 로 접어 답하므로 같은 편이다.
+# 요청 코드로 구분하면 화면에 똑같은 카드가 두 장 뜬다.
+print("\n중복 제거")
+base = {"arr": "ZRH", "city": "취리히", "region": "유럽", "oneway": True,
+        "depart_date": "2026-10-04", "airline": "?", "flight_no": None,
+        "stops": 0, "price_krw": 599626,
+        "api_origin": "SEL", "api_destination": "ZRH", "link": "x"}
+pair = [dict(base, id="OW-ICN", dep="ICN"), dict(base, id="OW-SEL", dep="SEL")]
+got = S._dedup_oneway(pair)
+chk(len(got) == 1, "같은 편이 ICN·SEL 로 두 번 들어오면 하나로 묶는다")
+chk(got[0]["dep"] == "ICN", "표시는 구체적인 공항코드(ICN)를 남긴다")
+
+got2 = S._dedup_oneway(list(reversed(pair)))
+chk(len(got2) == 1 and got2[0]["dep"] == "ICN", "입력 순서가 바뀌어도 같다")
+
+# 날짜가 다르면 다른 편이다. 묶으면 안 된다.
+diff = [dict(base, id="A", dep="ICN"),
+        dict(base, id="B", dep="ICN", depart_date="2026-10-05")]
+chk(len(S._dedup_oneway(diff)) == 2, "출발일이 다르면 별개로 남긴다")
 sys.exit(0 if ok else 1)

@@ -741,6 +741,8 @@ def _oneway_offer(org, dst, city, region, d0, v):
         "depart_date": str(d0),
         "airline": al, "airline_kr": AIRLINES.get(al, al),
         "flight_no": v.get("flight_number"),
+        # API 가 실제로 뭐라고 답했는지. 중복 제거의 기준이 된다.
+        "api_origin": v.get("origin"), "api_destination": v.get("destination"),
         "stops": v.get("number_of_changes", v.get("transfers")),
         "price_krw": int(v.get("price")),
         "dep_hour": parse_hour(v.get("departure_at")),
@@ -1457,13 +1459,29 @@ OFFER_FIELDS = (
 ).split()
 
 
+# 도시코드로 접히는 공항. 왼쪽이 실제 공항, 오른쪽이 API 가 답하는 도시코드.
+# 둘 다 조회하므로 같은 편이 두 번 들어온다. 표시할 때는 구체적인 쪽을 쓴다.
+CITY_FOLD = {"ICN": "SEL", "GMP": "SEL"}
+
+
 def _dedup_oneway(rows):
-    """같은 편이 여러 엔드포인트에서 온다. 싼 쪽만 남긴다."""
+    """같은 편이 여러 엔드포인트·여러 출발지코드로 들어온다.
+
+    ICN→ZRH 과 SEL→ZRH 은 API 가 둘 다 SEL 로 접어서 답하므로 같은 편이다.
+    요청 코드로 구분하면 화면에 똑같은 카드가 두 장 뜬다. 그래서 실제 편
+    기준으로 묶고, 표시는 구체적인 공항코드(ICN) 쪽을 남긴다.
+    """
     best = {}
     for r in rows:
-        cur = best.get(r["id"])
-        if cur is None or r["price_krw"] < cur["price_krw"]:
-            best[r["id"]] = r
+        k = (r.get("api_origin") or CITY_FOLD.get(r["dep"], r["dep"]),
+             r.get("api_destination") or r["arr"],
+             r["depart_date"], r["airline"], r.get("flight_no"),
+             r["price_krw"], r["stops"])
+        cur = best.get(k)
+        if cur is None:
+            best[k] = r
+        elif r["dep"] in CITY_FOLD and cur["dep"] not in CITY_FOLD:
+            best[k] = r          # SEL 보다 ICN 을 남긴다
     return sorted(best.values(), key=lambda r: r["price_krw"])
 
 
