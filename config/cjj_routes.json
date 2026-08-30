@@ -1,0 +1,39 @@
+{
+  "_comment": [
+    "청주공항 직항 목적지. 운항이 끝난 노선은 지우지 말고 active:false 로 둔다.",
+    "지우면 그 노선의 price_history 를 다시 붙일 수 없다.",
+    "priority 1 = 매일 / 2 = 주 3회(월·수·금) / 3 = 주 1회(일)",
+    "region 은 절대가 점수의 권역 기준선(REGION_BASE)에 쓰인다."
+  ],
+  "routes": {
+    "NRT": { "city": "도쿄",     "country": "일본",       "flag": "🇯🇵", "region": "일본",   "priority": 1, "active": true },
+    "KIX": { "city": "오사카",   "country": "일본",       "flag": "🇯🇵", "region": "일본",   "priority": 1, "active": true },
+    "FUK": { "city": "후쿠오카", "country": "일본",       "flag": "🇯🇵", "region": "일본",   "priority": 1, "active": true },
+    "CTS": { "city": "삿포로",   "country": "일본",       "flag": "🇯🇵", "region": "일본",   "priority": 1, "active": true },
+    "NGO": { "city": "나고야",   "country": "일본",       "flag": "🇯🇵", "region": "일본",   "priority": 1, "active": true },
+    "OKA": { "city": "오키나와", "country": "일본",       "flag": "🇯🇵", "region": "일본",   "priority": 1, "active": true },
+    "HIJ": { "city": "히로시마", "country": "일본",       "flag": "🇯🇵", "region": "일본",   "priority": 2, "active": true },
+    "IBR": { "city": "이바라키", "country": "일본",       "flag": "🇯🇵", "region": "일본",   "priority": 2, "active": true },
+    "OBO": { "city": "오비히로", "country": "일본",       "flag": "🇯🇵", "region": "일본",   "priority": 2, "active": true },
+
+    "TPE": { "city": "타이베이", "country": "대만",       "flag": "🇹🇼", "region": "중화권", "priority": 1, "active": true },
+
+    "DAD": { "city": "다낭",     "country": "베트남",     "flag": "🇻🇳", "region": "동남아", "priority": 1, "active": true },
+    "CXR": { "city": "나트랑",   "country": "베트남",     "flag": "🇻🇳", "region": "동남아", "priority": 1, "active": true },
+
+    "CRK": { "city": "클락",     "country": "필리핀",     "flag": "🇵🇭", "region": "동남아", "priority": 2, "active": true },
+
+    "DPS": { "city": "발리",     "country": "인도네시아", "flag": "🇮🇩", "region": "인니",   "priority": 1, "active": true },
+
+    "UBN": { "city": "울란바토르", "country": "몽골",     "flag": "🇲🇳", "region": "몽골",   "priority": 2, "active": true },
+
+    "PVG": { "city": "상하이",   "country": "중국",       "flag": "🇨🇳", "region": "중화권", "priority": 2, "active": true },
+    "TAO": { "city": "칭다오",   "country": "중국",       "flag": "🇨🇳", "region": "중화권", "priority": 2, "active": true },
+    "YNJ": { "city": "옌지",     "country": "중국",       "flag": "🇨🇳", "region": "중화권", "priority": 2, "active": true },
+    "DYG": { "city": "장가계",   "country": "중국",       "flag": "🇨🇳", "region": "중화권", "priority": 2, "active": true },
+    "KMG": { "city": "쿤밍",     "country": "중국",       "flag": "🇨🇳", "region": "중화권", "priority": 3, "active": true },
+    "DSN": { "city": "오르도스", "country": "중국",       "flag": "🇨🇳", "region": "중화권", "priority": 3, "active": true },
+
+    "CJU": { "city": "제주",     "country": "대한민국",   "flag": "🇰🇷", "region": "국내선", "priority": 1, "active": true }
+  }
+}

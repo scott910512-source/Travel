@@ -123,8 +123,8 @@ DIRECT_ONLY = {"CJJ", "TAE", "PUS"}
 # 출발지별 수집 전략. 캐시가 얇은 곳일수록 넓게 훑는다.
 # ICN 은 하루치로 버킷당 8건 이상 모이지만 CJJ 는 1~2건이라 같은 창을 쓰면
 # 기준선이 아예 안 만들어진다. 청주만 창과 박수를 넓혀 후보를 늘린다.
+# CJJ 는 여기 없다. 전용 스캐너(scan_cjj)가 노선별로 직접 조회한다.
 ORIGIN_PROFILE = {
-    "CJJ": {"window": (3, 120), "nights": (1, 2, 3, 4, 5, 6)},
     "TAE": {"window": (3, 100), "nights": (2, 3, 4, 5)},
     "PUS": {"window": (3, 100), "nights": (2, 3, 4, 5)},
 }
@@ -141,13 +141,23 @@ def profile(org):
 # 30일이면 충분하고, 오래된 가격을 끌어오면 오히려 현재 시세를 흐린다.
 # 청주·대구·부산은 버킷당 1~2건이라 90일을 모아야 기준선이 선다.
 THIN_SAMPLE = 10                       # 이 미만이면 얇은 버킷
-THIN_RETENTION = {"CJJ": 90, "TAE": 90, "PUS": 90}
-THIN_RETENTION_DEFAULT = 30
 SAMPLE_CAP = 30                        # 하루·버킷당 저장 상한
+
+# 공항별 가격 기준선 계산 기간(일). 캐시가 얇을수록 길게 본다.
+HISTORY_WINDOW = {"CJJ": 90, "TAE": 45, "PUS": 45, "ICN": 30, "GMP": 30}
+HISTORY_WINDOW_DEFAULT = 30
 
 
 def retention(dep):
-    return THIN_RETENTION.get(dep, THIN_RETENTION_DEFAULT)
+    return HISTORY_WINDOW.get(dep, HISTORY_WINDOW_DEFAULT)
+
+
+# 출발 편의성 가산점. 가격을 조작하지 않고 DEAL SCORE 에만 더한다.
+# 화면에 보이는 실부담가는 항상 실제 값 그대로다.
+AIRPORT_BONUS = {"CJJ": 10, "ICN": 0, "GMP": 2, "TAE": 3, "PUS": -2}
+
+# 실부담가가 이 차이 안이면 청주를 위로 올린다 (이동시간·주차·스트레스)
+TIE_BREAK_KRW = 10000
 
 
 # ══════════════════════════════════════════════════════════
@@ -174,8 +184,6 @@ ACCESS_SCORE = {"CJJ": 10, "TAE": 5, "PUS": 4, "ICN": 3, "GMP": 3, "SEL": 3}
 
 # 출발지별 노선 — 청주(홈)를 맨 앞에 둔다. 표시 순서가 이 순서를 따른다.
 ROUTES = {
-    "cjj": [("CJJ", "KIX", "오사카", "일본"), ("CJJ", "NRT", "도쿄", "일본"),
-            ("CJJ", "TPE", "타이베이", "중화권"), ("CJJ", "DAD", "다낭", "동남아")],
     "icn": [("ICN", "KIX", "오사카", "일본"), ("ICN", "NRT", "도쿄", "일본"),
             ("ICN", "FUK", "후쿠오카", "일본"), ("ICN", "TPE", "타이베이", "중화권"),
             ("ICN", "BKK", "방콕", "동남아"), ("GMP", "HND", "도쿄", "일본")],
@@ -200,9 +208,51 @@ SWISS = [("ICN", "ZRH", "취리히", "유럽"), ("ICN", "GVA", "제네바", "유
 ONE_WAY_PRICE = False
 
 _REGION_BASE_RT = {"일본": 220000, "중화권": 260000, "동남아": 380000,
+                   "인니": 700000, "몽골": 450000,
                    "유럽": 1150000, "미주": 1300000, "국내선": 90000}
 REGION_BASE = ({k: v // 2 for k, v in _REGION_BASE_RT.items()}
                if ONE_WAY_PRICE else _REGION_BASE_RT)
+
+# ══════════════════════════════════════════════════════════
+# 청주 전용 노선
+# ══════════════════════════════════════════════════════════
+# Travelpayouts 는 "CJJ 출발 전체"를 훑어주지 않는다. 청주는 캐시가 얇아
+# 노선별로 직접 물어봐야 한다. 운항 노선 목록은 config 로 따로 관리한다.
+#
+# ★ 결과 없음 ≠ 운항 없음. 이 둘을 절대 섞지 않는다.
+#   운항 여부는 config(active) 가, 가격 유무는 API 응답이 결정한다.
+
+CJJ_CONFIG = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                          "config", "cjj_routes.json")
+
+
+def load_cjj_routes():
+    try:
+        with open(CJJ_CONFIG, encoding="utf-8") as f:
+            routes = json.load(f).get("routes") or {}
+    except Exception as e:
+        print(f"⚠️  {CJJ_CONFIG} 를 읽지 못했습니다 ({e}). CJJ 전용 스캔을 건너뜁니다.")
+        return {}
+    return {k: v for k, v in routes.items() if v.get("active", True)}
+
+
+CJJ_ROUTES = load_cjj_routes()
+
+# priority 별 실행 요일 (0=월). 1=매일, 2=월·수·금, 3=일요일.
+PRIORITY_DAYS = {1: None, 2: {0, 2, 4}, 3: {6}}
+
+
+def cjj_targets_today(force_all=False):
+    """오늘 스캔할 청주 노선. force_all 이면 priority 무시하고 전부."""
+    wd = date.today().weekday()
+    out = []
+    for code, info in CJJ_ROUTES.items():
+        pr = int(info.get("priority", 1))
+        days = PRIORITY_DAYS.get(pr)
+        if force_all or days is None or wd in days:
+            out.append((code, info))
+    return out
+
 
 # 2026 하반기 확정 공휴일 (연휴 판정)
 HOLIDAYS = {
@@ -237,6 +287,23 @@ BUDGET = Budget(SEARCH_BUDGET)
 ERRORS = []
 RAWCOUNT = {}     # 노선별 원본 레코드 수 (필터 전). 빈 응답 진단용.
 DROPS = {}        # 노선별 탈락 사유 집계. "원본은 왔는데 왜 0건인가" 에 답한다.
+STAGES = {}       # 노선별 단계 생존 수. 어디서 데이터가 사라지는지 추적한다.
+
+# normalize() 가 거르는 실제 순서와 같아야 한다. 그래야 깔때기가
+# 단조 감소하고 "어디서 사라졌는지"를 한눈에 읽을 수 있다.
+STAGE_ORDER = ("api_raw", "price", "date", "window",
+               "roundtrip", "length", "direct", "final")
+STAGE_LABEL = {"api_raw": "API raw", "price": "price filter",
+               "date": "date parse", "window": "date filter",
+               "direct": "direct filter", "roundtrip": "round-trip filter",
+               "length": "length filter", "final": "final"}
+
+
+def _stage(org, dst, name):
+    """그 단계를 '통과한' 레코드 수를 센다."""
+    k = f"{org}-{dst}"
+    STAGES.setdefault(k, {})
+    STAGES[k][name] = STAGES[k].get(name, 0) + 1
 
 
 class Circuit:
@@ -340,6 +407,9 @@ def fetch_route(org, dst, city, region, nights=None, flex=None, window=None):
             continue
         recs = (data.get("data") or {})
         raw += len(recs)
+        STAGES.setdefault(f"{org}-{dst}", {})
+        STAGES[f"{org}-{dst}"]["api_raw"] = \
+            STAGES[f"{org}-{dst}"].get("api_raw", 0) + len(recs)
         for dep, v in recs.items():
             o = normalize(org, dst, city, region, dep, n, v, flex, window)
             if o:
@@ -359,14 +429,17 @@ def normalize(org, dst, city, region, dep, nights, v, flex=None, window=None):
     price = v.get("price")
     if not price or price <= 0:
         return _drop(org, dst, "가격 없음")
+    _stage(org, dst, "price")
     try:
         d0 = datetime.strptime(dep[:10], "%Y-%m-%d").date()
     except ValueError:
         return _drop(org, dst, "출발일 파싱 실패")
+    _stage(org, dst, "date")
     lo, hi = window or (WINDOW_MIN, WINDOW_MAX)
     delta = (d0 - date.today()).days
     if not (lo <= delta <= hi):
         return _drop(org, dst, f"출발일 창 밖 (D+{delta})")
+    _stage(org, dst, "window")
 
     ret_at = v.get("return_at")
     if ret_at:
@@ -375,17 +448,20 @@ def normalize(org, dst, city, region, dep, nights, v, flex=None, window=None):
         except ValueError:
             return _drop(org, dst, "귀국일 파싱 실패")
         roundtrip = True
+        _stage(org, dst, "roundtrip")
         actual = (d1 - d0).days
         if flex:
             # length 를 안 걸었으므로 실제 체류일이 범위 안인 것만 받는다.
             if not (flex[0] <= actual <= flex[1]):
                 return _drop(org, dst, f"체류일 범위 밖 ({actual}박)")
+            _stage(org, dst, "length")
             nights = actual
         else:
             # length 가 무시되는 경우를 대비한 방어. 요청 박수와 다르면 버린다.
             # (length 미지정 시 7박·21박·28박까지 섞여 나오는 것을 실측 확인)
             if actual != nights:
                 return _drop(org, dst, f"요청 박수 불일치 ({actual}≠{nights})")
+            _stage(org, dst, "length")
     elif flex:
         # 체류일을 못 세면 flex 모드에서는 쓸 수 없다 (귀국일을 지어낼 수 없음)
         return _drop(org, dst, "return_at 없음 (편도 캐시)")
@@ -397,6 +473,8 @@ def normalize(org, dst, city, region, dep, nights, v, flex=None, window=None):
     if org in DIRECT_ONLY and stops != 0:
         # stops 가 None 이면 직항임을 확인할 수 없다. 지방공항에서는 버린다.
         return _drop(org, dst, f"환승편 제외 (지방공항 직항만, stops={stops})")
+    _stage(org, dst, "direct")
+    _stage(org, dst, "final")
 
     al = v.get("airline") or "?"
     dep_hour = parse_hour(v.get("departure_at"))
@@ -500,6 +578,109 @@ def trip_profile(d0, d1, dep_hour=None):
         d += timedelta(days=1)
     return {"weekend": weekend, "red": red, "leave": round(leave, 1),
             "holiday": holi, "night_departure": night_dep}
+
+
+# ══════════════════════════════════════════════════════════
+# 청주 전용 스캔
+# ══════════════════════════════════════════════════════════
+
+CJJ_FLEX = (1, 10)          # 체류 1~10박. length 를 못 박지 않고 받는 대로 거른다
+CJJ_WINDOW = (3, 120)       # 출발일 D+3 ~ D+120
+
+
+def scan_cjj(force_all=False, debug=False):
+    """청주 노선을 하나씩 직접 조회한다.
+
+    length 를 지정하지 않고 노선당 1회만 호출한다. 캐시가 얇은 곳에서
+    박수를 못 박으면 응답이 통째로 비기 때문이다 (스위스에서 실측). 대신
+    응답의 return_at 으로 실제 체류일을 계산해 1~10박만 남긴다.
+
+    반환: (offers, statuses)
+      statuses 는 노선마다 route_status / price_status 를 따로 담는다.
+      가격이 없다고 노선을 지우지 않는다 — 운항 여부와 가격 유무는 별개다.
+    """
+    offers, statuses = [], []
+    targets = cjj_targets_today(force_all)
+    if not targets:
+        return offers, statuses
+
+    print(f"\n▶ 청주 전용 스캔 · 노선 {len(targets)}/{len(CJJ_ROUTES)}"
+          f"{' (전체)' if force_all else ' (오늘 priority 대상)'}")
+
+    for code, info in targets:
+        got, stop = fetch_route("CJJ", code, info["city"], info["region"],
+                                flex=CJJ_FLEX, window=CJJ_WINDOW)
+        key = f"CJJ-{code}"
+        raw = RAWCOUNT.get(key, 0)
+
+        if stop in ("BUDGET_EXCEEDED", "CIRCUIT_OPEN"):
+            price_status = "error"
+        elif got:
+            price_status = "available"
+        elif raw == 0:
+            price_status = "missing"      # 응답 자체가 빔 = 캐시에 없음
+        else:
+            price_status = "missing"      # 응답은 왔지만 조건에 안 맞음
+
+        statuses.append({
+            "origin": "CJJ", "destination": code,
+            "city": info["city"], "country": info["country"],
+            "flag": info.get("flag", ""), "region": info["region"],
+            "priority": int(info.get("priority", 1)),
+            # 운항 여부는 config 가 정한다. API 응답으로 판단하지 않는다.
+            "route_status": "active" if info.get("active", True) else "inactive",
+            "price_status": price_status,
+            "raw": raw,
+            "count": len(got),
+            "price": min((o["price_krw"] for o in got), default=None),
+            "stages": STAGES.get(key, {}),
+            "drops": DROPS.get(key, {}),
+        })
+        offers += got
+
+        mark = {"available": "✅", "missing": "· ", "error": "⚠️"}[price_status]
+        print(f"  {mark} CJJ→{code} {info['city']:6} "
+              f"{len(got):>3}건 (원본 {raw})")
+        if debug:
+            print_cjj_stages(key)
+        if stop:
+            print(f"     ⛔ {stop} — 남은 노선 중단")
+            break
+
+    print_cjj_summary(statuses)
+    return offers, statuses
+
+
+def print_cjj_stages(key):
+    """단계별로 몇 건이 살아남았는지. 데이터가 어디서 사라지는지 본다."""
+    st = STAGES.get(key, {})
+    if not st:
+        return
+    print(f"     [{key}]")
+    for name in STAGE_ORDER:
+        if name in st:
+            print(f"       {STAGE_LABEL[name]:<20}: {st[name]}")
+    d = DROPS.get(key, {})
+    for why, cnt in sorted(d.items(), key=lambda x: -x[1])[:4]:
+        print(f"       └ 탈락 {why}: {cnt}")
+
+
+def print_cjj_summary(statuses):
+    if not statuses:
+        return
+    avail = [x for x in statuses if x["price_status"] == "available"]
+    miss = [x for x in statuses if x["price_status"] == "missing"]
+    err = [x for x in statuses if x["price_status"] == "error"]
+    print("\n  [CJJ SUMMARY]")
+    print(f"    등록 노선        {len(CJJ_ROUTES)}")
+    print(f"    오늘 조회        {len(statuses)}")
+    print(f"    가격 확인        {len(avail)}")
+    print(f"    가격 데이터 부족 {len(miss)}")
+    if err:
+        print(f"    조회 오류        {len(err)}")
+    if miss:
+        print("    부족: " + ", ".join(f"{x['city']}({x['destination']})"
+                                       for x in miss[:12]))
 
 
 # ══════════════════════════════════════════════════════════
@@ -611,7 +792,7 @@ def build_baselines(offers, thin=None):
     노선·박수 버킷만 쓰면 청주처럼 캐시가 얇은 출발지는 버킷마다 1~2건이라
     기준선이 안 생기고 전건이 "비교 불가"로 빠진다. 그래서 두 가지를 한다.
 
-    1) 얇은 버킷에는 과거 표본(THIN_RETENTION 일)을 끌어와 채운다.
+    1) 얇은 버킷에는 과거 표본(HISTORY_WINDOW 일)을 끌어와 채운다.
        오늘 결과가 아예 없는 버킷은 채우지 않는다 — 비교할 대상이 없다.
     2) 그래도 모자라면 아래로 한 단계씩 내려간다.
 
@@ -746,6 +927,7 @@ def deal_score(o, access=0, strong=STRONG_PCT_DEFAULT):
 
     st = o.get("stops")
     sc += 10 if st == 0 else (5 if st == 1 else 0)
+    sc += AIRPORT_BONUS.get(o["dep"], 0)      # 편의성. 가격은 건드리지 않는다
     if o.get("change") == "new":
         sc += 5
     if o.get("change") == "down":
@@ -966,7 +1148,7 @@ def rotation():
     청주 거주자 기준으로는 매일 네 공항을 동시에 비교할 수 있어야 의미가
     있으므로, 86회 호출(예산 130 이내)을 매일 그대로 쓴다.
     """
-    return "전 출발지 + 스위스 · 상시", ["cjj", "icn", "tae", "pus", "swiss"]
+    return "전 출발지 + 스위스 · 상시", ["icn", "tae", "pus", "swiss"]
 
 
 def brief_line(o):
@@ -1031,7 +1213,7 @@ OFFER_FIELDS = (
 ).split()
 
 
-def write_deals(offers, routes, meta, stats, gone):
+def write_deals(offers, routes, meta, stats, gone, cjj_status=None):
     """web/ 앱이 읽는 deals.json.
 
     실부담가·최종 정렬은 여기서 굳히지 않는다. 교통비가 사용자 설정이라
@@ -1047,6 +1229,13 @@ def write_deals(offers, routes, meta, stats, gone):
         "holidays": HOLIDAYS,
         "region_base": REGION_BASE,
         "routes": routes,
+        "cjj": {
+            "config": {k: v for k, v in CJJ_ROUTES.items()},
+            "status": cjj_status or [],
+            "flex": list(CJJ_FLEX), "window": list(CJJ_WINDOW),
+        },
+        "airport_bonus": AIRPORT_BONUS,
+        "tie_break_krw": TIE_BREAK_KRW,
         "offers": [{k: o.get(k) for k in OFFER_FIELDS} for o in offers],
         "gone": [{k: g.get(k) for k in
                   ("id", "dep", "arr", "city", "depart_date", "return_date",
@@ -1062,7 +1251,9 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--raw", action="store_true", help="원본 응답 덤프 후 종료")
     ap.add_argument("--all", action="store_true",
-                    help="(호환용) 로테이션은 폐지됐고 항상 전 노선을 본다")
+                    help="priority 무시하고 CJJ 전 노선까지 조회")
+    ap.add_argument("--cjj", action="store_true",
+                    help="청주 노선만 조회 (다른 출발지·스위스 건너뜀)")
     ap.add_argument("--token", help="토큰 직접 지정 (1회성)")
     ap.add_argument("--save-token", metavar="TOKEN",
                     help="토큰을 ~/.travelpayouts.json 에 저장 후 종료")
@@ -1084,12 +1275,15 @@ def main():
     for d in ("archive", "state", "logs"):
         os.makedirs(os.path.join(ROOT, d), exist_ok=True)
 
-    if args.raw:
+    # --raw 단독은 API 응답 구조 프로브, --cjj --raw 는 청주 단계별 debug 다.
+    if args.raw and not args.cjj:
         probe_raw()
         return
 
     rot_name, groups = rotation()
     print(f"▶ {date.today()} · {rot_name} · 홈 {HOME}")
+    if not CJJ_ROUTES:
+        ERRORS.append("config/cjj_routes.json 을 읽지 못해 청주 스캔을 건너뜀")
 
     # 공휴일 표가 검색창을 못 덮으면 연차 계산이 조용히 틀린다. 반드시 알린다.
     horizon = date.today() + timedelta(days=WINDOW_MAX)
@@ -1100,12 +1294,19 @@ def main():
         print(f"⚠️  {msg}")
         ERRORS.append(msg)
 
-    targets = []
-    for g in groups:
-        targets += SWISS if g == "swiss" else ROUTES.get(g, [])
-    seen = set(); targets = [t for t in targets if not (t[:2] in seen or seen.add(t[:2]))]
+    # 청주는 전용 스캐너가 노선별로 직접 물어본다 (캐시가 얇아 전체 훑기가 안 됨)
+    offers, cjj_status = scan_cjj(force_all=args.all, debug=args.raw)
 
-    offers = []
+    if args.cjj:
+        targets = []
+        print("\n▶ --cjj: 다른 출발지와 스위스는 건너뜁니다")
+    else:
+        targets = []
+        for g in groups:
+            targets += SWISS if g == "swiss" else ROUTES.get(g, [])
+        seen = set()
+        targets = [t for t in targets if not (t[:2] in seen or seen.add(t[:2]))]
+
     for org, dst, city, region in targets:
         if region == "유럽":
             got, stop = fetch_route(org, dst, city, region,
@@ -1181,15 +1382,15 @@ def main():
                                    "nights": list(v["nights"])}
                                for k, v in ORIGIN_PROFILE.items()},
             "thin_sample": THIN_SAMPLE,
-            "thin_retention": dict(THIN_RETENTION,
-                                   **{"기본": THIN_RETENTION_DEFAULT}),
+            "thin_retention": dict(HISTORY_WINDOW,
+                                   **{"기본": HISTORY_WINDOW_DEFAULT}),
             "pooled_buckets": {f"{d}-{a}-{nn}": v
                                for (d, a, nn), v in baselines["pooled"].items()},
             "errors": ERRORS[:30],
             "raw_counts": RAWCOUNT,
             "drops": DROPS}
 
-    write_deals(offers, routes, meta, stats, gone)
+    write_deals(offers, routes, meta, stats, gone, cjj_status)
 
     # ── 아침 브리프용 요약 (설정 없이 읽히는 파일) ──
     ok = [o for o in offers if o["data_ok"]]
@@ -1269,7 +1470,7 @@ def main():
         ok = [o for o in got if o["data_ok"]]
         print(f"   {org}: {len(got)}건 (직항만) · 비교가능 {len(ok)}건")
     print(f"   누적 표본으로 기준선을 세운 버킷 {pooled_n}개 "
-          f"(지방공항 90일 · 그 외 {THIN_RETENTION_DEFAULT}일)")
+          f"(CJJ 90일 · TAE·PUS 45일 · 그 외 {HISTORY_WINDOW_DEFAULT}일)")
 
     print(f"\n✅ 완료 · 수집 {len(offers)}건 · 검색 {BUDGET.used}/{BUDGET.cap}")
     print(f"   🔥강력특가 {tiers['strong']} / 특가 {tiers['deal']} / "

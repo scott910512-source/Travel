@@ -316,3 +316,13 @@ footer{padding:22px var(--pad) 30px;color:var(--tx3);font-size:11px;
 @media(min-width:1200px){
   .list.two{grid-template-columns:repeat(3,1fr)}
 }
+
+/* ── 청주 전용 행 ───────────────────────────────────── */
+button.cjjrow{
+  display:flex;width:100%;text-align:left;background:none;border:0;
+  border-top:1px solid var(--line2);cursor:pointer;min-height:46px;
+  align-items:center;justify-content:space-between;gap:12px;padding:9px 0;
+  font-size:13px;
+}
+button.cjjrow:first-of-type{border-top:0}
+button.cjjrow:active{background:var(--card2)}

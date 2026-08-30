@@ -84,6 +84,8 @@ const directOnly = () => ((S.data.meta && S.data.meta.direct_only) || []);
 const isRegional = dep => directOnly().indexOf(dep) !== -1;
 const homeCity = () => depCity((S.data && S.data.home) || 'CJJ');
 
+const bonusOf = dep => Number(((S.data && S.data.airport_bonus) || {})[dep] || 0);
+const tieBreak = () => Number((S.data && S.data.tie_break_krw) || 0);
 const accessOf = dep => Number(S.settings.access[dep] || 0);
 const effective = o => o.price_krw + accessOf(o.dep);
 const originOn = dep => S.settings.origins[dep] !== false;
@@ -130,12 +132,14 @@ function dealScore(o) {
   s += Math.max(0, Math.min((base - effective(o)) / base, 0.5)) / 0.5 * 15;
 
   s += o.stops === 0 ? 10 : (o.stops === 1 ? 5 : 0);
+  s += bonusOf(o.dep);          // 편의성. 표시되는 실부담가는 건드리지 않는다
   if (o.change === 'new') s += 5;
   if (o.change === 'down') s += 7;
   if (o.weekend_trip) s += 8;
 
   const mult = { '높음': 1, '보통': 0.9, '낮음': 0.75 }[o.confidence] || 0.55;
   if (S.settings.stops === 'direct' && o.stops !== 0) return 0;
+  if (S.settings.stops === 'one' && o.stops > 1) return 0;
   if (S.settings.stops === 'prefer' && o.stops > 1) s *= 0.8;
   return Math.round(Math.min(s * mult, 100));
 }
@@ -168,18 +172,25 @@ function visibleOffers() {
   return S.data.offers.filter(o =>
     originOn(o.dep) &&
     o.nights >= st.minNights && o.nights <= st.maxNights &&
-    (st.stops !== 'direct' || o.stops === 0));
+    (st.stops !== 'direct' || o.stops === 0) &&
+    (st.stops !== 'one' || o.stops == null || o.stops <= 1));
 }
 function homeOffers() {
   return visibleOffers().filter(o => inGroup(o.dep, S.origin));
 }
 function ranked(list) {
+  const home = (S.data && S.data.home) || 'CJJ';
   return list.slice().sort((a, b) => {
     const t = TIER_RANK[dealTier(a)] - TIER_RANK[dealTier(b)];
     if (t) return t;
+    // 실부담가가 사실상 같으면 집 앞 공항을 위로. 이동시간·주차·스트레스.
+    const gap = effective(a) - effective(b);
+    if (Math.abs(gap) <= tieBreak() && (a.dep === home) !== (b.dep === home)) {
+      return a.dep === home ? -1 : 1;
+    }
     const s = dealScore(b) - dealScore(a);
     if (s) return s;
-    return effective(a) - effective(b);
+    return gap;
   });
 }
 const cheapest = list =>
@@ -322,11 +333,80 @@ function viewHome() {
       </div>
     </section>
 
+    ${S.origin === 'CJJ' ? cjjSection(ok) : ''}
+
     <section class="sec">
       <button class="btn-line" data-view="analysis">상세 분석 열기 (노선별·표본·진단)</button>
     </section>
     ${footerHTML()}
   </div>`;
+}
+
+/* ── 청주 전용 화면 ───────────────────────────────────────
+   운항 노선 / 가격 데이터 / 특가를 절대 섞지 않는다.
+   가격이 없는 노선은 0원이나 "-" 가 아니라 "가격 데이터 부족"으로 적는다. */
+function cjjSection(pool) {
+  const c = (S.data.cjj) || {};
+  const cfg = c.config || {};
+  const st = c.status || [];
+  const total = Object.keys(cfg).length;
+  if (!total) return '';
+
+  const priced = st.filter(x => x.price_status === 'available');
+  const missing = st.filter(x => x.price_status === 'missing');
+  const errored = st.filter(x => x.price_status === 'error');
+  const deals = pool.filter(o => ['strong', 'deal'].includes(dealTier(o)));
+
+  // 목적지별 오늘 최저 실부담가
+  const best = {};
+  pool.forEach(o => {
+    if (!best[o.arr] || effective(o) < effective(best[o.arr])) best[o.arr] = o;
+  });
+
+  // 국가별 묶기 (config 순서 유지 → 일본·대만·베트남… 순)
+  const byCountry = [];
+  Object.keys(cfg).forEach(code => {
+    const info = cfg[code];
+    let g = byCountry.find(x => x.country === info.country);
+    if (!g) { g = { country: info.country, flag: info.flag || '', rows: [] }; byCountry.push(g); }
+    const row = st.find(x => x.destination === code);
+    g.rows.push({ code, info, row, offer: best[code] || null });
+  });
+  byCountry.forEach(g => g.rows.sort((a, b) =>
+    (a.offer ? effective(a.offer) : Infinity) - (b.offer ? effective(b.offer) : Infinity)));
+
+  const groups = byCountry.map(g => `<div class="panel">
+      <h4>${esc(g.flag)} ${esc(g.country)}</h4>
+      ${g.rows.map(r => {
+        if (r.offer) {
+          return `<button class="kv cjjrow" data-open="${esc(r.offer.id)}">
+            <span class="k" style="color:var(--tx);font-weight:700">${esc(r.info.city)}
+              <span style="font-family:var(--mono);color:var(--tx3);font-weight:600">${esc(r.code)}</span></span>
+            <span class="v">${won(effective(r.offer))}원
+              ${r.offer.discount_pct > 0
+                ? `<span class="is-down" style="font-size:11.5px">▼${Math.round(r.offer.discount_pct)}%</span>`
+                : ''}</span></button>`;
+        }
+        const why = !r.row ? '오늘 조회 대상 아님'
+          : (r.row.price_status === 'error' ? '조회 오류' : '가격 데이터 부족');
+        return `<div class="kv">
+          <span class="k" style="color:var(--tx2);font-weight:700">${esc(r.info.city)}
+            <span style="font-family:var(--mono);color:var(--tx3);font-weight:600">${esc(r.code)}</span></span>
+          <span class="v" style="font-family:var(--sans);font-size:12px;color:var(--tx3);font-weight:600;text-align:right">
+            ${esc(why)}<br><span style="font-size:11px">직항 운항 노선 · 최근 가격 없음</span></span></div>`;
+      }).join('')}
+    </div>`).join('');
+
+  return `<section class="sec">
+    <div class="sec-hd"><div><h2>🏠 청주공항 직항 스캐너</h2>
+      <p>운항 노선과 가격 데이터는 별개입니다. 가격이 없다고 노선이 없어진 게 아닙니다.</p></div></div>
+    <div class="strip">
+      <div><div class="k">직항 목적지</div><div class="v num">${total}</div></div>
+      <div><div class="k">오늘 가격 확인</div><div class="v num g">${priced.length}</div></div>
+      <div><div class="k">가격 데이터 부족</div><div class="v num zero">${missing.length + errored.length}</div></div>
+    </div>
+    ${groups}
+  </section>`;
 }
 
 function emptyBlock(title, body) {
@@ -638,7 +718,8 @@ function viewSettings() {
 
     <div class="panel"><h4>환승</h4>
       <div class="seg">
-        ${[['prefer', '직항 우선'], ['direct', '직항만'], ['any', '환승 허용']]
+        ${[['prefer', '직항 우선'], ['direct', '직항만'],
+           ['one', '1회 환승'], ['any', '제한 없음']]
           .map(([k, l]) => `<button data-stops="${k}"
             aria-pressed="${st.stops === k}">${l}</button>`).join('')}
       </div>
