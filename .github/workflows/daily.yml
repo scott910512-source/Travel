@@ -18,6 +18,7 @@ concurrency:
 jobs:
   scan:
     runs-on: ubuntu-latest
+    timeout-minutes: 30      # 응답 지연으로 러너가 매달리는 것 방지
     steps:
       - uses: actions/checkout@v4
 
