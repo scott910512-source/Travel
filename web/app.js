@@ -223,8 +223,10 @@ function badgesHTML(o) {
   if (o.weekend_trip) b.push(`<span class="bg pri">주말 · ${leaveTxt(o.annual_leave)}</span>`);
   if (o.holiday) b.push(`<span class="bg pri">${esc(o.holiday)}</span>`);
   if (o.change === 'new') b.push('<span class="bg pri">🆕 신규</span>');
-  if (o.change === 'down' && o.delta) b.push(`<span class="bg down">📉 ${won(o.delta)}</span>`);
-  if (o.change === 'up' && o.delta) b.push(`<span class="bg up">📈 +${won(o.delta)}</span>`);
+  // 가격 변동. 전에는 "-2,754" 만 찍었는데 단위도 기준도 없어서
+  // 무슨 값인지 알 수 없었다. 무엇 대비 얼마나 움직였는지를 다 적는다.
+  const dt = deltaTxt(o);
+  if (dt) b.push(`<span class="bg ${o.delta < 0 ? 'down' : 'up'}">${dt}</span>`);
   // 표본이 없으면 "최저"라는 말이 성립하지 않는다. 그 하나가 곧 최저일 뿐이다.
   if (o.low_all && o.price_krw <= o.low_all && (o.baseline_n || 0) >= 3) {
     b.push('<span class="bg down">추적 기간 최저</span>');
@@ -285,6 +287,27 @@ function srcBadge(o) {
 
 // 이 앱의 가격은 "남이 검색해서 캐시에 남은 값" 이다. 언제 남은 값인지를
 // 숨기면, 사흘 지난 값과 오늘 값이 같은 얼굴로 보인다.
+// delta = 이번 가격 − 직전에 기록된 가격.
+// 언제와 비교한 것인지까지 적어야 읽을 수 있다. price_log 의 직전 날짜로
+// 계산하고, 알 수 없으면 "직전 기록" 이라고만 한다 (지어내지 않는다).
+function deltaTxt(o) {
+  if (!o.delta || (o.change !== 'down' && o.change !== 'up')) return '';
+  const log = o.price_log || [];
+  let when = '직전 기록';
+  if (log.length >= 2) {
+    // ★ Date.now() 와 비교하면 안 된다. 로그 날짜는 스캐너(KST)가 찍고
+    //   브라우저는 UTC 일 수 있어서 하루씩 밀린다. 로그끼리만 비교한다.
+    const a = Date.parse(log[log.length - 2].d + 'T00:00:00Z');
+    const b = Date.parse(log[log.length - 1].d + 'T00:00:00Z');
+    const days = (a && b) ? Math.round((b - a) / 86400000) : null;
+    if (days === 0) when = '오늘 앞선 조회';
+    else if (days === 1) when = '어제';
+    else if (days > 1) when = `${days}일 전`;
+  }
+  const down = o.delta < 0;
+  return `${down ? '📉' : '📈'} ${when}보다 ${won(Math.abs(o.delta))}원 ${down ? '내림' : '오름'}`;
+}
+
 function ageTxt(iso) {
   if (!iso) return '';
   const t = Date.parse(iso);
