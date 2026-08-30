@@ -48,13 +48,19 @@ jobs:
       - name: 스캔 실행
         if: steps.mode.outputs.scan == 'true'
         env:
+          # TP_TOKEN 은 필수. 나머지는 선택 — 없으면 그 provider 만 꺼진다.
           TP_TOKEN: ${{ secrets.TP_TOKEN }}
+          DUFFEL_TOKEN: ${{ secrets.DUFFEL_TOKEN }}
+          SKYSCANNER_API_KEY: ${{ secrets.SKYSCANNER_API_KEY }}
         run: |
           if [ -z "$TP_TOKEN" ]; then
             echo "::error::TP_TOKEN 시크릿이 비어 있습니다. Settings > Secrets > Actions 에서 등록하세요."
             exit 1
           fi
-          python scanner.py
+          # 부가 provider 의 토큰이 없다고 워크플로를 실패시키지 않는다.
+          [ -z "$DUFFEL_TOKEN" ] && echo "::notice::DUFFEL_TOKEN 없음 — Duffel provider 비활성"
+          [ -z "$SKYSCANNER_API_KEY" ] && echo "::notice::SKYSCANNER_API_KEY 없음 — Skyscanner provider 비활성"
+          python scanner.py --ab
 
       - name: 결과 확인
         run: |
@@ -73,6 +79,23 @@ jobs:
               print(f"::error::스캔 실패 — {b.get('reason')}"); sys.exit(1)
           if b["status"] == "PARTIAL":
               print("::warning::비교 가능한 항공권이 없습니다 (정상일 수 있음)")
+          EOF
+
+      - name: 커버리지 요약
+        if: steps.mode.outputs.scan == 'true'
+        run: |
+          python - <<'EOF'
+          import json, os
+          p = "flight-deals/state/candidate.json"
+          if not os.path.exists(p):
+              print("candidate.json 없음 — 커버리지 요약 생략"); raise SystemExit
+          c = json.load(open(p, encoding="utf-8"))
+          print("| 지표 | 값 |"); print("|---|---|")
+          for k in ("offers_total", "cjj_valid_offers", "cjj_zero_routes",
+                    "cjj_priced_destinations", "zrh_offers", "zrh_direct", "zrh_1stop"):
+              print(f"| {k} | {c.get(k)} |")
+          if c.get("cjj_zero_list"):
+              print(f"\n0건 노선: {', '.join(c['cjj_zero_list'])}")
           EOF
 
       - name: 상태 파일 커밋

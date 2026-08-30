@@ -44,6 +44,15 @@ import urllib.parse
 import urllib.request
 from datetime import date, datetime, timedelta, timezone
 
+from core.normalize import to_legacy, source_priority          # noqa: E402
+from core.merge import merge_offers, merge_stats                # noqa: E402
+from core import quality                                        # noqa: E402
+from sources.base import SearchRequest                          # noqa: E402
+from sources.travelpayouts import TravelpayoutsProvider         # noqa: E402
+from sources.duffel import DuffelProvider                       # noqa: E402
+from sources.skyscanner import SkyscannerProvider               # noqa: E402
+
+
 # ══════════════════════════════════════════════════════════
 # 설정
 # ══════════════════════════════════════════════════════════
@@ -162,6 +171,184 @@ AIRPORT_BONUS = {"CJJ": 10, "ICN": 0, "GMP": 2, "TAE": 3, "PUS": -2}
 
 # 실부담가가 이 차이 안이면 청주를 위로 올린다 (이동시간·주차·스트레스)
 TIE_BREAK_KRW = 10000
+
+
+# ══════════════════════════════════════════════════════════
+# 멀티 provider
+# ══════════════════════════════════════════════════════════
+#
+# Travelpayouts 는 캐시라 검색량이 적은 노선이 통째로 비어 있다.
+# 그 구멍만 다른 provider 로 메운다. 데이터가 이미 충분한 노선에는
+# 호출을 쓰지 않는다 — CJJ-NRT 를 한 번 더 긁어봐야 얻는 게 없다.
+
+MIN_CJJ_ROWS = 5          # 유효 왕복이 이보다 적으면 fallback 을 붙인다
+ZRH_ROUTE = ("ICN", "ZRH")
+ZRH_NIGHTS = (4, 14)      # 스위스 왕복의 현실적인 구간
+ZRH_MAX_STOPS = 1         # 2회 이상 환승은 기본 제외 (§9)
+ZRH_BUDGET = 14           # Duffel 호출 상한
+
+PROVIDERS = {}            # name -> Provider (main 에서 채운다)
+MERGE_INFO = {}
+PROVIDER_ROWS = {}        # name -> 최종 반영된 건수
+CJJ_PER_ROUTE = {}        # code -> {tp, sky, final}
+ZRH_COVER = {}
+
+
+def provider_stats():
+    return {n: p.stats() for n, p in PROVIDERS.items()}
+
+
+def ingest(common_offers, city, region, flex, window):
+    """공통 Offer → 기존 offer dict.
+
+    scanner.normalize() 를 그대로 태운다. 연차 계산·주말 판정·링크·
+    지방공항 직항 필터가 전부 거기 있다. provider 마다 그걸 다시 쓰면
+    규칙이 갈라진다.
+    """
+    out = []
+    for o in common_offers:
+        dep_at = o.get("departure_at")
+        if not dep_at:
+            continue
+        leg = to_legacy(o)
+        got = normalize(o["dep"], o["arr"], city, region, dep_at, None,
+                        leg, flex, window)
+        if got:
+            out.append(got)
+    return out
+
+
+def merge_all(offers):
+    """provider 별 결과를 합친다.
+
+    기존 offer dict 를 공통 모델로 되돌렸다가 다시 만들지 않는다.
+    dedupe 키만 공통 규칙으로 계산해 묶고, 대표는 신뢰도 우선으로 고른다.
+    기존 스키마는 그대로 두고 sources/best_price 만 덧붙인다.
+    """
+    groups = {}
+    for o in offers:
+        k = (o["dep"], o["arr"], o["depart_date"], o.get("return_date"),
+             (o.get("airline") or "?").upper(), o.get("stops"))
+        groups.setdefault(k, []).append(o)
+
+    out = []
+    for _k, rows in groups.items():
+        rows.sort(key=lambda r: (-source_priority(r.get("source") or "travelpayouts"),
+                                 r.get("price_krw") or (1 << 40)))
+        rep_row = dict(rows[0])
+        if len(rows) > 1:
+            rep_row["sources"] = [{"source": r.get("source") or "travelpayouts",
+                                   "price": r.get("price_krw"),
+                                   "live": bool(r.get("live")),
+                                   "confidence": r.get("source_confidence")}
+                                  for r in rows]
+            prices = [r["price_krw"] for r in rows if r.get("price_krw")]
+            rep_row["best_price"] = min(prices) if prices else rep_row.get("price_krw")
+            if rep_row.get("airline") in (None, "?"):
+                named = next((r for r in rows
+                              if r.get("airline") not in (None, "?")), None)
+                if named:
+                    rep_row["airline"] = named["airline"]
+                    rep_row["airline_kr"] = named.get("airline_kr") or named["airline"]
+        out.append(rep_row)
+    return out
+
+
+def fallback_cjj(code, info, tp_offers):
+    """CJJ 노선 하나에 대한 보조 provider 조회.
+
+    Travelpayouts 결과가 MIN_CJJ_ROWS 이상이면 호출하지 않는다.
+    row 수가 아니라 '유효 왕복' 수로 센다 — 원본 20건이 와도 전부 편도면
+    쓸 수 있는 가격은 0건이다.
+    """
+    tp_valid = sum(1 for o in tp_offers
+                   if o.get("price_krw") and o.get("roundtrip_verified"))
+    CJJ_PER_ROUTE.setdefault(code, {})["tp"] = tp_valid
+    if tp_valid >= MIN_CJJ_ROWS:
+        CJJ_PER_ROUTE[code]["sky"] = 0
+        return []
+
+    sky = PROVIDERS.get("skyscanner")
+    if not sky or not sky.enabled:
+        CJJ_PER_ROUTE[code]["sky"] = 0
+        return []
+
+    req = SearchRequest("CJJ", code, city=info.get("city", code),
+                        region=info.get("region", ""),
+                        window=CJJ_WINDOW, nights=CJJ_FLEX,
+                        max_stops=0)          # 지방공항은 직항만 (§1)
+    res = sky.search(req)
+    if res.error:
+        ERRORS.append(f"CJJ-{code} skyscanner: {res.error}")
+    got = ingest(res.offers, info.get("city", code), info.get("region", ""),
+                 CJJ_FLEX, CJJ_WINDOW)
+    CJJ_PER_ROUTE[code]["sky"] = len(got)
+    PROVIDER_ROWS["skyscanner"] = PROVIDER_ROWS.get("skyscanner", 0) + len(got)
+    return got
+
+
+def scan_zrh():
+    """ICN-ZRH 보강. Duffel 우선, 없으면 Skyscanner.
+
+    Travelpayouts 는 이미 스위스 경로에서 조회된다. 여기서는 그 위에
+    실시간 provider 만 덧댄다.
+    """
+    dep, arr = ZRH_ROUTE
+    req = SearchRequest(dep, arr, city="취리히", region="유럽",
+                        window=SWISS_WINDOW, nights=ZRH_NIGHTS,
+                        max_stops=ZRH_MAX_STOPS, budget=ZRH_BUDGET)
+    got = []
+    for name in ("duffel", "skyscanner"):
+        p = PROVIDERS.get(name)
+        if not p or not p.enabled:
+            ZRH_COVER[name] = 0
+            continue
+        res = p.search(req)
+        if res.error:
+            ERRORS.append(f"{dep}-{arr} {name}: {res.error}")
+        rows = ingest(res.offers, "취리히", "유럽", ZRH_NIGHTS, SWISS_WINDOW)
+        # 2회 이상 환승은 여기서도 막는다. provider 가 무시할 수 있다.
+        rows = [o for o in rows if o.get("stops") is None or o["stops"] <= ZRH_MAX_STOPS]
+        ZRH_COVER[name] = len(rows)
+        PROVIDER_ROWS[name] = PROVIDER_ROWS.get(name, 0) + len(rows)
+        got += rows
+        if got:
+            break            # 앞 provider 가 줬으면 뒤는 안 부른다
+    return got
+
+
+def discover_cjj_routes(providers=None):
+    """CJJ → Everywhere. 새 목적지를 '발견' 만 한다 (§8).
+
+    config/cjj_routes.json 을 자동으로 고치지 않는다. 사람이 보고 결정할
+    수 있게 별도 파일로 남긴다. 자동으로 active:true 를 넣으면 운항하지도
+    않는 노선에 매일 호출을 쓰게 된다.
+    """
+    known = set(CJJ_ROUTES)
+    found = {}
+    sky = (providers or PROVIDERS).get("skyscanner")
+    if sky and sky.enabled:
+        try:
+            req = SearchRequest("CJJ", "anywhere", window=CJJ_WINDOW,
+                                nights=CJJ_FLEX)
+            for o in sky.search(req).offers:
+                code = o.get("arr")
+                if code and code not in known:
+                    found.setdefault(code, {"city": code, "discovered": True,
+                                            "active": False,
+                                            "source": "skyscanner"})
+        except Exception as e:                    # noqa: BLE001
+            ERRORS.append(f"discover_cjj_routes: {type(e).__name__}: {e}")
+
+    path = os.path.join(ROOT, "state", "discovered_routes.json")
+    prev = load(path, {"routes": {}})
+    prev.setdefault("routes", {}).update(found)
+    prev["updated"] = str(date.today())
+    prev["known"] = sorted(known)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(prev, f, ensure_ascii=False, indent=2)
+    return found
 
 
 # ══════════════════════════════════════════════════════════
@@ -872,6 +1059,13 @@ def normalize(org, dst, city, region, dep, nights, v, flex=None, window=None):
         "duration_rt_min": v.get("duration_rt_min"),  # 왕복 총합
         # 이 가격이 캐시에 들어온 시각. 소스가 줄 때만 있다.
         "found_at": v.get("found_at"),
+        # ── provider 꼬리표 ──
+        # 가격 등급(강력특가/특가/…)과 섞지 않는다. 저건 "싸냐", 이건
+        # "얼마나 믿을 수 있냐" 다. 화면에서도 따로 표시한다.
+        "source": v.get("source") or "travelpayouts",
+        "source_confidence": v.get("source_confidence") or "B",
+        "live": bool(v.get("live")),
+        "booking_url": v.get("booking_url"),
         "price_krw": int(price),
         "access_cost": access,
         "effective_krw": int(price) + access,   # 청주 기준 실부담가 (보조 지표)
@@ -1069,6 +1263,13 @@ def scan_cjj(force_all=False, debug=False):
                                 flex=CJJ_FLEX, window=CJJ_WINDOW, latest=True)
         key = f"CJJ-{code}"
         raw = RAWCOUNT.get(key, 0)
+        PROVIDER_ROWS["travelpayouts"] = PROVIDER_ROWS.get("travelpayouts", 0) + len(got)
+
+        # Travelpayouts 가 얇으면 보조 provider 를 붙인다. 충분하면 안 부른다.
+        extra = fallback_cjj(code, info, got)
+        if extra:
+            got = merge_all(got + extra)
+        CJJ_PER_ROUTE.setdefault(code, {})["final"] = len(got)
 
         if stop in ("BUDGET_EXCEEDED", "CIRCUIT_OPEN"):
             price_status = "error"
@@ -1663,6 +1864,7 @@ def load(path, default):
 OFFER_FIELDS = (
     "id dep arr city region depart_date return_date nights airline airline_kr "
     "stops duration_min duration_rt_min price_krw found_at link dep_hour ret_hour holiday weekend red_days "
+    "source source_confidence live booking_url sources best_price "
     "annual_leave weekend_trip night_departure roundtrip_verified "
     "baseline baseline_avg baseline_n baseline_tier confidence diff_krw "
     "discount_pct data_ok data_note tier tier_label deal_score "
@@ -1740,6 +1942,10 @@ def main():
                     help="priority 무시하고 CJJ 전 노선까지 조회")
     ap.add_argument("--cjj", action="store_true",
                     help="청주 노선만 조회 (다른 출발지·스위스 건너뜀)")
+    ap.add_argument("--discover", action="store_true",
+                    help="CJJ 신규 목적지 탐색 (주 1회 정도. config 는 안 고침)")
+    ap.add_argument("--ab", action="store_true",
+                    help="baseline.json 과 커버리지 비교 리포트 출력")
     ap.add_argument("--token", help="토큰 직접 지정 (1회성)")
     ap.add_argument("--save-token", metavar="TOKEN",
                     help="토큰을 ~/.travelpayouts.json 에 저장 후 종료")
@@ -1780,8 +1986,23 @@ def main():
         print(f"⚠️  {msg}")
         ERRORS.append(msg)
 
+    # provider 등록. 토큰이 없는 것은 여기서 조용히 꺼진다.
+    PROVIDERS["travelpayouts"] = TravelpayoutsProvider(fetch_route, RAWCOUNT)
+    PROVIDERS["duffel"] = DuffelProvider()
+    PROVIDERS["skyscanner"] = SkyscannerProvider()
+    for name, p in PROVIDERS.items():
+        why = p.disabled_reason()
+        if why:
+            print(f"  · {name} provider disabled: {why}")
+
     # 청주는 전용 스캐너가 노선별로 직접 물어본다 (캐시가 얇아 전체 훑기가 안 됨)
     offers, cjj_status = scan_cjj(force_all=args.all, debug=args.raw)
+
+    if args.discover:
+        found = discover_cjj_routes()
+        print(f"\n▶ CJJ 신규 목적지 후보 {len(found)}개 "
+              f"→ flight-deals/state/discovered_routes.json")
+        print("   자동으로 활성화하지 않습니다. 확인 후 config/cjj_routes.json 에 옮기세요.")
 
     if args.cjj:
         targets = []
@@ -1817,9 +2038,21 @@ def main():
             why = "  ← " + ", ".join(f"{k} {v}" for k, v in
                                      sorted(d.items(), key=lambda x: -x[1])[:3])
         print(f"  {org}→{dst} {len(got):>4}건 (원본 {rawn}){tag}{why}")
+        if org == "ICN" and dst == "ZRH":
+            ZRH_COVER["tp"] = len(got)
+        PROVIDER_ROWS["travelpayouts"] = PROVIDER_ROWS.get("travelpayouts", 0) + len(got)
         offers += got
         if stop:
             break
+
+    # ICN-ZRH 는 캐시가 얇다. 실시간 provider 로 덧댄다 (§9).
+    if not args.cjj:
+        zrh = scan_zrh()
+        if zrh:
+            print(f"  ICN→ZRH 보강 {len(zrh)}건 "
+                  f"(duffel {ZRH_COVER.get('duffel', 0)} · "
+                  f"skyscanner {ZRH_COVER.get('skyscanner', 0)})")
+            offers += zrh
 
     # API 가 공항코드를 도시코드로 접어서 응답한다 (ICN/GMP→SEL, KIX→OSA, NRT/HND→TYO).
     # 요청 공항이 달라도 같은 편이 중복 수집될 수 있으므로 실제 편 기준으로 중복 제거.
@@ -1835,6 +2068,13 @@ def main():
         print(f"  · 중복 제거 {dedup_n}건 (도시코드 병합)")
         offers = list(uniq.values())
     offers = merge_unnamed(offers)
+    # provider 간 중복 병합 (같은 편이 여러 곳에서 온다). 신뢰도 우선.
+    pre_merge = len(offers)
+    offers = merge_all(offers)
+    MERGE_INFO.update(input=pre_merge, duplicates=pre_merge - len(offers),
+                      final=len(offers))
+    if pre_merge != len(offers):
+        print(f"  · provider 간 중복 병합 {pre_merge - len(offers)}건")
     if CIRCUIT.tripped:
         print(f"\n⛔ 연속 실패 {CIRCUIT.LIMIT}회 — 조기 중단")
         print(f"   원인: {CIRCUIT.cause}")
@@ -1883,9 +2123,42 @@ def main():
             "raw_counts": RAWCOUNT,
             "deep_tried": sorted(DEEP_TRIED),
             "v3": V3STAT,
+            "providers": provider_stats(),
+            "merge": dict(MERGE_INFO),
             "drops": DROPS}
 
     write_deals(offers, routes, meta, stats, gone, cjj_status)
+
+    # ── provider / 커버리지 로그 (§19) ──
+    print()
+    print(quality.provider_log(provider_stats(), MERGE_INFO))
+    if CJJ_PER_ROUTE:
+        print(quality.cjj_coverage_log(CJJ_PER_ROUTE))
+    zrh_rows = [o for o in offers if (o["dep"], o["arr"]) == ZRH_ROUTE
+                and o.get("price_krw")]
+    print(quality.zrh_coverage_log({
+        "tp": ZRH_COVER.get("tp", 0),
+        "duffel": ZRH_COVER.get("duffel", 0),
+        "sky": ZRH_COVER.get("skyscanner", 0),
+        "merged": len(zrh_rows),
+        "direct": sum(1 for o in zrh_rows if o.get("stops") == 0),
+        "one_stop": sum(1 for o in zrh_rows if o.get("stops") == 1)}))
+
+    # ── A/B 커버리지 비교 (§13) ──
+    cand_path = os.path.join(ROOT, "state", "candidate.json")
+    cur = quality.coverage(
+        {"offers": [{k: o.get(k) for k in OFFER_FIELDS} for o in offers]},
+        cjj_status)
+    with open(cand_path, "w", encoding="utf-8") as f:
+        json.dump(cur, f, ensure_ascii=False, indent=2)
+    base = load(os.path.join(ROOT, "state", "baseline.json"), None)
+    if args.ab and base:
+        print()
+        print(quality.report(quality.coverage(base), cur, MERGE_INFO))
+        st, checks = quality.verdict(quality.coverage(base), cur)
+        print(f"\n목표 달성: {st}")
+        for name, okc in checks:
+            print(f"  {'PASS' if okc else 'FAIL'}  {name}")
 
     # ── 아침 브리프용 요약 (설정 없이 읽히는 파일) ──
     ok = [o for o in offers if o["data_ok"]]

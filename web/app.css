@@ -353,3 +353,9 @@ button.cjjrow:active{background:var(--card2)}
   margin-top:2px}
 .live-note{margin:9px 0 0;font-size:12px;line-height:1.5;color:var(--tx2);
   font-weight:600}
+
+/* 출처 배지. 가격 등급 배지와 색을 공유하지 않는다 — 다른 축이다. */
+.bg.src{font-family:var(--mono);font-size:10.5px;letter-spacing:-.01em;
+  color:var(--tx3);background:transparent;border-style:dashed}
+.bg.src.live{color:var(--down);border-color:#C7E9D6;border-style:solid;
+  background:var(--down-soft)}

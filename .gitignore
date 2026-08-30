@@ -3,3 +3,6 @@ __pycache__/
 tp_config.json
 .travelpayouts.json
 public/
+
+# A/B 비교용 스냅샷. baseline 은 커밋해 기준을 고정한다.
+flight-deals/state/candidate.json

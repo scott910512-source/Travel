@@ -1,0 +1,43 @@
+{
+  "_note": "Skyscanner v3 live search 응답 축약본. itineraries/legs/carriers 참조 구조.",
+  "content": {
+    "currency": "KRW",
+    "results": {
+      "carriers": { "101": { "iata": "TW", "name": "티웨이" },
+                    "102": { "iata": "BX", "name": "에어부산" } },
+      "legs": {
+        "leg_out": { "originPlaceId": "CJJ", "destinationPlaceId": "TPE",
+                     "departureDateTime": "2026-10-15T09:30:00",
+                     "stopCount": 0, "marketingCarrierIds": [101] },
+        "leg_back": { "originPlaceId": "TPE", "destinationPlaceId": "CJJ",
+                      "departureDateTime": "2026-10-19T13:10:00",
+                      "stopCount": 0, "marketingCarrierIds": [101] },
+        "leg_out2": { "originPlaceId": "CJJ", "destinationPlaceId": "TPE",
+                      "departureDateTime": "2026-10-22T09:30:00",
+                      "stopCount": 0, "marketingCarrierIds": [102] },
+        "leg_back2": { "originPlaceId": "TPE", "destinationPlaceId": "CJJ",
+                       "departureDateTime": "2026-10-26T13:10:00",
+                       "stopCount": 0, "marketingCarrierIds": [102] },
+        "leg_stop": { "originPlaceId": "CJJ", "destinationPlaceId": "TPE",
+                      "departureDateTime": "2026-10-25T09:30:00",
+                      "stopCount": 1, "marketingCarrierIds": [101] }
+      },
+      "itineraries": {
+        "it1": { "legIds": ["leg_out", "leg_back"],
+                 "pricingOptions": [
+                   { "price": { "amount": "412000" },
+                     "items": [ { "deepLink": "https://sky.example/it1" } ] },
+                   { "price": { "amount": "398000" },
+                     "items": [ { "deepLink": "https://sky.example/it1b" } ] } ] },
+        "it2": { "legIds": ["leg_out2", "leg_back2"],
+                 "pricingOptions": [
+                   { "price": { "amount": "455000" },
+                     "items": [ { "deepLink": "https://sky.example/it2" } ] } ] },
+        "it3": { "legIds": ["leg_stop", "leg_back"],
+                 "pricingOptions": [
+                   { "price": { "amount": "330000" }, "items": [] } ] },
+        "it_broken": { "legIds": [], "pricingOptions": [] }
+      }
+    }
+  }
+}

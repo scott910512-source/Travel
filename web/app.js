@@ -237,6 +237,13 @@ function badgesHTML(o) {
   } else if (o.duration_rt_min) {
     b.push(`<span class="bg">✈ 왕복 합 ${durTxt(o.duration_rt_min)}</span>`);
   }
+  // 출처는 항상 표시한다. 어디서 온 값인지 모르면 판단할 수 없다.
+  b.push(srcBadge(o));
+  // provider 마다 값이 다르면 그것도 보여준다. 하나로 뭉개지 않는다.
+  if (Array.isArray(o.sources) && o.sources.length > 1 &&
+      o.best_price && o.best_price !== o.price_krw) {
+    b.push(`<span class="bg">다른 곳 최저 ${won(o.best_price)}원</span>`);
+  }
   // 오래된 캐시값은 그렇다고 말한다. 이틀 넘으면 눈에 띄게.
   const age = ageTxt(o.found_at);
   if (age) {
@@ -255,6 +262,18 @@ const durTxt = m => {
   const h = Math.floor(m / 60), mm = m % 60;
   return mm ? `${h}시간 ${mm}분` : `${h}시간`;
 };
+// 출처 배지. 가격 등급(강력특가/특가/…)과 다른 축이다 — 저건 "싸냐",
+// 이건 "얼마나 믿을 수 있냐". 그래서 등급 배지와 색을 공유하지 않는다.
+const SRC_NAME = { duffel: 'Duffel', skyscanner: 'Skyscanner',
+                   travelpayouts: 'Travelpayouts' };
+function srcBadge(o) {
+  const src = o.source || 'travelpayouts';
+  const live = !!o.live;
+  const label = SRC_NAME[src] || src;
+  return `<span class="bg src${live ? ' live' : ''}">${
+    live ? 'LIVE' : 'CACHE'} · ${esc(label)}</span>`;
+}
+
 // 이 앱의 가격은 "남이 검색해서 캐시에 남은 값" 이다. 언제 남은 값인지를
 // 숨기면, 사흘 지난 값과 오늘 값이 같은 얼굴로 보인다.
 function ageTxt(iso) {
