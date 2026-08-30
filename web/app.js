@@ -198,9 +198,7 @@ const cheapest = list =>
 
 /* ── 조각 렌더 ────────────────────────────────────────── */
 function cmpHTML(o) {
-  if (o.diff_krw == null) {
-    return '<div class="cmp-line"><span class="t is-flat">비교할 평균가 없음</span></div>';
-  }
+  if (o.diff_krw == null) return '';
   if (o.diff_krw > 0) {
     return `<div class="cmp-line is-down"><span class="t">평균보다 ${won(o.diff_krw)}원 저렴</span>
       <span class="p">▼ ${Math.round(o.discount_pct)}%</span></div>`;
@@ -214,18 +212,25 @@ function cmpHTML(o) {
 
 function badgesHTML(o) {
   const t = dealTier(o), b = [];
-  b.push(`<span class="bg ${t}">${TIER_LABEL[t]}</span>`);
-  b.push(`<span class="bg">표본 ${o.baseline_n || 0} · 신뢰도 ${esc(o.confidence || '참고')}</span>`);
+  if (t === 'unknown') {
+    // "비교 불가 / 표본 0 / 비교할 표본 없음" 을 세 번 적지 않는다.
+    b.push(`<span class="bg">${esc(o.data_note || '비교할 표본 없음')} · 가격만 참고</span>`);
+  } else {
+    b.push(`<span class="bg ${t}">${TIER_LABEL[t]}</span>`);
+    b.push(`<span class="bg">표본 ${o.baseline_n || 0} · 신뢰도 ${esc(o.confidence || '참고')}</span>`);
+  }
   if (o.weekend_trip) b.push(`<span class="bg pri">주말 · ${leaveTxt(o.annual_leave)}</span>`);
   if (o.holiday) b.push(`<span class="bg pri">${esc(o.holiday)}</span>`);
   if (o.change === 'new') b.push('<span class="bg pri">🆕 신규</span>');
   if (o.change === 'down' && o.delta) b.push(`<span class="bg down">📉 ${won(o.delta)}</span>`);
   if (o.change === 'up' && o.delta) b.push(`<span class="bg up">📈 +${won(o.delta)}</span>`);
-  if (o.low_all && o.price_krw <= o.low_all) b.push('<span class="bg down">추적 기간 최저</span>');
+  // 표본이 없으면 "최저"라는 말이 성립하지 않는다. 그 하나가 곧 최저일 뿐이다.
+  if (o.low_all && o.price_krw <= o.low_all && (o.baseline_n || 0) >= 3) {
+    b.push('<span class="bg down">추적 기간 최저</span>');
+  }
   if (o.baseline_tier && o.baseline_tier.indexOf('누적') !== -1) {
     b.push(`<span class="bg">${esc(o.baseline_tier.split(' · ')[1])} 기준</span>`);
   }
-  if (!o.data_ok && o.data_note) b.push(`<span class="bg">⚠ ${esc(o.data_note)}</span>`);
   return `<div class="badges">${b.join('')}</div>`;
 }
 
@@ -234,7 +239,9 @@ const stopTxt = s => (s === 0 ? '직항' : (s === 1 ? '1회 환승' : (s == null
 function heroHTML(o, rank) {
   const acc = accessOf(o.dep);
   return `<button class="hero" data-open="${esc(o.id)}">
-    <span class="rank">${rank === 1 ? '🥇' : '🏅'} ${esc(TIER_TEXT[dealTier(o)])}</span>
+    <span class="rank">${o.data_ok
+      ? `${rank === 1 ? '🥇' : '🏅'} ${esc(TIER_TEXT[dealTier(o)])}`
+      : '💰 현재 최저가'}</span>
     <div class="route">${esc(depCity(o.dep))} <span style="color:var(--tx3)">→</span> ${esc(o.city)}</div>
     <div class="codes">${esc(o.dep)} → ${esc(o.arr)} · ${esc(o.airline_kr || o.airline)} · ${stopTxt(o.stops)}</div>
     <div class="when"><b>${md(o.depart_date)} ${dow(o.depart_date)}</b> → <b>${md(o.return_date)} ${dow(o.return_date)}</b></div>
@@ -244,7 +251,11 @@ function heroHTML(o, rank) {
       <div><div class="k">${acc ? `${esc(homeCity())} → ${esc(depCity(o.dep))} 이동비` : '공항 이동비'}</div>
         <div class="v">${won(acc)}원${acc ? '' : ' <span style="font-size:11px;color:var(--tx3)">집 앞</span>'}</div></div>
       <div class="total"><div class="k">실부담가</div><div class="v">${won(effective(o))}원</div></div>
-      <div><div class="k">비교 기준가</div><div class="v">${won(o.baseline)}원</div></div>
+      ${o.baseline
+        ? `<div><div class="k">비교 기준가</div><div class="v">${won(o.baseline)}원</div></div>`
+        : `<div><div class="k">비교 기준가</div>
+             <div class="v" style="font-size:12.5px;font-family:var(--sans);color:var(--tx3)">
+             표본 없음</div></div>`}
       <div class="cmp">${cmpHTML(o)}</div>
     </div>
     ${badgesHTML(o)}
@@ -300,6 +311,8 @@ function viewHome() {
           ? `<div class="kv"><span class="k">30일 최저 대비</span><span class="v is-up">+${won(c.price_krw - r.low30)}원</span></div>`
           : ''}
       </div>` +
+      lowList(ok.filter(o => o.id !== c.id), 3, '💰 저가 TOP 3',
+              '실부담가 낮은 순 · 등급 무관') +
       (top.length > 1 ? `<div class="sec"><div class="sec-hd"><div><h2>그다음으로 볼 만한 것</h2></div></div>
         <div class="list two">${top.slice(1, 5).map((o, i) => cardHTML(o, i + 2)).join('')}</div></div>` : '');
   } else {
@@ -407,6 +420,17 @@ function cjjSection(pool) {
     </div>
     ${groups}
   </section>`;
+}
+
+/* 특가가 없어도 빈손으로 두지 않는다. 실부담가 낮은 순으로 몇 개는 정리해 준다. */
+function lowList(pool, count, title, desc) {
+  const items = pool.slice()
+    .sort((a, b) => effective(a) - effective(b))
+    .slice(0, count);
+  if (!items.length) return '';
+  return `<section class="sec"><div class="sec-hd"><div>
+      <h2>${title}</h2><p>${esc(desc)}</p></div></div>
+    <div class="list two">${items.map((o, i) => cardHTML(o, i + 1)).join('')}</div></section>`;
 }
 
 function emptyBlock(title, body) {
@@ -528,9 +552,19 @@ function viewWeekend() {
       <div class="list two">${items.slice(0, 12).map(o => cardHTML(o)).join('')}</div></section>`;
   });
   if (!body) {
+    // 조건을 만족하는 게 없어도 빈손으로 두지 않는다.
+    // 주말이 걸리는 일정 중 저렴한 것부터 몇 개 보여준다.
+    let near = visibleOffers().filter(o => o.weekend && o.data_ok);
+    if (sp.a) near = near.filter(o => o.depart_date >= sp.a && o.depart_date <= sp.b);
+    if (sp.pre) near = near.filter(o => o.depart_date.indexOf(sp.pre) === 4);
+    if (sp.holiday) near = near.filter(o => o.holiday);
+    near.sort((a, b) => (a.annual_leave - b.annual_leave) || (effective(a) - effective(b)));
+
     body = `<section class="sec">${emptyBlock(
       '이 구간에 연차 1일 이하 일정이 없습니다',
-      '주말이 걸리면서 연차가 0~1일인 조합만 이 탭에 올립니다. 다른 구간을 골라 보세요.')}</section>`;
+      '주말이 걸리면서 연차가 0~1일인 조합만 이 탭에 올립니다.')}</section>`
+      + lowList(near.slice(0, 12), 3, '💰 주말 낀 일정 중 저가 3',
+                '연차는 더 들지만 주말이 걸리는 일정입니다');
   }
 
   return `${plainHeader('주말여행', '연차를 거의 쓰지 않고 다녀올 수 있는 일정만')}
@@ -550,59 +584,126 @@ function plainHeader(title, sub) {
 }
 
 /* ── 화면: 스위스 ─────────────────────────────────────── */
+const SWISS_CITY = { ZRH: '취리히', GVA: '제네바', BSL: '바젤' };
+
 function viewSwiss() {
   // 여행 기간 설정은 일부러 적용하지 않는다. 유럽은 캐시가 얇아 근거리용
   // 박수 범위를 씌우면 있는 것마저 사라진다. 출발지 ON/OFF 는 존중한다.
   const all = S.data.offers.filter(o =>
     ['ZRH', 'GVA', 'BSL'].includes(o.arr) && originOn(o.dep));
-  // 1회 환승까지 허용. 우선순위: 가격 → 환승 → 여행기간
+
+  if (!all.length) {
+    return `${plainHeader('스위스', '취리히 우선 · 1회 환승 허용')}
+      <div class="wrap">${swissDiag()}${swissNote()}${footerHTML()}</div>`;
+  }
+
+  // 1회 환승까지 허용. 가격 → 환승 → 여행기간 순.
   const pool = all.filter(o => o.stops == null || o.stops <= 1);
-  const sorted = pool.slice().sort((a, b) =>
+  const byPrice = pool.slice().sort((a, b) =>
     effective(a) - effective(b) ||
     (a.stops || 0) - (b.stops || 0) ||
     a.nights - b.nights);
-  const zrhFirst = sorted.slice().sort((a, b) =>
-    (a.arr === 'ZRH' ? 0 : 1) - (b.arr === 'ZRH' ? 0 : 1));
-  const best = zrhFirst.find(o => dealTier(o) === 'strong') || null;
-  const lo = sorted[0];
 
-  let body;
-  if (!all.length) {
-    body = swissDiag();
-  } else if (best) {
-    body = `<section class="sec"><div class="sec-hd"><div>
-      <h2>🏔 오늘 가장 좋은 옵션</h2><p>1회 환승까지 허용 · 취리히 우선</p></div></div>
-      ${heroHTML(best, 1)}</section>`;
+  const strong = byPrice.filter(o => dealTier(o) === 'strong');
+  const hero = strong.length
+    ? (strong.find(o => o.arr === 'ZRH') || strong[0])
+    : byPrice[0];
+
+  // 건수가 적으면 쪼개지 않는다. 3건을 세 섹션에 나눠 담으면 같은 항공권을
+  // 세 번 보여주게 된다. 얇을 땐 한 목록으로, 두꺼울 때만 환승별로 나눈다.
+  const THIN = 5;
+  const thin = byPrice.length <= THIN;
+
+  let head, lowTop, byStops;
+
+  if (strong.length) {
+    head = `<section class="sec"><div class="sec-hd"><div>
+        <h2>🏔 오늘 가장 좋은 옵션</h2><p>1회 환승까지 허용 · 취리히 우선</p></div></div>
+        ${heroHTML(hero, 1)}</section>`;
+    lowTop = lowList(byPrice.filter(o => o.id !== hero.id), 3,
+                     '💰 저가 TOP 3', '실부담가 낮은 순 · 등급 무관');
   } else {
-    const r = (S.data.routes || {})[`${lo.dep}-${lo.arr}`] || {};
-    const wait = r.low30 && lo.price_krw > r.low30;
-    body = `<section class="sec">
-      <div class="note hot"><b>현재 강력 특가 없음</b>
-        <p>지금 가장 저렴한 항공권을 대신 보여드립니다.</p></div>
-      <div style="margin-top:10px">${heroHTML(lo, 1)}</div>
-      <div class="panel">
-        <h4>가격 위치</h4>
-        <div class="kv"><span class="k">현재 가격</span><span class="v">${won(lo.price_krw)}원</span></div>
-        <div class="kv"><span class="k">최근 30일 최저</span><span class="v">${won(r.low30)}원</span></div>
-        <div class="kv"><span class="k">추적 기간 최저</span><span class="v">${won(r.low_all)}원</span></div>
-        <div class="kv"><span class="k">노선 평균가</span><span class="v">${won(r.avg)}원</span></div>
-        <p style="margin:10px 0 0;font-size:13px;font-weight:700;color:${wait ? 'var(--warn)' : 'var(--down)'}">
-          ${wait ? '조금 더 기다려볼 만함' : '최근 구간에서 낮은 편'}</p>
-      </div></section>`;
+    head = `<section class="sec">
+        <div class="note hot"><b>현재 강력 특가 없음</b>
+          <p>가격만 보고 저렴한 순으로 정리했습니다. 스위스는 캐시 표본이
+          얇아 "평균 대비 몇 %" 판정이 서지 않는 경우가 많습니다.</p></div>
+        <div style="margin-top:10px">${heroHTML(hero, 1)}</div></section>`;
+    // hero 가 이미 최저가이므로 그다음 것들만 이어 붙인다
+    lowTop = lowList(byPrice.filter(o => o.id !== hero.id), 3,
+                     '💰 그다음으로 저렴한 것', '실부담가 낮은 순 · 등급 무관');
   }
 
-  const rest = sorted.filter(o => !best || o.id !== best.id).slice(0, 12);
-  const list = rest.length ? `<section class="sec"><div class="sec-hd"><div>
-      <h2>전체 옵션</h2><p>실부담가 → 환승 횟수 → 여행 기간 순</p></div></div>
-      <div class="list two">${rest.map(o => cardHTML(o)).join('')}</div></section>` : '';
+  if (thin) {
+    // 얇을 땐 환승별로 또 나누지 않고, 카드마다 직항/환승만 표기한다
+    byStops = '';
+  } else {
+    const shown = { [hero.id]: 1 };
+    byPrice.filter(o => o.id !== hero.id).slice(0, 3).forEach(o => { shown[o.id] = 1; });
+    const rest = byPrice.filter(o => !shown[o.id]);
+    const direct = rest.filter(o => o.stops === 0);
+    const one = rest.filter(o => o.stops === 1);
+    byStops = [
+      direct.length ? `<section class="sec"><div class="sec-hd"><div>
+          <h2>🛫 직항</h2><p>위에 안 나온 ${direct.length}건</p></div></div>
+          <div class="list two">${direct.slice(0, 8).map(o => cardHTML(o)).join('')}</div></section>` : '',
+      one.length ? `<section class="sec"><div class="sec-hd"><div>
+          <h2>✈️ 1회 환승</h2><p>위에 안 나온 ${one.length}건 · 총 여행시간과 환승 대기시간은 소스에 없습니다</p></div></div>
+          <div class="list two">${one.slice(0, 8).map(o => cardHTML(o)).join('')}</div></section>` : '',
+    ].join('');
+  }
+
+  // 도시별 최저 — 가격이 없는 도시도 목록에서 지우지 않는다
+  const cityRows = Object.keys(SWISS_CITY).map(code => {
+    const cands = pool.filter(o => o.arr === code);
+    const best = cands.sort((a, b) => effective(a) - effective(b))[0];
+    if (best) {
+      return `<button class="kv cjjrow" data-open="${esc(best.id)}">
+        <span class="k" style="color:var(--tx);font-weight:700">${esc(SWISS_CITY[code])}
+          <span style="font-family:var(--mono);color:var(--tx3);font-weight:600">${code}</span></span>
+        <span class="v">${won(effective(best))}원
+          <span style="color:var(--tx3);font-size:11.5px">${stopTxt(best.stops)}</span></span></button>`;
+    }
+    const raw = ((S.data.meta && S.data.meta.raw_counts) || {});
+    const got = Object.keys(raw).some(k => k.endsWith('-' + code) && raw[k]);
+    return `<div class="kv">
+      <span class="k" style="color:var(--tx2);font-weight:700">${esc(SWISS_CITY[code])}
+        <span style="font-family:var(--mono);color:var(--tx3);font-weight:600">${code}</span></span>
+      <span class="v" style="font-family:var(--sans);font-size:12px;color:var(--tx3);font-weight:600;text-align:right">
+        가격 데이터 부족<br><span style="font-size:11px">${got ? '조회는 됐으나 조건에 맞는 편 없음' : '응답 자체가 빔'}</span></span></div>`;
+  }).join('');
+
+  // 가격 위치 (hero 기준)
+  const r = (S.data.routes || {})[`${hero.dep}-${hero.arr}`] || {};
+  const wait = r.low30 && hero.price_krw > r.low30;
+  const pos = `<div class="panel"><h4>가격 위치 · ${esc(SWISS_CITY[hero.arr] || hero.arr)}</h4>
+    <div class="kv"><span class="k">현재 항공권</span><span class="v">${won(hero.price_krw)}원</span></div>
+    <div class="kv"><span class="k">최근 30일 최저</span><span class="v">${won(r.low30)}원</span></div>
+    <div class="kv"><span class="k">추적 기간 최저</span><span class="v">${won(r.low_all)}원</span></div>
+    <div class="kv"><span class="k">노선 평균가</span><span class="v">${won(r.avg)}원</span></div>
+    <div class="kv"><span class="k">표본</span><span class="v">${r.n || 0}건 · 신뢰도 ${esc(hero.confidence || '참고')}</span></div>
+    ${(r.series || []).length >= 3
+      ? `<p style="margin:10px 0 0;font-size:13px;font-weight:700;color:${wait ? 'var(--warn)' : 'var(--down)'}">
+         ${wait ? '조금 더 기다려볼 만함' : '최근 구간에서 낮은 편'}</p>`
+      : `<p style="margin:10px 0 0;font-size:12.5px;color:var(--tx3);font-weight:600">
+         기록이 ${(r.series || []).length || 1}일치뿐이라 아직 "싸다/비싸다"를 말할 수
+         없습니다. 위 세 값이 같은 것도 그 때문입니다 — 오늘 가격이 곧 최저이자
+         최고입니다. 며칠 쌓이면 30일 최저가 의미를 갖습니다.</p>`}
+  </div>`;
 
   return `${plainHeader('스위스', '취리히 우선 · 1회 환승 허용')}
-  <div class="wrap">${body}${list}
-    <div class="note" style="margin-top:16px"><b>이 소스로 알 수 없는 것</b>
-      <p>Travelpayouts 캘린더 응답에는 총 여행시간과 환승 대기시간이 들어 있지 않습니다.
-      그래서 그 두 가지는 정렬에 넣지 못했고, 화면에도 지어내지 않았습니다.
-      실제 소요시간은 예약 페이지에서 확인하세요.</p></div>
-    ${footerHTML()}</div>`;
+  <div class="wrap">
+    ${head}${lowTop}${byStops}
+    <section class="sec"><div class="sec-hd"><div>
+      <h2>도시별 최저</h2><p>가격이 없어도 노선은 목록에 남깁니다</p></div></div>
+      <div class="panel">${cityRows}</div></section>
+    ${pos}${swissNote()}${footerHTML()}</div>`;
+}
+
+function swissNote() {
+  return `<div class="note" style="margin-top:16px"><b>이 소스로 알 수 없는 것</b>
+    <p>Travelpayouts 캘린더 응답에는 총 여행시간과 환승 대기시간이 들어 있지
+    않습니다. 그래서 그 두 가지는 정렬에 넣지 못했고, 화면에도 지어내지
+    않았습니다. 실제 소요시간은 예약 페이지에서 확인하세요.</p></div>`;
 }
 
 function swissDiag() {
@@ -651,6 +752,18 @@ function viewError() {
     : emptyBlock('지금 에러페어 의심 건이 없습니다',
         '평균 대비 50% 이상 저렴하면서 표본이 10건 이상인 항공권만 여기 올립니다.');
 
+  // 의심 건이 없어도 "그럼 오늘 제일 많이 빠진 건 뭔데"에는 답한다.
+  const steep = visibleOffers()
+    .filter(o => o.data_ok && o.discount_pct != null && o.discount_pct > 0)
+    .sort((a, b) => b.discount_pct - a.discount_pct)
+    .slice(0, 3);
+  const steepBlock = (!pool.length && steep.length)
+    ? `<section class="sec"><div class="sec-hd"><div>
+        <h2>📉 오늘 가장 많이 빠진 것</h2>
+        <p>에러페어 기준에는 못 미치지만 할인율 상위</p></div></div>
+        <div class="list two">${steep.map((o, i) => cardHTML(o, i + 1)).join('')}</div></section>`
+    : '';
+
   return `${plainHeader('에러페어', '오류운임 "의심" 탐지 — 확정이 아닙니다')}
   <div class="wrap">
     <div class="note warn" style="margin-top:16px"><b>⚡ 의심이지 확정이 아닙니다</b>
@@ -658,6 +771,7 @@ function viewError() {
       캐시가 오래됐거나 특가 프로모션일 수도 있습니다. 반드시 판매처에서 직접 확인하세요.</p></div>
     <section class="sec"><div class="sec-hd"><div><h2>의심 건</h2>
       <p>평균 대비 50%+ 하락 · 표본 10건 이상</p></div></div>${body}</section>
+    ${steepBlock}
     <div class="panel"><h4>판정 조건</h4>
       <div class="kv"><span class="k">필수</span><span class="v">평균 대비 50% 이상 하락</span></div>
       <div class="kv"><span class="k">필수</span><span class="v">표본 10건 이상</span></div>

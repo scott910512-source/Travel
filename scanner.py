@@ -93,8 +93,9 @@ TOKEN = ""   # main()에서 주입
 CURRENCY = "krw"
 ROOT = os.path.join(os.getcwd(), "flight-deals")
 
-SEARCH_BUDGET = 140       # CJJ 4×6 + ICN·GMP 6×4 + TAE 3×4 + PUS 4×4
-                          # + 스위스 6×1(flex) = 82회
+SEARCH_BUDGET = 170       # CJJ 20×1 + ICN·GMP 6×4 + TAE 3×4 + PUS 4×4
+                          # + 스위스 6×1 = 78회, 여기에 얇은 노선 2차 소스
+                          # (/v2/prices/latest) 최대 26회를 더해 104회
 REQ_SLEEP = 0.45          # rate limit 여유
 TIMEOUT = 25
 
@@ -371,7 +372,8 @@ def call(path, params, retries=2):
 # 수집
 # ══════════════════════════════════════════════════════════
 
-def fetch_route(org, dst, city, region, nights=None, flex=None, window=None):
+def fetch_route(org, dst, city, region, nights=None, flex=None, window=None,
+                latest=False):
     """노선 하나를 조회. 정규화된 offer 리스트 반환.
 
     두 가지 모드가 있다.
@@ -416,6 +418,62 @@ def fetch_route(org, dst, city, region, nights=None, flex=None, window=None):
                 out.append(o)
     # 원본 건수를 같이 남긴다. 0건일 때 "응답이 없었나 / 걸러졌나" 를 구분한다.
     RAWCOUNT[f"{org}-{dst}"] = raw
+
+    # 캘린더가 얇으면 2차 소스로 보충한다 (장거리·지방 노선에서 효과)
+    if latest and len(out) < LATEST_MIN and not CIRCUIT.tripped:
+        more, _ = fetch_latest(org, dst, city, region,
+                               flex or (1, 30), window)
+        time.sleep(REQ_SLEEP)
+        seen = {o["id"] for o in out}
+        out += [o for o in more if o["id"] not in seen]
+    return out, None
+
+
+# 캘린더가 얇게 주는 노선을 위한 2차 소스.
+# /v1/prices/calendar 는 "출발일별 최저가" 라 노선이 얇으면 몇 건 안 준다.
+# /v2/prices/latest 는 최근 캐시를 그대로 훑어주므로 장거리에서 더 나온다.
+LATEST_MIN = 5          # 1차 수집이 이 미만이면 2차 소스를 붙인다
+LATEST_LIMIT = 100
+
+
+def fetch_latest(org, dst, city, region, flex, window):
+    """/v2/prices/latest 폴백. 캘린더로 못 채운 노선을 보충한다.
+
+    응답 필드가 캘린더와 달라(value/depart_date/return_date) 캘린더 모양으로
+    바꿔서 같은 normalize() 를 태운다. 항공편명·항공사가 없는 행이 많은데,
+    없는 것을 지어내지 않고 "?" 로 둔다.
+    """
+    ok, data, err = call("/v2/prices/latest", {
+        "origin": org, "destination": dst, "currency": CURRENCY,
+        "period_type": "year", "one_way": "false",
+        "page": 1, "limit": LATEST_LIMIT, "sorting": "price"})
+    if not ok:
+        ERRORS.append(f"{org}-{dst} latest: {err}")
+        return [], err
+
+    rows = data.get("data") or []
+    key = f"{org}-{dst}"
+    RAWCOUNT[key] = RAWCOUNT.get(key, 0) + len(rows)
+    STAGES.setdefault(key, {})
+    STAGES[key]["api_raw"] = STAGES[key].get("api_raw", 0) + len(rows)
+
+    out = []
+    for r in rows:
+        dep = r.get("depart_date")
+        if not dep:
+            _drop(org, dst, "출발일 없음 (latest)")
+            continue
+        o = normalize(org, dst, city, region, dep, None, {
+            "price": r.get("value"),
+            "origin": r.get("origin"), "destination": r.get("destination"),
+            "airline": r.get("airline") or "?",
+            "flight_number": r.get("flight_number"),
+            "departure_at": dep, "return_at": r.get("return_date"),
+            "number_of_changes": r.get("number_of_changes"),
+            "expires_at": None,
+        }, flex, window)
+        if o:
+            out.append(o)
     return out, None
 
 
@@ -609,7 +667,7 @@ def scan_cjj(force_all=False, debug=False):
 
     for code, info in targets:
         got, stop = fetch_route("CJJ", code, info["city"], info["region"],
-                                flex=CJJ_FLEX, window=CJJ_WINDOW)
+                                flex=CJJ_FLEX, window=CJJ_WINDOW, latest=True)
         key = f"CJJ-{code}"
         raw = RAWCOUNT.get(key, 0)
 
@@ -1310,7 +1368,8 @@ def main():
     for org, dst, city, region in targets:
         if region == "유럽":
             got, stop = fetch_route(org, dst, city, region,
-                                    flex=SWISS_NIGHTS, window=SWISS_WINDOW)
+                                    flex=SWISS_NIGHTS, window=SWISS_WINDOW,
+                                    latest=True)
         else:
             pf = profile(org)
             got, stop = fetch_route(org, dst, city, region,

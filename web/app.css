@@ -103,7 +103,10 @@ a{color:inherit}
 .hero .grid .k{font-size:11.5px;color:var(--tx3);font-weight:600}
 .hero .grid .v{font-family:var(--mono);font-size:16px;font-weight:700;margin-top:2px}
 .hero .total .k{color:var(--hot)}
-.hero .total .v{font-size:28px;font-weight:800;color:var(--hot);letter-spacing:-.04em}
+.hero .total .v{font-weight:800;color:var(--hot);letter-spacing:-.04em;
+  /* 7자리(백만원대)에서 줄바꿈되지 않도록 폭에 맞춰 줄인다 */
+  font-size:clamp(19px,6.4vw,28px);white-space:nowrap}
+.hero .grid .v{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .hero .cmp{grid-column:1/-1;padding-top:10px;border-top:1px solid var(--line2)}
 .cta{
   display:block;width:100%;margin-top:14px;min-height:48px;border:0;
