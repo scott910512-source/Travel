@@ -93,7 +93,8 @@ TOKEN = ""   # main()에서 주입
 CURRENCY = "krw"
 ROOT = os.path.join(os.getcwd(), "flight-deals")
 
-SEARCH_BUDGET = 130       # 국내 17노선×4박 = 68 + 스위스 6노선×1(flex) = 6 → 74회
+SEARCH_BUDGET = 140       # CJJ 4×6 + ICN·GMP 6×4 + TAE 3×4 + PUS 4×4
+                          # + 스위스 6×1(flex) = 82회
 REQ_SLEEP = 0.45          # rate limit 여유
 TIMEOUT = 25
 
@@ -113,6 +114,41 @@ NIGHTS = (2, 3, 4, 5)               # 근거리: 2박3일 ~ 5박6일
 # 표시하는 편이 맞다. 판단은 사람이 한다.
 SWISS_NIGHTS = (2, 21)              # 사실상 필터 해제. 캐시에 있는 것을 다 본다
 SWISS_WINDOW = (3, 180)             # 유럽 출발일 D+3 ~ D+180
+
+# 지방공항은 직항만 본다.
+# 청주에서 2회 환승 도쿄를 볼 이유가 없고, 환승편 가격이 섞이면 기준선까지
+# 오염된다. (2026-08-30 실측: CJJ 10건 중 4건이 환승, 그중 2건은 2회 환승)
+DIRECT_ONLY = {"CJJ", "TAE", "PUS"}
+
+# 출발지별 수집 전략. 캐시가 얇은 곳일수록 넓게 훑는다.
+# ICN 은 하루치로 버킷당 8건 이상 모이지만 CJJ 는 1~2건이라 같은 창을 쓰면
+# 기준선이 아예 안 만들어진다. 청주만 창과 박수를 넓혀 후보를 늘린다.
+ORIGIN_PROFILE = {
+    "CJJ": {"window": (3, 120), "nights": (1, 2, 3, 4, 5, 6)},
+    "TAE": {"window": (3, 100), "nights": (2, 3, 4, 5)},
+    "PUS": {"window": (3, 100), "nights": (2, 3, 4, 5)},
+}
+
+
+def profile(org):
+    return ORIGIN_PROFILE.get(org, {"window": (WINDOW_MIN, WINDOW_MAX),
+                                    "nights": NIGHTS})
+
+
+# 표본 누적 — "표본 부족하면 기간을 넓혀 모은다"
+#
+# 보관 기간을 출발지별로 다르게 둔다. ICN 은 하루치로도 버킷당 8건 안팎이라
+# 30일이면 충분하고, 오래된 가격을 끌어오면 오히려 현재 시세를 흐린다.
+# 청주·대구·부산은 버킷당 1~2건이라 90일을 모아야 기준선이 선다.
+THIN_SAMPLE = 10                       # 이 미만이면 얇은 버킷
+THIN_RETENTION = {"CJJ": 90, "TAE": 90, "PUS": 90}
+THIN_RETENTION_DEFAULT = 30
+SAMPLE_CAP = 30                        # 하루·버킷당 저장 상한
+
+
+def retention(dep):
+    return THIN_RETENTION.get(dep, THIN_RETENTION_DEFAULT)
+
 
 # ══════════════════════════════════════════════════════════
 # 청주 기준 설정
@@ -357,6 +393,11 @@ def normalize(org, dst, city, region, dep, nights, v, flex=None, window=None):
         d1 = d0 + timedelta(days=nights)
         roundtrip = False          # ★ 왕복 미검증 → C등급 강등 사유
 
+    stops = v.get("number_of_changes", v.get("transfers"))
+    if org in DIRECT_ONLY and stops != 0:
+        # stops 가 None 이면 직항임을 확인할 수 없다. 지방공항에서는 버린다.
+        return _drop(org, dst, f"환승편 제외 (지방공항 직항만, stops={stops})")
+
     al = v.get("airline") or "?"
     dep_hour = parse_hour(v.get("departure_at"))
     tp = trip_profile(d0, d1, dep_hour)
@@ -368,7 +409,7 @@ def normalize(org, dst, city, region, dep, nights, v, flex=None, window=None):
         "airline": al, "airline_kr": AIRLINES.get(al, al),
         "api_origin": v.get("origin"), "api_destination": v.get("destination"),
         "flight_no": v.get("flight_number"),
-        "stops": v.get("number_of_changes", v.get("transfers")),
+        "stops": stops,
         "price_krw": int(price),
         "access_cost": access,
         "effective_krw": int(price) + access,   # 청주 기준 실부담가 (보조 지표)
@@ -527,24 +568,83 @@ def probe_raw():
 # 채점
 # ══════════════════════════════════════════════════════════
 
-def build_baselines(offers):
+def bucket_key(o):
+    return f"{o['dep']}-{o['arr']}-{o['nights']}"
+
+
+def track_samples(offers, hist):
+    """표본이 얇은 (출발지·목적지·박수) 버킷만 과거 가격을 누적한다.
+
+    ICN 처럼 하루치로 표본이 차는 노선은 저장하지 않는다. 저장할 이유도 없고
+    price_history 만 무거워진다. 대상은 청주·대구처럼 버킷당 1~2건인 곳이다.
+    (2026-08-30 실측: CJJ 버킷 7개의 표본이 min 1 / 중앙 1 / max 2)
+
+    두꺼워진 버킷은 누적을 버린다. 오래된 가격이 현재 시세를 흐리기 때문이다.
+    """
+    store = hist.get("thin_samples", {})
+    today = str(date.today())
+    todays = {}
+    for o in offers:
+        todays.setdefault(bucket_key(o), []).append(o["price_krw"])
+
+    for k, ps in todays.items():
+        if len(ps) >= THIN_SAMPLE:
+            store.pop(k, None)
+            continue
+        store.setdefault(k, {})[today] = sorted(ps)[:SAMPLE_CAP]
+
+    for k in list(store):
+        dep = k.split("-")[0]
+        cut = str(date.today() - timedelta(days=retention(dep)))
+        kept = {d: v for d, v in store[k].items() if d >= cut}
+        if kept:
+            store[k] = kept
+        else:
+            del store[k]
+    hist["thin_samples"] = store
+    return store
+
+
+def build_baselines(offers, thin=None):
     """정상가 기준선을 3단으로 만든다.
 
     노선·박수 버킷만 쓰면 청주처럼 캐시가 얇은 출발지는 버킷마다 1~2건이라
-    기준선이 안 생기고 전건이 C등급으로 빠진다. (2026-08-30 실측: CJJ 10건 전부 C)
-    그래서 표본이 모자라면 아래로 한 단계씩 내려간다.
+    기준선이 안 생기고 전건이 "비교 불가"로 빠진다. 그래서 두 가지를 한다.
 
-      1단 노선·박수  (CJJ-KIX 3박)   표본 3건 이상 — 가장 정확
-      2단 노선 전체  (CJJ-KIX 전 박수) 표본 3건 이상 — 박수 차이가 섞임
-      3단 목적지·박수 (→KIX 3박, 출발지 혼합) 표본 5건 이상 — 가장 거침
+    1) 얇은 버킷에는 과거 표본(THIN_RETENTION 일)을 끌어와 채운다.
+       오늘 결과가 아예 없는 버킷은 채우지 않는다 — 비교할 대상이 없다.
+    2) 그래도 모자라면 아래로 한 단계씩 내려간다.
 
-    어느 단을 썼는지는 offer 에 baseline_tier 로 남기고 화면에 표시한다.
+         1단 노선·박수  (CJJ-KIX 3박)      표본 3건 이상 — 가장 정확
+         2단 노선 전체  (CJJ-KIX 전 박수)  표본 3건 이상
+         3단 목적지·박수 (→KIX 3박, 출발지 혼합) 표본 5건 이상 — 가장 거침
+
+    어느 단을 썼는지, 누적을 썼는지는 baseline_tier 로 남겨 화면에 표시한다.
     """
     b1, b2, b3 = {}, {}, {}
     for o in offers:
         b1.setdefault((o["dep"], o["arr"], o["nights"]), []).append(o["price_krw"])
         b2.setdefault((o["dep"], o["arr"]), []).append(o["price_krw"])
         b3.setdefault((o["arr"], o["nights"]), []).append(o["price_krw"])
+
+    today = str(date.today())
+    pooled = {}          # {버킷: 끌어온 보관일수} — 라벨에 그대로 쓴다
+    for key, days in (thin or {}).items():
+        try:
+            dep, arr, nights = key.rsplit("-", 2)
+            k1, k2 = (dep, arr, int(nights)), (dep, arr)
+        except ValueError:
+            continue
+        if k1 not in b1:
+            continue                      # 오늘 없는 버킷은 되살리지 않는다
+        past = [p for d, ps in days.items() if d != today for p in ps]
+        if not past:
+            continue
+        if len(b1[k1]) < THIN_SAMPLE:
+            b1[k1] = b1[k1] + past
+            pooled[k1] = retention(dep)
+        if k2 in b2 and len(b2[k2]) < THIN_SAMPLE:
+            b2[k2] = b2[k2] + past
 
     def pack(buckets, need):
         out = {}
@@ -558,14 +658,17 @@ def build_baselines(offers):
                       "p25": srt[max(0, int(len(srt) * .25) - 1)]}
         return out
 
-    return {"exact": pack(b1, 3), "route": pack(b2, 3), "dest": pack(b3, 5)}
+    return {"exact": pack(b1, 3), "route": pack(b2, 3), "dest": pack(b3, 5),
+            "pooled": pooled}
 
 
 def pick_baseline(o, baselines):
     """offer 하나에 맞는 기준선을 위에서부터 찾는다. (기준선, 단계명)"""
-    bl = baselines["exact"].get((o["dep"], o["arr"], o["nights"]))
+    key = (o["dep"], o["arr"], o["nights"])
+    bl = baselines["exact"].get(key)
     if bl:
-        return bl, "노선·박수"
+        days = baselines["pooled"].get(key)
+        return bl, ("노선·박수" if not days else f"노선·박수 · {days}일 누적")
     bl = baselines["route"].get((o["dep"], o["arr"]))
     if bl:
         return bl, "노선 전체 박수"
@@ -1008,7 +1111,9 @@ def main():
             got, stop = fetch_route(org, dst, city, region,
                                     flex=SWISS_NIGHTS, window=SWISS_WINDOW)
         else:
-            got, stop = fetch_route(org, dst, city, region, NIGHTS)
+            pf = profile(org)
+            got, stop = fetch_route(org, dst, city, region,
+                                    pf["nights"], window=pf["window"])
         tag = {"BUDGET_EXCEEDED": "  ⛔예산소진",
                "CIRCUIT_OPEN": "  ⛔중단"}.get(stop, "")
         key = f"{org}-{dst}"
@@ -1040,10 +1145,12 @@ def main():
         print(f"\n⛔ 연속 실패 {CIRCUIT.LIMIT}회 — 조기 중단")
         print(f"   원인: {CIRCUIT.cause}")
 
-    baselines = build_baselines(offers)
+    # 기준선을 만들기 전에 과거 표본을 먼저 확보한다 (얇은 버킷 보강)
+    hist = load(os.path.join(ROOT, "state", "price_history.json"), {"deals": {}})
+    thin = track_samples(offers, hist)
+    baselines = build_baselines(offers, thin)
     offers = enrich(offers, baselines)
 
-    hist = load(os.path.join(ROOT, "state", "price_history.json"), {"deals": {}})
     lows = track_lows(offers, hist)
     daily = track_routes(offers, hist)
     stats, gone = diff(offers, hist)
@@ -1069,6 +1176,15 @@ def main():
             "swiss_nights": list(SWISS_NIGHTS),
             "swiss_window": list(SWISS_WINDOW),
             "strong_pct_default": STRONG_PCT_DEFAULT,
+            "direct_only": sorted(DIRECT_ONLY),
+            "origin_profile": {k: {"window": list(v["window"]),
+                                   "nights": list(v["nights"])}
+                               for k, v in ORIGIN_PROFILE.items()},
+            "thin_sample": THIN_SAMPLE,
+            "thin_retention": dict(THIN_RETENTION,
+                                   **{"기본": THIN_RETENTION_DEFAULT}),
+            "pooled_buckets": {f"{d}-{a}-{nn}": v
+                               for (d, a, nn), v in baselines["pooled"].items()},
             "errors": ERRORS[:30],
             "raw_counts": RAWCOUNT,
             "drops": DROPS}
@@ -1146,6 +1262,14 @@ def main():
                 f"⚰️ {stats['gone']}\n\n"
                 + ("## 오류\n" + "\n".join(f"- {e}" for e in ERRORS[:30])
                    if ERRORS else ""))
+
+    pooled_n = len(baselines["pooled"])
+    for org in sorted(DIRECT_ONLY):
+        got = [o for o in offers if o["dep"] == org]
+        ok = [o for o in got if o["data_ok"]]
+        print(f"   {org}: {len(got)}건 (직항만) · 비교가능 {len(ok)}건")
+    print(f"   누적 표본으로 기준선을 세운 버킷 {pooled_n}개 "
+          f"(지방공항 90일 · 그 외 {THIN_RETENTION_DEFAULT}일)")
 
     print(f"\n✅ 완료 · 수집 {len(offers)}건 · 검색 {BUDGET.used}/{BUDGET.cap}")
     print(f"   🔥강력특가 {tiers['strong']} / 특가 {tiers['deal']} / "

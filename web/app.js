@@ -79,6 +79,9 @@ const DEP_CITY = {
   CJJ: '청주', ICN: '인천', GMP: '김포', SEL: '서울', TAE: '대구', PUS: '부산',
 };
 const depCity = c => DEP_CITY[c] || c;
+// 지방공항은 수집 단계에서 직항만 남긴다 (scanner.py DIRECT_ONLY)
+const directOnly = () => ((S.data.meta && S.data.meta.direct_only) || []);
+const isRegional = dep => directOnly().indexOf(dep) !== -1;
 const homeCity = () => depCity((S.data && S.data.home) || 'CJJ');
 
 const accessOf = dep => Number(S.settings.access[dep] || 0);
@@ -208,6 +211,9 @@ function badgesHTML(o) {
   if (o.change === 'down' && o.delta) b.push(`<span class="bg down">📉 ${won(o.delta)}</span>`);
   if (o.change === 'up' && o.delta) b.push(`<span class="bg up">📈 +${won(o.delta)}</span>`);
   if (o.low_all && o.price_krw <= o.low_all) b.push('<span class="bg down">추적 기간 최저</span>');
+  if (o.baseline_tier && o.baseline_tier.indexOf('누적') !== -1) {
+    b.push(`<span class="bg">${esc(o.baseline_tier.split(' · ')[1])} 기준</span>`);
+  }
   if (!o.data_ok && o.data_note) b.push(`<span class="bg">⚠ ${esc(o.data_note)}</span>`);
   return `<div class="badges">${b.join('')}</div>`;
 }
@@ -636,6 +642,25 @@ function viewSettings() {
           .map(([k, l]) => `<button data-stops="${k}"
             aria-pressed="${st.stops === k}">${l}</button>`).join('')}
       </div>
+      <p style="margin:10px 0 0;font-size:12px;color:var(--tx3);font-weight:600">
+        ${directOnly().length
+          ? `${esc(directOnly().map(depCity).join('·'))} 출발은 이 설정과 무관하게
+             <b>항상 직항만</b> 수집합니다. 환승편 가격이 섞이면 기준선까지
+             오염되기 때문입니다.`
+          : ''}
+        서울권(인천·김포)과 스위스에만 위 설정이 적용됩니다.</p>
+    </div>
+
+    <div class="panel"><h4>표본이 얇은 노선</h4>
+      <p style="margin:0;font-size:12.5px;color:var(--tx2);line-height:1.65">
+        하루 표본이 ${(S.data.meta && S.data.meta.thin_sample) || 10}건 미만인
+        노선은 과거 가격을 끌어와 기준선을 만듭니다.
+        보관 기간은 <b>${esc(directOnly().map(depCity).join('·'))} 90일</b>,
+        그 외 ${(S.data.meta && S.data.meta.thin_retention
+                 && S.data.meta.thin_retention['기본']) || 30}일입니다.
+        누적을 쓴 항공권에는 카드에 <b>90일 누적 기준</b> 배지가 붙습니다.</p>
+      <div class="kv" style="margin-top:8px"><span class="k">오늘 누적을 쓴 버킷</span>
+        <span class="v">${Object.keys((S.data.meta && S.data.meta.pooled_buckets) || {}).length}개</span></div>
     </div>
 
     <button class="btn-line" data-reset>설정 초기화</button>
@@ -670,6 +695,15 @@ function viewAnalysis() {
       홈에서 내린 원시 분석입니다. 예약 판단이 아니라 데이터 점검용입니다.</p>
     <div class="panel"><h4>노선별 (오늘 최저 / 평균 / 표본)</h4>${rows || '<p>없음</p>'}</div>
     <div class="panel"><h4>수집 진단 (원본 건수 · 탈락 사유)</h4>${diag || '<p>없음</p>'}</div>
+    <div class="panel"><h4>누적 표본으로 기준선을 세운 버킷</h4>
+      ${(() => {
+        const pb = (S.data.meta && S.data.meta.pooled_buckets) || {};
+        const ks = Object.keys(pb).sort();
+        return ks.length
+          ? ks.map(k => `<div class="kv"><span class="k">${esc(k)}</span>
+              <span class="v">${pb[k]}일 누적</span></div>`).join('')
+          : '<p style="margin:0;font-size:13px;color:var(--tx2)">오늘은 없습니다.</p>';
+      })()}</div>
     ${errs.length ? `<div class="panel"><h4>오류 ${errs.length}건</h4>
       ${errs.map(e => `<div class="kv"><span class="k">·</span><span class="v">${esc(e)}</span></div>`).join('')}</div>` : ''}
     ${footerHTML()}
