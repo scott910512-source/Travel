@@ -1,8 +1,8 @@
 {
  "date": "2026-08-30",
- "ts": "2026-08-30 15:34 KST",
+ "ts": "2026-08-30 15:41 KST",
  "status": "OK",
- "headline": "볼 것 323건 · 주말여행 3 · 신규 6",
+ "headline": "볼 것 344건 · 주말여행 3 · CJJ 3",
  "rotation": "전 출발지 + 스위스 · 상시",
  "home": "CJJ",
  "reason": null,
@@ -10,18 +10,38 @@
  "holiday_gap": null,
  "counts": {
   "a": 0,
-  "b": 323,
-  "c": 21,
-  "weekend": 79,
-  "home": 0,
-  "new": 6,
+  "b": 344,
+  "c": 0,
+  "weekend": 87,
+  "home": 10,
+  "new": 0,
   "down": 0,
   "up": 1,
-  "gone": 2
+  "gone": 0
  },
  "source_note": "Travelpayouts 캐시 데이터 · A등급 불가, B가 천장",
  "access_note": "실부담가 = 항공권 + CJJ 기준 왕복 교통비 (추정치)",
  "top": [
+  {
+   "text": "다낭 CJJ→DAD · 09-25~09-28 3박 · 447,771원 -43% · SCORE 49 · 주말+연차1일 · 추석  🔻역대최저",
+   "grade": "B",
+   "verdict": "강력 특가",
+   "price": 447771,
+   "effective": 447771,
+   "weekend_trip": true,
+   "leave": 1,
+   "link": "https://www.aviasales.com/search/CJJ2509DAD28091"
+  },
+  {
+   "text": "도쿄 CJJ→NRT · 09-02~09-04 2박 · 203,584원 -56% · SCORE 45  🔻역대최저",
+   "grade": "B",
+   "verdict": "초특가",
+   "price": 203584,
+   "effective": 203584,
+   "weekend_trip": false,
+   "leave": 3,
+   "link": "https://www.aviasales.com/search/CJJ0209NRT04091"
+  },
   {
    "text": "타이베이 PUS→TPE · 09-10~09-13 3박 · 205,189원 (실부담 261,189) -41% · SCORE 45 · 주말+연차1일",
    "grade": "B",
@@ -31,29 +51,19 @@
    "weekend_trip": true,
    "leave": 1,
    "link": "https://www.aviasales.com/search/PUS1009TPE13091"
-  },
-  {
-   "text": "방콕 ICN→BKK · 09-11~09-14 3박 · 250,619원 (실부담 294,619) -39% · SCORE 41",
-   "grade": "B",
-   "verdict": "강력 특가",
-   "price": 250619,
-   "effective": 294619,
-   "weekend_trip": false,
-   "leave": 2,
-   "link": "https://www.aviasales.com/search/ICN1109BKK14091"
-  },
-  {
-   "text": "오사카 PUS→KIX · 09-20~09-23 3박 · 132,482원 (실부담 188,482) -54% · SCORE 41",
-   "grade": "B",
-   "verdict": "초특가",
-   "price": 132482,
-   "effective": 188482,
-   "weekend_trip": false,
-   "leave": 3,
-   "link": "https://www.aviasales.com/search/PUS2009KIX23091"
   }
  ],
  "weekend": [
+  {
+   "text": "다낭 CJJ→DAD · 09-25~09-28 3박 · 447,771원 -43% · SCORE 49 · 주말+연차1일 · 추석  🔻역대최저",
+   "grade": "B",
+   "verdict": "강력 특가",
+   "price": 447771,
+   "effective": 447771,
+   "weekend_trip": true,
+   "leave": 1,
+   "link": "https://www.aviasales.com/search/CJJ2509DAD28091"
+  },
   {
    "text": "타이베이 PUS→TPE · 09-10~09-13 3박 · 205,189원 (실부담 261,189) -41% · SCORE 45 · 주말+연차1일",
    "grade": "B",
@@ -73,19 +83,40 @@
    "weekend_trip": true,
    "leave": 1,
    "link": "https://www.aviasales.com/search/ICN2609TPE28091"
-  },
-  {
-   "text": "오사카 ICN→KIX · 09-05~09-07 2박 · 195,482원 (실부담 239,482) -22% · SCORE 35 · 주말+연차1일",
-   "grade": "B",
-   "verdict": "특가",
-   "price": 195482,
-   "effective": 239482,
-   "weekend_trip": true,
-   "leave": 1,
-   "link": "https://www.aviasales.com/search/ICN0509KIX07091"
   }
  ],
- "home_airport": [],
+ "home_airport": [
+  {
+   "text": "다낭 CJJ→DAD · 09-25~09-28 3박 · 447,771원 -43% · SCORE 49 · 주말+연차1일 · 추석  🔻역대최저",
+   "grade": "B",
+   "verdict": "강력 특가",
+   "price": 447771,
+   "effective": 447771,
+   "weekend_trip": true,
+   "leave": 1,
+   "link": "https://www.aviasales.com/search/CJJ2509DAD28091"
+  },
+  {
+   "text": "도쿄 CJJ→NRT · 09-02~09-04 2박 · 203,584원 -56% · SCORE 45  🔻역대최저",
+   "grade": "B",
+   "verdict": "초특가",
+   "price": 203584,
+   "effective": 203584,
+   "weekend_trip": false,
+   "leave": 3,
+   "link": "https://www.aviasales.com/search/CJJ0209NRT04091"
+  },
+  {
+   "text": "다낭 CJJ→DAD · 09-24~09-28 4박 · 784,504원 · SCORE 35 · 주말+연차1일 · 추석",
+   "grade": "B",
+   "verdict": "일반 저가",
+   "price": 784504,
+   "effective": 784504,
+   "weekend_trip": true,
+   "leave": 1,
+   "link": "https://www.aviasales.com/search/CJJ2409DAD28091"
+  }
+ ],
  "swiss": [],
  "dashboard": "/home/runner/work/Travel/Travel/flight-deals/latest.html"
 }
