@@ -562,6 +562,9 @@ def _cheap_rows(data):
 
 
 V3_MONTHS = 4           # prices_for_dates 로 훑을 달 수
+# 소스가 뭐라고 답했는지 그대로 남긴다. 응답이 비는 이유를 로그 없이
+# 추측하다가 두 번 헛짚었다. 호출 수·행 수·에러를 meta 에 실어 보낸다.
+V3STAT = {}
 
 
 def _months(window, n):
@@ -595,19 +598,31 @@ def fetch_v3(org, dst, city, region, flex, window):
     for m in _months(window, V3_MONTHS):
         if CIRCUIT.tripped:
             break
+        # return_at 은 넘기지 않는다. 출발·귀국을 같은 달로 못 박으면
+        # 11월 출발 12월 귀국 같은 여행이 통째로 빠진다 — 10~14박이면
+        # 달을 넘는 게 오히려 보통이다. 왕복 여부는 one_way 로만 거른다.
+        st = V3STAT.setdefault(key, {"calls": 0, "rows": 0, "err": []})
+        st["calls"] += 1
         ok, data, err = call("/aviasales/v3/prices_for_dates", {
             "origin": org, "destination": dst,
-            "departure_at": m, "return_at": m,
+            "departure_at": m,
             "one_way": "false",              # ★ 이 한 줄이 요점이다
             "currency": CURRENCY, "sorting": "price",
             "limit": 100, "page": 1})
         time.sleep(REQ_SLEEP)
         if not ok:
+            st["err"].append(f"{m}:{err}")
             if err in ("BUDGET_EXCEEDED", "CIRCUIT_OPEN"):
                 return out, err
             ERRORS.append(f"{key} v3 {m}: {err}")
             continue
         rows = data.get("data") or []
+        st["rows"] += len(rows)
+        if rows and not st.get("sample"):
+            # 응답 모양을 한 건만 남긴다. 필드명이 문서와 다르면 여기서 보인다.
+            st["sample"] = {k: rows[0].get(k) for k in
+                            ("price", "airline", "departure_at", "return_at",
+                             "transfers", "duration")}
         RAWCOUNT[key] = RAWCOUNT.get(key, 0) + len(rows)
         STAGES.setdefault(key, {})
         STAGES[key]["api_raw"] = STAGES[key].get("api_raw", 0) + len(rows)
@@ -1765,6 +1780,7 @@ def main():
             "errors": ERRORS[:30],
             "raw_counts": RAWCOUNT,
             "deep_tried": sorted(DEEP_TRIED),
+            "v3": V3STAT,
             "drops": DROPS}
 
     write_deals(offers, routes, meta, stats, gone, cjj_status)

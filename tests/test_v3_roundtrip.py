@@ -49,8 +49,8 @@ def chk(c, m):
 print("\n검사")
 p0 = sent[0][1]
 chk(p0.get("one_way") == "false", "one_way=false 를 실제로 넘긴다")
-chk(p0.get("departure_at") and p0.get("return_at"),
-    "출발월·귀국월을 둘 다 넘긴다 (안 넘기면 편도가 온다)")
+chk(p0.get("departure_at") and not p0.get("return_at"),
+    "출발월만 넘긴다 — return_at 을 박으면 달을 넘는 여행이 빠진다")
 chk(len(sent) == S.V3_MONTHS, f"달 수만큼 호출 ({len(sent)})")
 chk(len(out) == 2, "왕복 2건만 offers 로 (편도는 제외)")
 chk(len({o["id"] for o in out}) == len(out),
@@ -65,4 +65,10 @@ chk(any(o["duration_min"] == 1385 for o in out),
 chk(len(S.ONEWAY) > 0, "왕복 요청에 섞여 온 편도는 편도 배열로 간다")
 chk(all(not o.get("duration_min") or o["duration_min"] > 0 for o in out),
     "소요시간이 있으면 양수")
+
+# 진단이 실제로 쌓이는가 — 응답이 빌 때 이유를 추측하지 않으려면 필요하다
+st = S.V3STAT.get("ICN-ZRH") or {}
+chk(st.get("calls") == S.V3_MONTHS, f"호출 수를 기록한다 ({st.get('calls')})")
+chk(st.get("rows") == 3 * S.V3_MONTHS, f"원본 행 수를 기록한다 ({st.get('rows')})")
+chk(bool(st.get("sample")), "응답 샘플을 한 건 남긴다 (필드명 확인용)")
 sys.exit(0 if ok else 1)
