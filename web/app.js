@@ -236,12 +236,17 @@ function badgesHTML(o) {
 
 const stopTxt = s => (s === 0 ? '직항' : (s === 1 ? '1회 환승' : (s == null ? '환승 정보 없음' : `${s}회 환승`)));
 
-function heroHTML(o, rank) {
+function heroHTML(o, rank, plainLabel) {
   const acc = accessOf(o.dep);
+  // 메달은 특가일 때만 붙인다. 표본이 있어도 등급이 '일반'이면
+  // "🥇 일반" 같은 말이 되어 버린다. 그럴 땐 이 자리가 왜 1등인지를
+  // 부르는 이름(호출한 화면이 정한다)을 쓴다.
+  const t = dealTier(o);
+  const medal = o.data_ok && t !== 'normal' && t !== 'unknown';
   return `<button class="hero" data-open="${esc(o.id)}">
-    <span class="rank">${o.data_ok
-      ? `${rank === 1 ? '🥇' : '🏅'} ${esc(TIER_TEXT[dealTier(o)])}`
-      : '💰 현재 최저가'}</span>
+    <span class="rank">${medal
+      ? `${rank === 1 ? '🥇' : '🏅'} ${esc(TIER_TEXT[t])}`
+      : esc(plainLabel || '💰 현재 최저가')}</span>
     <div class="route">${esc(depCity(o.dep))} <span style="color:var(--tx3)">→</span> ${esc(o.city)}</div>
     <div class="codes">${esc(o.dep)} → ${esc(o.arr)} · ${esc(o.airline_kr || o.airline)} · ${stopTxt(o.stops)}</div>
     <div class="when"><b>${md(o.depart_date)} ${dow(o.depart_date)}</b> → <b>${md(o.return_date)} ${dow(o.return_date)}</b></div>
@@ -316,7 +321,7 @@ function viewHome() {
       (top.length > 1 ? `<div class="sec"><div class="sec-hd"><div><h2>그다음으로 볼 만한 것</h2></div></div>
         <div class="list two">${top.slice(1, 5).map((o, i) => cardHTML(o, i + 2)).join('')}</div></div>` : '');
   } else {
-    deals = `<div class="top-grid">${heroHTML(top[0], 1)}
+    deals = `<div class="top-grid">${heroHTML(top[0], 1, '🥇 오늘 1순위')}
       <div class="list">${top.slice(1).map((o, i) => cardHTML(o, i + 2)).join('')}</div></div>`;
   }
 
