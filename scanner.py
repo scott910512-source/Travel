@@ -93,13 +93,18 @@ TOKEN = ""   # main()에서 주입
 CURRENCY = "krw"
 ROOT = os.path.join(os.getcwd(), "flight-deals")
 
-SEARCH_BUDGET = 130       # 국내 17노선×4박 = 68 + 스위스 3노선×1(flex) = 3 → 71회
+SEARCH_BUDGET = 130       # 국내 17노선×4박 = 68 + 스위스 6노선×1(flex) = 6 → 74회
 REQ_SLEEP = 0.45          # rate limit 여유
 TIMEOUT = 25
 
 WINDOW_MIN, WINDOW_MAX = 3, 75      # D+3 ~ D+75
 NIGHTS = (2, 3, 4, 5)               # 근거리: 2박3일 ~ 5박6일
-SWISS_NIGHTS = (5, 6, 7, 8, 9, 10)  # 유럽: 5박 ~ 10박
+
+# 유럽은 근거리와 조건이 다르다. 보통 3~6개월 전에 잡고 체류도 길다.
+# 근거리 조건(D+75 · 5~10박)을 그대로 쓰면 있는 데이터마저 걸러진다.
+# (2026-08-30 실측: ICN→GVA 원본 2건이 전부 창 밖으로 탈락)
+SWISS_NIGHTS = (4, 14)              # 유럽 체류 4~14박
+SWISS_WINDOW = (3, 180)             # 유럽 출발일 D+3 ~ D+180
 
 # ══════════════════════════════════════════════════════════
 # 청주 기준 설정
@@ -117,10 +122,11 @@ ACCESS_COST = {
     "GMP": 40000,      # 청주 ↔ 김포
     "TAE": 30000,      # 청주 ↔ 대구 (버스 왕복 + 공항 이동)
     "PUS": 56000,      # 청주 ↔ 부산 (버스/KTX 왕복 + 공항 이동)
+    "SEL": 44000,      # 도시코드 조회분. 실제로는 인천/김포다.
 }
 
 # 이동에 드는 "시간" 부담 (돈으로 안 잡히는 것). 점수 0~10.
-ACCESS_SCORE = {"CJJ": 10, "TAE": 5, "PUS": 4, "ICN": 3, "GMP": 3}
+ACCESS_SCORE = {"CJJ": 10, "TAE": 5, "PUS": 4, "ICN": 3, "GMP": 3, "SEL": 3}
 
 # 출발지별 노선 — 청주(홈)를 맨 앞에 둔다. 표시 순서가 이 순서를 따른다.
 ROUTES = {
@@ -134,8 +140,12 @@ ROUTES = {
     "pus": [("PUS", "FUK", "후쿠오카", "일본"), ("PUS", "KIX", "오사카", "일본"),
             ("PUS", "TPE", "타이베이", "중화권"), ("PUS", "DAD", "다낭", "동남아")],
 }
+# API 가 공항코드를 도시코드로 접으므로(ICN→SEL) 캐시가 도시 단위로만
+# 잡혀 있을 수 있다. 두 코드로 모두 조회하고 중복은 뒤에서 제거한다.
 SWISS = [("ICN", "ZRH", "취리히", "유럽"), ("ICN", "GVA", "제네바", "유럽"),
-         ("ICN", "BSL", "바젤", "유럽")]
+         ("ICN", "BSL", "바젤", "유럽"),
+         ("SEL", "ZRH", "취리히", "유럽"), ("SEL", "GVA", "제네바", "유럽"),
+         ("SEL", "BSL", "바젤", "유럽")]
 
 # 권역 기준선 (왕복 이코노미 KRW) — 절대가 점수용
 # ★ --raw 판정 결과를 여기에 반영.
@@ -249,7 +259,7 @@ def call(path, params, retries=2):
 # 수집
 # ══════════════════════════════════════════════════════════
 
-def fetch_route(org, dst, city, region, nights=None, flex=None):
+def fetch_route(org, dst, city, region, nights=None, flex=None, window=None):
     """노선 하나를 조회. 정규화된 offer 리스트 반환.
 
     두 가지 모드가 있다.
@@ -286,7 +296,7 @@ def fetch_route(org, dst, city, region, nights=None, flex=None):
         recs = (data.get("data") or {})
         raw += len(recs)
         for dep, v in recs.items():
-            o = normalize(org, dst, city, region, dep, n, v, flex)
+            o = normalize(org, dst, city, region, dep, n, v, flex, window)
             if o:
                 out.append(o)
     # 원본 건수를 같이 남긴다. 0건일 때 "응답이 없었나 / 걸러졌나" 를 구분한다.
@@ -294,7 +304,7 @@ def fetch_route(org, dst, city, region, nights=None, flex=None):
     return out, None
 
 
-def normalize(org, dst, city, region, dep, nights, v, flex=None):
+def normalize(org, dst, city, region, dep, nights, v, flex=None, window=None):
     price = v.get("price")
     if not price or price <= 0:
         return None
@@ -302,8 +312,9 @@ def normalize(org, dst, city, region, dep, nights, v, flex=None):
         d0 = datetime.strptime(dep[:10], "%Y-%m-%d").date()
     except ValueError:
         return None
+    lo, hi = window or (WINDOW_MIN, WINDOW_MAX)
     delta = (d0 - date.today()).days
-    if not (WINDOW_MIN <= delta <= WINDOW_MAX):
+    if not (lo <= delta <= hi):
         return None
 
     ret_at = v.get("return_at")
@@ -1279,7 +1290,8 @@ def render(offers, stats, gone, meta):
                 f'{lo["depart_date"]} ~ {lo["return_date"]} · {lo["nights"]}박 · '
                 f'{esc(lo["airline_kr"])}</span></div>')
         swi_html = head + zone(
-            "💰 최저가 순", f"등급 무관 · {SWISS_NIGHTS[0]}~{SWISS_NIGHTS[-1]}박 전 구간",
+            "💰 최저가 순", f"등급 무관 · {SWISS_NIGHTS[0]}~{SWISS_NIGHTS[1]}박 · "
+            f"출발 D+{SWISS_WINDOW[0]}~{SWISS_WINDOW[1]}",
             cheap[:10], "스위스 데이터가 없습니다.") + zone(
             "🔥 특가 순", "B등급 · SCORE 순", deals[:10],
             "정상가 비교가 성립한 스위스 딜이 없습니다.")
@@ -1357,7 +1369,8 @@ def render(offers, stats, gone, meta):
 <div class="sgroup"><h4>검색 범위</h4>
 <div class="sum"><div class="r">출발일<b>D+{WINDOW_MIN}~{WINDOW_MAX}</b></div>
 <div class="r">근거리<b>{NIGHTS[0]}~{NIGHTS[-1]}박</b></div>
-<div class="r">스위스<b>{SWISS_NIGHTS[0]}~{SWISS_NIGHTS[-1]}박</b></div></div></div>
+<div class="r">스위스<b>{SWISS_NIGHTS[0]}~{SWISS_NIGHTS[1]}박</b></div>
+<div class="r">스위스 출발<b>D+{SWISS_WINDOW[0]}~{SWISS_WINDOW[1]}</b></div></div></div>
 <div class="sgroup"><h4>오늘의 요약</h4><div class="sum">
 <div class="r">🆕 신규<b class="i">{stats['new']}</b></div>
 <div class="r">📉 가격 하락<b class="g">{stats['down']}</b></div>
@@ -1500,7 +1513,7 @@ def main():
     for org, dst, city, region in targets:
         if region == "유럽":
             got, stop = fetch_route(org, dst, city, region,
-                                    flex=(SWISS_NIGHTS[0], SWISS_NIGHTS[-1]))
+                                    flex=SWISS_NIGHTS, window=SWISS_WINDOW)
         else:
             got, stop = fetch_route(org, dst, city, region, NIGHTS)
         tag = {"BUDGET_EXCEEDED": "  ⛔예산소진",
