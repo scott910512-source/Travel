@@ -330,3 +330,11 @@ button.cjjrow{
 }
 button.cjjrow:first-of-type{border-top:0}
 button.cjjrow:active{background:var(--card2)}
+
+/* 편도 카드. 왕복과 한눈에 구분되어야 오해가 없다.
+   a 태그라 기본 밑줄·링크색이 붙는다. .cd 는 button 기준으로 만든
+   스타일이라 그걸 직접 끈다. */
+.cd.ow{border-style:dashed;background:var(--bg);
+  text-decoration:none;color:inherit}
+.cd.ow .price .v{color:var(--tx2)}
+.cd.ow .price .k{color:var(--warn);font-weight:700}

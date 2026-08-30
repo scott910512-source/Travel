@@ -670,7 +670,12 @@ def normalize(org, dst, city, region, dep, nights, v, flex=None, window=None):
                 return _drop(org, dst, f"요청 박수 불일치 ({actual}≠{nights})")
             _stage(org, dst, "length")
     elif flex:
-        # 체류일을 못 세면 flex 모드에서는 쓸 수 없다 (귀국일을 지어낼 수 없음)
+        # 귀국일이 없으면 왕복으로 쓸 수 없다. 지어낼 수도 없다.
+        # 다만 버리지도 않는다 — 2026-08-30 실측에서 취리히 캐시 23건이
+        # 전부 여기로 떨어졌다. 그게 그 노선에 존재하는 유일한 데이터였다.
+        # 편도는 편도로 따로 담고, 화면에서 왕복과 절대 섞지 않는다.
+        if ALLOW_ONEWAY.get(region):
+            ONEWAY.append(_oneway_offer(org, dst, city, region, d0, v))
         return _drop(org, dst, "return_at 없음 (편도 캐시)")
     else:
         d1 = d0 + timedelta(days=nights)
@@ -711,6 +716,38 @@ def normalize(org, dst, city, region, dep, nights, v, flex=None, window=None):
         # 사용자 기준: 주말(토·일) 포함 + 연차 0~1일.
         # 빨간날이 붙으면 그만큼 일정이 길어져도 조건을 유지한다.
         "weekend_trip": tp["weekend"] and tp["leave"] <= 1.0,
+    }
+
+
+# 편도를 받아들일 지역. 유럽만이다.
+# 근거리는 왕복 캐시가 충분해서 편도를 섞을 이유가 없고, 섞으면 "싸 보이는"
+# 편도가 목록을 오염시킨다.
+ALLOW_ONEWAY = {"유럽": True}
+ONEWAY = []
+
+
+def _oneway_offer(org, dst, city, region, d0, v):
+    """편도 전용. 왕복 오퍼와 같은 모양을 흉내 내지 않는다.
+
+    ★ 이 값은 offers 에 넣지 않는다. deals.json 의 별도 배열로 나간다.
+    기준선·평균가·특가 판정·순위는 전부 offers 만 본다. 편도 가격을 왕복
+    표본에 섞으면 노선 평균가가 절반으로 내려앉아, 멀쩡한 왕복이 전부
+    "평균보다 비쌈" 이 되어 버린다. 구조적으로 못 섞이게 분리한다.
+    """
+    al = v.get("airline") or "?"
+    return {
+        "id": f"OW-{org}-{dst}-{d0}-{al}",
+        "dep": org, "arr": dst, "city": city, "region": region,
+        "depart_date": str(d0),
+        "airline": al, "airline_kr": AIRLINES.get(al, al),
+        "flight_no": v.get("flight_number"),
+        "stops": v.get("number_of_changes", v.get("transfers")),
+        "price_krw": int(v.get("price")),
+        "dep_hour": parse_hour(v.get("departure_at")),
+        "expires_at": v.get("expires_at"),
+        "oneway": True,
+        "link": (f"https://www.aviasales.com/search/"
+                 f"{org}{d0.strftime('%d%m')}{dst}1"),
     }
 
 
@@ -1420,6 +1457,16 @@ OFFER_FIELDS = (
 ).split()
 
 
+def _dedup_oneway(rows):
+    """같은 편이 여러 엔드포인트에서 온다. 싼 쪽만 남긴다."""
+    best = {}
+    for r in rows:
+        cur = best.get(r["id"])
+        if cur is None or r["price_krw"] < cur["price_krw"]:
+            best[r["id"]] = r
+    return sorted(best.values(), key=lambda r: r["price_krw"])
+
+
 def write_deals(offers, routes, meta, stats, gone, cjj_status=None):
     """web/ 앱이 읽는 deals.json.
 
@@ -1444,6 +1491,9 @@ def write_deals(offers, routes, meta, stats, gone, cjj_status=None):
         "airport_bonus": AIRPORT_BONUS,
         "tie_break_krw": TIE_BREAK_KRW,
         "offers": [{k: o.get(k) for k in OFFER_FIELDS} for o in offers],
+        # 편도는 별도 배열이다. offers 와 절대 합치지 말 것 —
+        # 기준선·평균가·순위가 전부 offers 를 보고 계산된다.
+        "oneway": _dedup_oneway(ONEWAY),
         "gone": [{k: g.get(k) for k in
                   ("id", "dep", "arr", "city", "depart_date", "return_date",
                    "nights", "price_krw", "last_seen")} for g in gone[:40]],

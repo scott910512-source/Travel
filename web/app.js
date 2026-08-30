@@ -601,6 +601,44 @@ function srcTried(code) {
   return deep.some(k => k.endsWith('-' + code)) ? 5 : 2;
 }
 
+// 편도 카드. cardHTML 을 쓰지 않는다 — 그쪽은 실부담가·비교 기준가·특가
+// 등급을 그린다. 편도에 그걸 붙이면 왕복과 나란히 놓였을 때 반값짜리가
+// "특가" 로 보인다. 편도는 항공권 값과 편도라는 사실만 말한다.
+function owCardHTML(o) {
+  return `<a class="cd ow" href="${esc(o.link)}" target="_blank" rel="noopener">
+    <div class="top">
+      <div class="ttl">
+        <div class="route">${esc(depCity(o.dep))} → ${esc(o.city)}</div>
+        <div class="sub">${esc(o.dep)}→${esc(o.arr)} ·
+          ${md(o.depart_date)}(${dow(o.depart_date)}) ·
+          ${esc(o.airline_kr || o.airline)} · ${stopTxt(o.stops)}</div>
+      </div>
+      <div class="price"><div class="v">${won(o.price_krw)}</div>
+        <div class="k">편도 · 가는 편만</div></div>
+    </div>
+    <div class="badges"><span class="bg deal">편도</span>
+      <span class="bg">왕복가 아님 · 실부담가 계산 안 함</span></div>
+  </a>`;
+}
+
+// 도시별 편도. 왕복이 하나도 없을 때 이게 그 도시의 유일한 단서가 된다.
+function owOf(code) {
+  return (S.data.oneway || [])
+    .filter(o => o.arr === code && originOn(o.dep))
+    .sort((a, b) => a.price_krw - b.price_krw);
+}
+
+function owGroupHTML(list) {
+  if (!list.length) return '';
+  return `<p style="margin:14px 0 8px;font-size:12.5px;font-weight:800;color:var(--tx2)">
+      🎫 편도만 확인됨 ${list.length}건</p>
+    <div class="note" style="margin-bottom:8px"><p>이 노선은 소스에 <b>왕복
+      캐시가 없고 편도만</b> 있습니다. 아래는 <b>가는 편 값</b>이라 위의
+      왕복 가격과 직접 비교할 수 없습니다. 실부담가·특가 판정에도 넣지
+      않았습니다.</p></div>
+    <div class="list two">${list.slice(0, 6).map(owCardHTML).join('')}</div>`;
+}
+
 function viewSwiss() {
   // 여행 기간·환승 설정을 일부러 적용하지 않는다. 유럽은 캐시가 얇아
   // 근거리용 조건을 씌우면 있는 것마저 사라진다. 환승은 제한 없이 다 본다.
@@ -649,16 +687,21 @@ function viewSwiss() {
     const label = `${idx === 0 ? '🥇 ' : ''}${SWISS_CITY[code]} <span
       style="font-family:var(--mono);font-size:13px;color:var(--tx3)">${code}</span>`;
 
+    const ow = owOf(code);
     if (!cityAll.length) {
       const got = Object.keys(raw).some(k => k.endsWith('-' + code) && raw[k]);
       return `<section class="sec"><div class="sec-hd"><div>
-          <h2>${label}</h2><p>${idx === 0 ? '1순위 도시' : ''}</p></div></div>
-        <div class="note warn"><b>가격 데이터 부족</b>
+          <h2>${label}</h2><p>${idx === 0 ? '1순위 도시 · ' : ''}${
+            ow.length ? `왕복 없음 · 편도 ${ow.length}건` : '가격 없음'}</p>
+        </div></div>
+        <div class="note warn"><b>${ow.length
+          ? '왕복 가격이 없습니다' : '가격 데이터 부족'}</b>
           <p>${got
             ? '조회는 됐지만 왕복으로 확인되는 편이 없습니다.'
             : `소스 ${srcTried(code)}곳을 모두 확인했지만 응답이 비었습니다.
                캐시에 이 노선이 없습니다.`}
-          운항이 없다는 뜻은 아닙니다.</p></div></section>`;
+          운항이 없다는 뜻은 아닙니다.</p></div>
+        ${owGroupHTML(ow)}</section>`;
     }
 
     // 이 도시에 있는 게 대표편 하나뿐이면 빈 목록 대신 그렇다고 말한다.
@@ -684,7 +727,7 @@ function viewSwiss() {
         <p>${idx === 0 ? '1순위 도시 · ' : ''}${cityAll.length}건${
           hero.arr === code ? ' (대표편 1건은 위에)' : ''} · 직항 → 환승 순</p></div></div>
       ${grp(d0, '🛫 직항')}${grp(d1, '✈️ 1회 환승')}${grp(d2, '🔁 2회 이상 환승')}
-      ${grp(dU, '❔ 환승 정보 없음')}</section>`;
+      ${grp(dU, '❔ 환승 정보 없음')}${owGroupHTML(ow)}</section>`;
   }).join('');
 
   // 가격 위치 (대표편 기준)
