@@ -1,8 +1,8 @@
 {
  "date": "2026-08-30",
- "ts": "2026-08-30 15:49 KST",
+ "ts": "2026-08-30 15:53 KST",
  "status": "OK",
- "headline": "볼 것 345건 · 주말여행 3 · CJJ 3 · 신규 1",
+ "headline": "볼 것 345건 · 주말여행 3 · CJJ 3 · 신규 3",
  "rotation": "전 출발지 + 스위스 · 상시",
  "home": "CJJ",
  "reason": null,
@@ -11,10 +11,10 @@
  "counts": {
   "a": 0,
   "b": 345,
-  "c": 0,
+  "c": 3,
   "weekend": 87,
   "home": 10,
-  "new": 1,
+  "new": 3,
   "down": 0,
   "up": 1,
   "gone": 0
@@ -117,6 +117,37 @@
    "link": "https://www.aviasales.com/search/CJJ2409DAD28091"
   }
  ],
- "swiss": [],
+ "swiss": [
+  {
+   "text": "제네바 SEL→GVA · 11-01~11-04 3박 · 968,515원 (실부담 1,012,515)  🆕",
+   "grade": "C",
+   "verdict": "판정 제외",
+   "price": 968515,
+   "effective": 1012515,
+   "weekend_trip": false,
+   "leave": 3,
+   "link": "https://www.aviasales.com/search/SEL0111GVA04111"
+  },
+  {
+   "text": "제네바 ICN→GVA · 11-01~11-04 3박 · 1,000,513원 (실부담 1,044,513)  🆕",
+   "grade": "C",
+   "verdict": "판정 제외",
+   "price": 1000513,
+   "effective": 1044513,
+   "weekend_trip": false,
+   "leave": 3,
+   "link": "https://www.aviasales.com/search/ICN0111GVA04111"
+  },
+  {
+   "text": "제네바 ICN→GVA · 02-01~02-04 3박 · 1,050,456원 (실부담 1,094,456)  🆕",
+   "grade": "C",
+   "verdict": "판정 제외",
+   "price": 1050456,
+   "effective": 1094456,
+   "weekend_trip": false,
+   "leave": 3,
+   "link": "https://www.aviasales.com/search/ICN0102GVA04021"
+  }
+ ],
  "dashboard": "/home/runner/work/Travel/Travel/flight-deals/latest.html"
 }
