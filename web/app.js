@@ -459,17 +459,35 @@ function cjjSection(pool) {
         }
         const why = !r.row ? '오늘 조회 대상 아님'
           : (r.row.price_status === 'error' ? '조회 오류' : '가격 데이터 부족');
-        return `<div class="kv">
+        // 가격이 없는 노선은 여기서 끝내지 않는다. 이 소스는 사람들의
+        // 검색 기록이라, 한 번 검색해 두면 다음 스캔부터 잡힌다.
+        // 앱 밖에서 따로 찾게 만들지 말고 여기서 바로 누르게 한다.
+        // 버튼은 '실제로 조회했는데 비어 있는' 노선에만 붙인다.
+        // 오늘 순번이 아니어서 안 본 노선에 "검색해서 채우라"고 하면
+        // 데이터가 있을지도 모르는 것을 헛되이 찾게 만든다.
+        const seedable = r.row && r.row.price_status === 'missing';
+        const seed = seedable
+          ? liveSearchURL('CJJ', r.code, 45, CJJ_SEED_NIGHTS) : null;
+        return `<div class="kv${seedable ? ' kv-seed' : ''}">
           <span class="k" style="color:var(--tx2);font-weight:700">${esc(r.info.city)}
             <span style="font-family:var(--mono);color:var(--tx3);font-weight:600">${esc(r.code)}</span></span>
           <span class="v" style="font-family:var(--sans);font-size:12px;color:var(--tx3);font-weight:600;text-align:right">
-            ${esc(why)}<br><span style="font-size:11px">직항 운항 노선 · 최근 가격 없음</span></span></div>`;
+            ${esc(why)}<br>${seed
+              ? `<a class="seed-btn" href="${esc(seed.url)}" target="_blank" rel="noopener"
+                   >🔎 검색해서 채우기</a>`
+              : '<span style="font-size:11px">직항 운항 노선 · 다음 순번에 조회</span>'}
+          </span></div>`;
       }).join('')}
     </div>`).join('');
 
   return `<section class="sec">
     <div class="sec-hd"><div><h2>🏠 청주공항 직항 스캐너</h2>
       <p>운항 노선과 가격 데이터는 별개입니다. 가격이 없다고 노선이 없어진 게 아닙니다.</p></div></div>
+    ${missing.length ? `<div class="note"><b>비어 있는 노선 ${missing.length}개를 채우는 법</b>
+      <p>이 앱의 가격은 <b>사람들이 검색한 기록</b>입니다. 도쿄·오사카처럼 많이 찾는
+      노선은 저절로 채워지지만, 삿포로·발리처럼 찾는 사람이 적은 노선은 비어 있습니다.
+      <b>아래 "검색해서 채우기"를 한 번만 눌러 두면 다음 스캔부터 자동으로 추적합니다.</b>
+      매번 누를 필요는 없습니다.</p></div>` : ''}
     <div class="strip">
       <div><div class="k">직항 목적지</div><div class="v num">${total}</div></div>
       <div><div class="k">오늘 가격 확인</div><div class="v num g">${priced.length}</div></div>
@@ -706,6 +724,7 @@ function owGroupHTML(list) {
 // 그래서 "없습니다" 로 끝내지 않고, 날짜를 바꿔 가며 눌러볼 수 있게 한다.
 // 가격은 출발일에 따라 크게 달라서 창을 하나만 주면 쓸모가 적다.
 const LIVE_NIGHTS = 10;                 // 유럽 왕복의 현실적인 기본값
+const CJJ_SEED_NIGHTS = 3;              // 근거리는 3박이 기본값
 const LIVE_OFFSETS = [45, 75, 105];     // 출발일 후보 (오늘로부터)
 
 function liveSearchURL(dep, arr, offset, nights) {
