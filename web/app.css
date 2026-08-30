@@ -375,3 +375,8 @@ button.cjjrow:active{background:var(--card2)}
 .kv.mrow:active{background:var(--card2)}
 /* 0건인 달도 숨기지 않는다 — "이 달엔 없다" 도 정보다 */
 .fchip.zero{opacity:.45}
+
+/* 씨앗 검색 체크리스트 */
+.seedrow{text-decoration:none;color:inherit}
+.seedrow:active{background:var(--card2)}
+.seedrow.done{opacity:.6}

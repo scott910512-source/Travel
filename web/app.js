@@ -404,6 +404,7 @@ function viewHome() {
       </div>
     </section>
 
+    ${seedChecklist()}
     ${monthSection(homeOffers())}
     ${S.origin === 'CJJ' ? cjjSection(ok) : ''}
 
@@ -826,6 +827,88 @@ const CJJ_SEED_NIGHTS = 3;              // 근거리는 3박이 기본값
 // 노선은 한 번 채워도 시간이 지나면 다시 빈다. 며칠째 안 들어오면 다시
 // 눌러 달라고 말해 준다 — 사용자가 그걸 기억하고 있으라고 하면 안 된다.
 const STALE_DAYS = 4;
+
+// 씨앗 검색 체크리스트.
+//
+// 자동 검색(봇)은 만들지 않는다. Travelpayouts 는 실시간 검색을 MAU 50,000
+// 이상 파트너에게만 여는데, 소비자 사이트를 자동화해 같은 데이터를 얻는 건
+// 그 제한을 우회하는 것이고 계정이 정지될 수 있다.
+//
+// 대신 사람이 하는 부분을 최소로 줄인다. 여섯 군데를 찾아다니는 대신
+// 한 자리에서 톡톡 누르고, 무엇을 눌렀는지 앱이 기억한다.
+// (localStorage 라 이 기기에만 남는다. 기록이 없어도 화면은 정상 동작한다.)
+const SEED_KEY = 'fds.seeded.v1';
+
+function loadSeeded() {
+  try { return JSON.parse(localStorage.getItem(SEED_KEY) || '{}') || {}; }
+  catch (_) { return {}; }
+}
+function markSeeded(key) {
+  try {
+    const m = loadSeeded();
+    m[key] = new Date().toISOString().slice(0, 10);
+    localStorage.setItem(SEED_KEY, JSON.stringify(m));
+  } catch (_) {}
+}
+// 오늘 눌렀는가. 스캔은 하루 한 번이라 "오늘 눌렀으면 내일 결과를 기다리는
+// 중" 이 맞다. 그 이전 기록은 이미 반영됐거나 실패한 것이므로 다시 권한다.
+function seededToday(key) {
+  return loadSeeded()[key] === new Date().toISOString().slice(0, 10);
+}
+
+/* 씨앗이 필요한 노선 목록. 청주·스위스 공통. */
+function seedTargets() {
+  const out = [];
+  const c = S.data.cjj || {};
+  (c.status || []).forEach(st => {
+    if (st.price_status !== 'missing') return;
+    const info = (c.config || {})[st.destination] || {};
+    out.push({ dep: 'CJJ', arr: st.destination,
+               city: info.city || st.city || st.destination,
+               nights: CJJ_SEED_NIGHTS, off: 45 });
+  });
+  SWISS_ORDER.forEach(code => {
+    const has = S.data.offers.some(o => o.arr === code && o.price_krw);
+    if (!has) out.push({ dep: 'ICN', arr: code, city: SWISS_CITY[code],
+                         nights: LIVE_NIGHTS, off: 45 });
+  });
+  return out;
+}
+
+function seedChecklist() {
+  const t = seedTargets();
+  if (!t.length) return '';
+  const done = t.filter(x => seededToday(`${x.dep}-${x.arr}`)).length;
+  return `<section class="sec">
+    <div class="sec-hd"><div><h2>🌱 비어 있는 노선 채우기</h2>
+      <p>가격이 안 들어오는 노선 ${t.length}곳. 눌러서 검색 화면이 뜨면
+        그걸로 끝입니다.</p></div></div>
+    <div class="panel">
+      <div class="kv"><span class="k">오늘 진행</span>
+        <span class="v">${done} / ${t.length}</span></div>
+      ${t.map(x => {
+        const key = `${x.dep}-${x.arr}`;
+        const l = liveSearchURL(x.dep, x.arr, x.off, x.nights);
+        const ok = seededToday(key);
+        const age = routeAge(x.dep, x.arr);
+        return `<a class="kv seedrow${ok ? ' done' : ''}" href="${esc(l.url)}"
+            target="_blank" rel="noopener" data-seed="${esc(key)}">
+          <span class="k" style="color:var(--tx);font-weight:700">
+            ${ok ? '✅ ' : ''}${esc(x.city)}
+            <span style="font-family:var(--mono);font-size:11.5px;color:var(--tx3)"
+              >${esc(x.dep)}→${esc(x.arr)}</span></span>
+          <span class="v" style="font-size:12px;font-family:var(--sans);font-weight:700;
+            color:${ok ? 'var(--down)' : 'var(--pri)'}">
+            ${ok ? '오늘 완료 · 내일 반영' : (age === null ? '검색하기 →' : `${age}일째 없음 →`)}
+          </span></a>`;
+      }).join('')}
+    </div>
+    <p style="margin:8px 2px 0;font-size:12px;color:var(--tx3);font-weight:600;line-height:1.5">
+      이 앱이 대신 검색해 줄 수는 없습니다. 소스가 <b>실제 사람의 검색</b>만
+      기록하기 때문입니다. 대신 무엇을 눌렀는지는 앱이 기억합니다.
+      결과는 <b>다음 스캔(매일 오전 7시)</b> 이후에 보입니다.</p>
+  </section>`;
+}
 
 // 이 노선이 마지막으로 가격을 받은 게 며칠 전인가. 기록이 없으면 null.
 function routeAge(dep, arr) {
@@ -1366,7 +1449,7 @@ function errorScreen() {
 /* ── 이벤트 ───────────────────────────────────────────── */
 document.addEventListener('click', ev => {
   const t = ev.target.closest('[data-tab],[data-origin],[data-open],[data-view],'
-    + '[data-list],[data-month],[data-back],[data-close],[data-sheet],[data-range],[data-wspan],'
+    + '[data-list],[data-month],[data-seed],[data-back],[data-close],[data-sheet],[data-range],[data-wspan],'
     + '[data-origin-toggle],[data-stops],[data-reset],[data-reload],[data-retry]');
   if (!t) return;
 
@@ -1392,6 +1475,8 @@ document.addEventListener('click', ev => {
 
   const lf = t.getAttribute('data-list');
   if (lf) { S.listFilter = lf; S.view = 'list'; window.scrollTo(0, 0); return render(); }
+  const sd = t.getAttribute('data-seed');
+  if (sd) { markSeeded(sd); setTimeout(render, 60); return; }   // 링크는 그대로 열린다
   const mf = t.getAttribute('data-month');
   if (mf) { S.listMonth = (mf === 'all' ? null : mf); S.view = 'list';
             window.scrollTo(0, 0); return render(); }
