@@ -228,12 +228,21 @@ function badgesHTML(o) {
   if (o.low_all && o.price_krw <= o.low_all && (o.baseline_n || 0) >= 3) {
     b.push('<span class="bg down">추적 기간 최저</span>');
   }
+  // 소요시간은 sub 줄 끝에 붙이면 말줄임으로 잘려 안 보인다. 배지는
+  // 줄바꿈되므로 여기 둔다. 없는 편에는 아예 안 붙인다.
+  if (o.duration_min) b.push(`<span class="bg">✈ ${durTxt(o.duration_min)}</span>`);
   if (o.baseline_tier && o.baseline_tier.indexOf('누적') !== -1) {
     b.push(`<span class="bg">${esc(o.baseline_tier.split(' · ')[1])} 기준</span>`);
   }
   return `<div class="badges">${b.join('')}</div>`;
 }
 
+// v3 소스에서만 온다. 없으면 아무것도 그리지 않는다 — 지어내지 않는다.
+const durTxt = m => {
+  if (!m || m <= 0) return '';
+  const h = Math.floor(m / 60), mm = m % 60;
+  return mm ? `${h}시간 ${mm}분` : `${h}시간`;
+};
 const stopTxt = s => (s === 0 ? '직항' : (s === 1 ? '1회 환승' : (s == null ? '환승 정보 없음' : `${s}회 환승`)));
 
 function heroHTML(o, rank, plainLabel) {
@@ -737,11 +746,17 @@ function viewSwiss() {
   // 가격 위치 (대표편 기준)
   const r = (S.data.routes || {})[`${hero.dep}-${hero.arr}`] || {};
   const wait = r.low30 && hero.price_krw > r.low30;
+  // 값이 없을 때 "—원" 을 찍지 않는다. 대시는 0원처럼 읽히거나 고장으로
+  // 보인다. 없으면 없다고 쓴다.
+  const kvw = (k, v) => `<div class="kv"><span class="k">${k}</span>${
+    v == null
+      ? '<span class="v" style="font-size:12.5px;font-family:var(--sans);color:var(--tx3)">아직 기록 없음</span>'
+      : `<span class="v">${won(v)}원</span>`}</div>`;
   const pos = `<div class="panel"><h4>가격 위치 · ${esc(SWISS_CITY[hero.arr] || hero.arr)}</h4>
-    <div class="kv"><span class="k">현재 항공권</span><span class="v">${won(hero.price_krw)}원</span></div>
-    <div class="kv"><span class="k">최근 30일 최저</span><span class="v">${won(r.low30)}원</span></div>
-    <div class="kv"><span class="k">추적 기간 최저</span><span class="v">${won(r.low_all)}원</span></div>
-    <div class="kv"><span class="k">노선 평균가</span><span class="v">${won(r.avg)}원</span></div>
+    ${kvw('현재 항공권', hero.price_krw)}
+    ${kvw('최근 30일 최저', r.low30)}
+    ${kvw('추적 기간 최저', r.low_all)}
+    ${kvw('노선 평균가', r.avg)}
     <div class="kv"><span class="k">표본</span><span class="v">${r.n || 0}건 · 신뢰도 ${esc(hero.confidence || '참고')}</span></div>
     ${(r.series || []).length >= 3
       ? `<p style="margin:10px 0 0;font-size:13px;font-weight:700;color:${wait ? 'var(--warn)' : 'var(--down)'}">
@@ -757,11 +772,13 @@ function viewSwiss() {
 }
 
 function swissNote() {
-  return `<div class="note" style="margin-top:16px"><b>이 소스로 알 수 없는 것</b>
-    <p>Travelpayouts 응답에는 총 여행시간과 환승 대기시간이 들어 있지
-    않습니다. 그래서 그 두 가지는 정렬에 넣지 못했고, 화면에도 지어내지
-    않았습니다. 환승 횟수만 표시합니다. 실제 소요시간은 예약 페이지에서
-    확인하세요.</p></div>`;
+  const withDur = S.data.offers.filter(o =>
+    SWISS_ORDER.includes(o.arr) && o.duration_min).length;
+  return `<div class="note" style="margin-top:16px"><b>이 소스로 알 수 있는 것과 없는 것</b>
+    <p>총 소요시간은 <b>일부 편에만</b> 들어옵니다(현재 ${withDur}건). 있는
+    편만 표시하고 없는 편은 비워 둡니다 — 지어내지 않습니다.
+    <b>환승 대기시간은 어느 응답에도 없습니다.</b> 그래서 정렬 기준으로는
+    쓰지 않았습니다. 실제 일정은 예약 페이지에서 확인하세요.</p></div>`;
 }
 
 function swissDiag() {

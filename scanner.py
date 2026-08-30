@@ -93,7 +93,7 @@ TOKEN = ""   # main()에서 주입
 CURRENCY = "krw"
 ROOT = os.path.join(os.getcwd(), "flight-deals")
 
-SEARCH_BUDGET = 210       # CJJ 20×1 + ICN·GMP 6×4 + TAE 3×4 + PUS 4×4
+SEARCH_BUDGET = 260       # CJJ 20×1 + ICN·GMP 6×4 + TAE 3×4 + PUS 4×4
                           # + 스위스 6×1 = 78회, 얇은 노선 2차 소스
                           # (/v2/prices/latest) 최대 26회 → 104회.
                           # 3차 소스(cheap·direct·month-matrix)는 2차까지
@@ -422,6 +422,16 @@ def fetch_route(org, dst, city, region, nights=None, flex=None, window=None,
     # 원본 건수를 같이 남긴다. 0건일 때 "응답이 없었나 / 걸러졌나" 를 구분한다.
     RAWCOUNT[f"{org}-{dst}"] = raw
 
+    # 유럽은 캘린더가 3박짜리 이상한 조합만 준다. 왕복을 명시적으로 요구할
+    # 수 있는 곳은 v3 뿐이라 조건 없이 항상 붙인다. (2026-08-30 실측:
+    # 캘린더로 잡힌 제네바 6건이 전부 3박 — 아무도 그렇게 안 간다)
+    if ALLOW_ONEWAY.get(region) and not CIRCUIT.tripped:
+        v3, stop = fetch_v3(org, dst, city, region, flex or (1, 30), window)
+        seen = {o["id"] for o in out}
+        out += [o for o in v3 if o["id"] not in seen]
+        if stop in ("BUDGET_EXCEEDED", "CIRCUIT_OPEN"):
+            return out, stop
+
     # 캘린더가 얇으면 2차 소스로 보충한다 (장거리·지방 노선에서 효과)
     if latest and len(out) < LATEST_MIN and not CIRCUIT.tripped:
         more, _ = fetch_latest(org, dst, city, region,
@@ -432,7 +442,7 @@ def fetch_route(org, dst, city, region, nights=None, flex=None, window=None,
 
     # 2차까지 쓰고도 비어 있으면 캐시 슬라이스가 다른 곳을 더 본다.
     if (latest and len(out) < DEEP_MIN and not CIRCUIT.tripped
-            and _deep_allowed(region)):
+            and _deep_allowed(region, 4 + DEEP_MONTHS)):
         deep, stop = fetch_deep(org, dst, city, region,
                                 flex or (1, 30), window)
         seen = {o["id"] for o in out}
@@ -510,15 +520,28 @@ DEEP_MONTHS = 4         # month-matrix 로 훑을 달 수 (노선당 호출 수 
 # 3차 소스는 노선당 2+DEEP_MONTHS 회를 쓴다. 빈 노선이 많으면 예산을 통째로
 # 먹는다. 특히 청주는 main() 에서 스위스보다 먼저 돌기 때문에, 상한이 없으면
 # 정작 목표인 취리히 차례에 예산이 남지 않는다. 그래서 지역별로 따로 센다.
-DEEP_MAX = {"유럽": 6}
-DEEP_MAX_DEFAULT = 4
-DEEP_USED = {}
+# 노선 수가 아니라 호출 수로 막는다. 단계마다 호출 수가 다르기 때문에
+# "노선 4개까지" 로는 실제 지출을 통제할 수 없다.
+# 유럽 밖은 지역별이 아니라 통짜 한 바구니다 — 청주가 지역을 5개 걸치고
+# 있어서 지역별로 주면 합계가 걷잡을 수 없이 커진다.
+DEEP_BUDGET = {"유럽": 60, "_other": 24}
+DEEP_SPENT = {}
 DEEP_TRIED = set()      # 3차까지 간 노선. 화면이 "몇 군데를 봤는지" 말하려면 필요
+DEEP_ENOUGH = 3         # 한 단계에서 이만큼 나오면 다음 단계는 건너뛴다
 
 
-def _deep_allowed(region):
-    cap = DEEP_MAX.get(region, DEEP_MAX_DEFAULT)
-    return DEEP_USED.get(region, 0) < cap
+def _deep_bucket(region):
+    return region if region in DEEP_BUDGET else "_other"
+
+
+def _deep_allowed(region, need=1):
+    b = _deep_bucket(region)
+    return DEEP_SPENT.get(b, 0) + need <= DEEP_BUDGET[b]
+
+
+def _deep_spend(region, n):
+    b = _deep_bucket(region)
+    DEEP_SPENT[b] = DEEP_SPENT.get(b, 0) + n
 
 
 def _cheap_rows(data):
@@ -538,10 +561,83 @@ def _cheap_rows(data):
     return out
 
 
+V3_MONTHS = 4           # prices_for_dates 로 훑을 달 수
+
+
+def _months(window, n):
+    """검색창과 겹치는 달을 앞에서부터 n 개."""
+    lo, hi = window or (WINDOW_MIN, WINDOW_MAX)
+    d = (date.today() + timedelta(days=lo)).replace(day=1)
+    last = date.today() + timedelta(days=hi)
+    out = []
+    while d <= last and len(out) < n:
+        out.append(d.strftime("%Y-%m"))
+        d = (d + timedelta(days=32)).replace(day=1)
+    return out
+
+
+def fetch_v3(org, dst, city, region, flex, window):
+    """/aviasales/v3/prices_for_dates — 왕복을 명시적으로 요구하는 유일한 곳.
+
+    지금까지 쓰던 네 엔드포인트는 전부 "왕복을 달라"고 말할 방법이 없다.
+    캘린더는 length 로 에둘러 요청하고(그마저 무시당한다), cheap·direct·
+    matrix 는 그냥 캐시에 있는 걸 준다. 그래서 유럽에서 3박짜리 이상한
+    왕복과 편도만 걸려 나왔다. 이 엔드포인트만 one_way=false 를 받는다.
+
+    transfers 필드는 normalize() 가 이미 읽는다(number_of_changes 대체).
+    duration(분) 도 여기서만 온다 — 다른 소스에는 아예 없는 값이다.
+    """
+    # 같은 편이 여러 달 조회에 걸쳐 나온다 (11월 출발·12월 귀국은 두 달
+    # 모두에서 잡힌다). 여기서 안 걷어내면 len(out) 이 부풀어, 실제로는
+    # 얇은 노선이 두꺼워 보여서 뒤 단계 폴백을 건너뛴다.
+    out, seen = [], set()
+    key = f"{org}-{dst}"
+    for m in _months(window, V3_MONTHS):
+        if CIRCUIT.tripped:
+            break
+        ok, data, err = call("/aviasales/v3/prices_for_dates", {
+            "origin": org, "destination": dst,
+            "departure_at": m, "return_at": m,
+            "one_way": "false",              # ★ 이 한 줄이 요점이다
+            "currency": CURRENCY, "sorting": "price",
+            "limit": 100, "page": 1})
+        time.sleep(REQ_SLEEP)
+        if not ok:
+            if err in ("BUDGET_EXCEEDED", "CIRCUIT_OPEN"):
+                return out, err
+            ERRORS.append(f"{key} v3 {m}: {err}")
+            continue
+        rows = data.get("data") or []
+        RAWCOUNT[key] = RAWCOUNT.get(key, 0) + len(rows)
+        STAGES.setdefault(key, {})
+        STAGES[key]["api_raw"] = STAGES[key].get("api_raw", 0) + len(rows)
+        for r in rows:
+            dep = r.get("departure_at")
+            if not dep:
+                _drop(org, dst, "출발일 없음 (v3)")
+                continue
+            o = normalize(org, dst, city, region, dep, None, {
+                "price": r.get("price"),
+                "origin": r.get("origin"), "destination": r.get("destination"),
+                "airline": r.get("airline") or "?",
+                "flight_number": r.get("flight_number"),
+                "departure_at": dep, "return_at": r.get("return_at"),
+                "number_of_changes": r.get("transfers"),
+                "duration_min": r.get("duration"),
+                "expires_at": None,
+            }, flex, window)
+            if o and o["id"] not in seen:
+                seen.add(o["id"])
+                out.append(o)
+    return out, None
+
+
 def fetch_deep(org, dst, city, region, flex, window):
     """3차 소스. 노선당 2 + DEEP_MONTHS 회를 넘지 않는다."""
     key = f"{org}-{dst}"
-    DEEP_USED[region] = DEEP_USED.get(region, 0) + 1
+    # 이 노선이 쓸 수 있는 최대 호출 수를 미리 잡아 둔다 (cheap 2 + direct 2
+    # + matrix DEEP_MONTHS). 조기 종료로 실제 지출은 이보다 적을 수 있다.
+    _deep_spend(region, 4 + DEEP_MONTHS)
     DEEP_TRIED.add(key)
     out, seen = [], set()
 
@@ -558,12 +654,17 @@ def fetch_deep(org, dst, city, region, flex, window):
     # 1) cheap / direct — 응답 모양이 같아 한 파서로 처리한다.
     #    direct 로 나온 건은 stops=0 을 확신할 수 있다. 지어내는 게 아니라
     #    엔드포인트가 직항만 준다는 계약이다.
+    # ★ return_date 를 안 넘기면 이 두 곳은 편도를 준다. 2026-08-30 실측에서
+    #   취리히 23건이 전부 편도로 온 이유가 이것이었다. 달 단위로 왕복을
+    #   요구한다.
     for path, forced_stops in (("/v1/prices/cheap", None),
                                ("/v1/prices/direct", 0)):
+      for m in _months(window, 2):
         if CIRCUIT.tripped:
             break
         ok, data, err = call(path, {
-            "origin": org, "destination": dst, "currency": CURRENCY})
+            "origin": org, "destination": dst, "currency": CURRENCY,
+            "depart_date": m, "return_date": m})
         time.sleep(REQ_SLEEP)
         if not ok:
             if err in ("BUDGET_EXCEEDED", "CIRCUIT_OPEN"):
@@ -572,6 +673,7 @@ def fetch_deep(org, dst, city, region, flex, window):
             continue
         rows = _cheap_rows(data.get("data"))
         bump(len(rows))
+        # 날짜를 줬는데도 편도가 오면 그건 그 노선에 왕복이 없다는 뜻이다.
         for r in rows:
             take({
                 "price": r.get("price") or r.get("value"),
@@ -585,16 +687,12 @@ def fetch_deep(org, dst, city, region, flex, window):
                 "expires_at": r.get("expires_at"),
             }, r.get("departure_at"))
 
-    # 2) month-matrix — 달마다 따로 물어야 한다. 출발일 창과 겹치는 달만.
-    lo, hi = window or (WINDOW_MIN, WINDOW_MAX)
-    d = (date.today() + timedelta(days=lo)).replace(day=1)
-    last = date.today() + timedelta(days=hi)
-    months = []
-    while d <= last and len(months) < DEEP_MONTHS:
-        months.append(d.strftime("%Y-%m-01"))
-        d = (d + timedelta(days=32)).replace(day=1)
+    # 앞 단계가 충분히 줬으면 여기서 멈춘다. 값이 있는데 더 긁을 이유가 없다.
+    if len(out) >= DEEP_ENOUGH:
+        return out, None
 
-    for m in months:
+    # 2) month-matrix — 달마다 따로 물어야 한다. 출발일 창과 겹치는 달만.
+    for m in [x + "-01" for x in _months(window, DEEP_MONTHS)]:
         if CIRCUIT.tripped:
             break
         ok, data, err = call("/v2/prices/month-matrix", {
@@ -700,6 +798,8 @@ def normalize(org, dst, city, region, dep, nights, v, flex=None, window=None):
         "api_origin": v.get("origin"), "api_destination": v.get("destination"),
         "flight_no": v.get("flight_number"),
         "stops": stops,
+        # v3 에서만 온다. 다른 소스에는 없으므로 대부분 None 이다.
+        "duration_min": v.get("duration_min"),
         "price_krw": int(price),
         "access_cost": access,
         "effective_krw": int(price) + access,   # 청주 기준 실부담가 (보조 지표)
@@ -1451,7 +1551,7 @@ def load(path, default):
 # 그대로 노출하지 않는다 (파일이 커지고, 화면이 안 쓰는 필드까지 딸려간다).
 OFFER_FIELDS = (
     "id dep arr city region depart_date return_date nights airline airline_kr "
-    "stops price_krw link dep_hour ret_hour holiday weekend red_days "
+    "stops duration_min price_krw link dep_hour ret_hour holiday weekend red_days "
     "annual_leave weekend_trip night_departure roundtrip_verified "
     "baseline baseline_avg baseline_n baseline_tier confidence diff_krw "
     "discount_pct data_ok data_note tier tier_label deal_score "
