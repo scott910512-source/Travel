@@ -856,23 +856,46 @@ function seededToday(key) {
   return loadSeeded()[key] === new Date().toISOString().slice(0, 10);
 }
 
-/* 씨앗이 필요한 노선 목록. 청주·스위스 공통. */
+// 마지막 가격이 이만큼 지나면, 아직 비지 않았어도 미리 올린다.
+// 캐시는 2~7일이면 빠진다. 비어버린 뒤에 올리면 이미 며칠을 놓친 뒤다.
+// 도쿄·오사카처럼 남들이 계속 검색하는 노선은 늘 0일이라 여기 안 걸린다.
+const REFRESH_DAYS = 3;
+
+/* 씨앗이 필요한 노선. 청주·스위스 공통.
+   state: 'empty'  가격이 아예 없음 (급함)
+          'stale'  아직 있지만 갱신이 멈춤 (곧 비어질 것) */
 function seedTargets() {
   const out = [];
   const c = S.data.cjj || {};
+
+  const add = (dep, arr, city, nights, hasPrice) => {
+    const age = routeAge(dep, arr);
+    if (!hasPrice) {
+      out.push({ dep, arr, city, nights, off: 45, state: 'empty', age });
+    } else if (age !== null && age >= REFRESH_DAYS) {
+      out.push({ dep, arr, city, nights, off: 45, state: 'stale', age });
+    }
+  };
+
   (c.status || []).forEach(st => {
-    if (st.price_status !== 'missing') return;
+    // 오늘 조회 순번이 아닌 노선은 판단하지 않는다 (있을지도 모른다)
+    if (st.price_status === 'error') return;
     const info = (c.config || {})[st.destination] || {};
-    out.push({ dep: 'CJJ', arr: st.destination,
-               city: info.city || st.city || st.destination,
-               nights: CJJ_SEED_NIGHTS, off: 45 });
+    const known = st.price_status === 'available' || st.price_status === 'missing';
+    if (!known) return;
+    add('CJJ', st.destination, info.city || st.city || st.destination,
+        CJJ_SEED_NIGHTS, st.price_status === 'available');
   });
+
   SWISS_ORDER.forEach(code => {
     const has = S.data.offers.some(o => o.arr === code && o.price_krw);
-    if (!has) out.push({ dep: 'ICN', arr: code, city: SWISS_CITY[code],
-                         nights: LIVE_NIGHTS, off: 45 });
+    add('ICN', code, SWISS_CITY[code], LIVE_NIGHTS, has);
   });
-  return out;
+
+  // 빈 것부터, 그다음 오래된 것부터
+  return out.sort((a, b) =>
+    (a.state === b.state ? (b.age || 0) - (a.age || 0)
+                         : (a.state === 'empty' ? -1 : 1)));
 }
 
 function seedChecklist() {
@@ -881,7 +904,9 @@ function seedChecklist() {
   const done = t.filter(x => seededToday(`${x.dep}-${x.arr}`)).length;
   return `<section class="sec">
     <div class="sec-hd"><div><h2>🌱 비어 있는 노선 채우기</h2>
-      <p>가격이 안 들어오는 노선 ${t.length}곳입니다.</p></div></div>
+      <p>${t.filter(x => x.state === 'empty').length}곳은 가격이 없고,
+        ${t.filter(x => x.state === 'stale').length}곳은 갱신이 멈췄습니다.
+        비어지기 전에 미리 채워 둡니다.</p></div></div>
     <div class="note"><b>누르는 것만으로는 부족할 수 있습니다</b>
       <p>버튼을 누르면 aviasales 검색이 열립니다. <b>항공권 목록이 실제로
       뜰 때까지 기다렸다가</b> 닫으세요. 결과가 나오기 전에 닫으면 검색이
@@ -900,15 +925,18 @@ function seedChecklist() {
         //   버튼을 눌러도 검색 결과가 뜨기 전에 닫으면 기록이 안 남을 수
         //   있다. 우리가 아는 것은 '눌렀다' 까지뿐이므로 그렇게만 적는다.
         //   실제로 남았는지는 다음 스캔이 답한다 (그때 목록에서 사라진다).
+        const label = opened ? '오늘 열어봄 · 결과 대기'
+          : x.state === 'stale' ? `${x.age}일째 갱신 없음 · 새로고침 →`
+          : (age === null ? '검색하기 →' : `${age}일째 없음 →`);
         return `<a class="kv seedrow${opened ? ' done' : ''}" href="${esc(l.url)}"
             target="_blank" rel="noopener" data-seed="${esc(key)}">
           <span class="k" style="color:var(--tx);font-weight:700">
-            ${opened ? '🕐 ' : ''}${esc(x.city)}
+            ${opened ? '🕐 ' : (x.state === 'stale' ? '🔄 ' : '')}${esc(x.city)}
             <span style="font-family:var(--mono);font-size:11.5px;color:var(--tx3)"
               >${esc(x.dep)}→${esc(x.arr)}</span></span>
           <span class="v" style="font-size:12px;font-family:var(--sans);font-weight:700;
-            color:${opened ? 'var(--tx3)' : 'var(--pri)'}">
-            ${opened ? '오늘 열어봄 · 결과 대기' : (age === null ? '검색하기 →' : `${age}일째 없음 →`)}
+            color:${opened ? 'var(--tx3)' : (x.state === 'stale' ? 'var(--warn)' : 'var(--pri)')}">
+            ${label}
           </span></a>`;
       }).join('')}
     </div>
