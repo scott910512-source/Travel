@@ -982,6 +982,38 @@ function seededToday(key) {
 // 캐시는 2~7일이면 빠진다. 비어버린 뒤에 올리면 이미 며칠을 놓친 뒤다.
 // 도쿄·오사카처럼 남들이 계속 검색하는 노선은 늘 0일이라 여기 안 걸린다.
 const REFRESH_DAYS = 3;
+// 표본이 이만큼은 있어야 dealTier() 가 '강력 특가' 를 판정한다.
+// 0건이 아니라고 다 된 게 아니다 — 3건짜리 노선은 "싸다" 를 말할 수 없다.
+const SEED_THIN_N = 10;
+// 취리히는 이 앱의 1순위 목적지다. 비어 있는 다른 노선보다 먼저 채운다.
+const SEED_PRIORITY = ['ZRH'];
+
+// 판정에 실제로 쓰이는 표본 수. baseline_n 은 과거까지 누적된 값이라
+// 오늘 행 수보다 클 수 있다. 둘 중 큰 쪽을 쓴다 (없는 걱정은 안 시킨다).
+// 이미 가진 날짜를 또 검색하면 새로 들어오는 게 없다. 취리히는 3건이
+// 전부 10/29~11/01 한 구간에 몰려 있어서, 거기서 또 찾아 봐야 표본이
+// 안 는다. 후보 날짜 중 가진 것과 가장 멀리 떨어진 날을 고른다.
+// ★ 오늘도 UTC 자정으로 맞춘다. 브라우저 로컬시각과 스캐너(KST)가 찍은
+//   날짜를 그냥 빼면 하루씩 밀린다 (가격 변동 배지에서 겪은 것과 같다).
+function seedOffset(rows) {
+  const have = rows.map(o => Date.parse((o.depart_date || '') + 'T00:00:00Z'))
+                   .filter(t => !isNaN(t));
+  if (!have.length) return LIVE_OFFSETS[0];
+  const now = new Date();
+  const t0 = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+  let best = LIVE_OFFSETS[0], bestGap = -1;
+  LIVE_OFFSETS.forEach(off => {
+    const t = t0 + off * 86400000;
+    const gap = have.reduce((m, h) => Math.min(m, Math.abs(h - t)), Infinity);
+    if (gap > bestGap) { bestGap = gap; best = off; }
+  });
+  return best;
+}
+
+function samplesOf(rows) {
+  if (!rows.length) return 0;
+  return rows.reduce((m, o) => Math.max(m, o.baseline_n || 0), rows.length);
+}
 
 /* 씨앗이 필요한 노선. 청주·스위스 공통.
    state: 'empty'  가격이 아예 없음 (급함)
@@ -990,12 +1022,20 @@ function seedTargets() {
   const out = [];
   const c = S.data.cjj || {};
 
-  const add = (dep, arr, city, nights, hasPrice) => {
+  const add = (dep, arr, city, nights, rows) => {
     const age = routeAge(dep, arr);
-    if (!hasPrice) {
-      out.push({ dep, arr, city, nights, off: 45, state: 'empty', age });
+    const n = samplesOf(rows);
+    const pri = SEED_PRIORITY.indexOf(arr) !== -1;
+    const base = { dep, arr, city, nights, off: seedOffset(rows), age, n, pri };
+    if (!rows.length) {
+      out.push(Object.assign({ state: 'empty' }, base));
+    } else if (n < SEED_THIN_N) {
+      // ★ 0건이 아니라고 끝난 게 아니다. 취리히는 3건뿐이라 아무리 싸도
+      //   '강력 특가' 가 안 붙는다. 그걸 말 안 하면 회원님은 이 노선이
+      //   다 채워진 줄 안다. 여기 올려서 더 검색하게 한다.
+      out.push(Object.assign({ state: 'thin' }, base));
     } else if (age !== null && age >= REFRESH_DAYS) {
-      out.push({ dep, arr, city, nights, off: 45, state: 'stale', age });
+      out.push(Object.assign({ state: 'stale' }, base));
     }
   };
 
@@ -1008,30 +1048,54 @@ function seedTargets() {
     const known = st.price_status === 'available' || st.price_status === 'missing';
     if (!known) return;
     add('CJJ', st.destination, info.city || st.city || st.destination,
-        CJJ_SEED_NIGHTS, st.price_status === 'available');
+        CJJ_SEED_NIGHTS,
+        st.price_status === 'available'
+          ? S.data.offers.filter(o => o.dep === 'CJJ' && o.arr === st.destination && o.price_krw)
+          : []);
   });
 
   // 스위스는 전부 해외다. 국내를 보고 있으면 넣지 않는다.
   if (S.scope !== 'dom') SWISS_ORDER.forEach(code => {
-    const has = S.data.offers.some(o => o.arr === code && o.price_krw);
-    add('ICN', code, SWISS_CITY[code], LIVE_NIGHTS, has);
+    // 출발지는 안 따진다 — 소스가 인천을 SEL 로 접어 답할 때가 있다.
+    add('ICN', code, SWISS_CITY[code], LIVE_NIGHTS,
+        S.data.offers.filter(o => o.arr === code && o.price_krw));
   });
 
-  // 빈 것부터, 그다음 오래된 것부터
+  // 1순위 목적지가 맨 위다. "0건인 바젤" 보다 "3건뿐인 취리히" 를 먼저
+  // 채우는 게 맞다 — 회원님이 실제로 가려는 곳이 취리히이기 때문이다.
+  const RANK = { empty: 0, thin: 1, stale: 2 };
   return out.sort((a, b) =>
-    (a.state === b.state ? (b.age || 0) - (a.age || 0)
-                         : (a.state === 'empty' ? -1 : 1)));
+    (b.pri ? 1 : 0) - (a.pri ? 1 : 0) ||
+    RANK[a.state] - RANK[b.state] ||
+    (a.n - b.n) ||
+    ((b.age || 0) - (a.age || 0)));
 }
 
 function seedChecklist() {
-  const t = seedTargets();
-  if (!t.length) return '';
+  const all = seedTargets();
+  if (!all.length) return '';
+  // ★ 표본이 얇다고 다 사람 손이 필요한 건 아니다. 제주·도쿄처럼 매일
+  //   가격이 들어오는 노선은 며칠 두면 저절로 10건이 된다. 손이 필요한
+  //   건 아무도 안 찾아서 스스로는 절대 안 차는 노선(스위스)뿐이다.
+  //   그걸 안 가르면 오늘처럼 24줄이 되어 아무도 안 누른다.
+  const needsMe = x => x.state !== 'thin' || SWISS_ORDER.indexOf(x.arr) !== -1;
+  const t = all.filter(needsMe);
+  const grows = all.filter(x => !needsMe(x));
+  if (!t.length && !grows.length) return '';
   const done = t.filter(x => seededToday(`${x.dep}-${x.arr}`)).length;
   return `<section class="sec">
-    <div class="sec-hd"><div><h2>🌱 비어 있는 노선 채우기</h2>
-      <p>${t.filter(x => x.state === 'empty').length}곳은 가격이 없고,
-        ${t.filter(x => x.state === 'stale').length}곳은 갱신이 멈췄습니다.
-        비어지기 전에 미리 채워 둡니다.</p></div></div>
+    <div class="sec-hd"><div><h2>🌱 검색해서 채울 노선</h2>
+      <p>${t.filter(x => x.state === 'empty').length}곳은 가격이 아예 없고,
+        ${t.filter(x => x.state === 'thin').length}곳은 아무도 안 찾아서
+        표본이 안 늘며, ${t.filter(x => x.state === 'stale').length}곳은
+        갱신이 멈췄습니다.</p></div></div>
+    ${t.some(x => x.state === 'thin') ? `<div class="note hot"><b>가격이 있어도 "표본 부족" 이면
+      특가인지 알 수 없습니다</b>
+      <p>평균과 비교해야 싼지 아닌지 말할 수 있는데, 그러려면 같은 노선
+      기록이 <b>10건</b>은 있어야 합니다. 아래 🌡 표시가 붙은 노선은
+      가격은 들어왔지만 아직 그만큼이 아닙니다. <b>날짜를 바꿔 가며 몇 번
+      더 검색</b>하면 기준선이 생기고, 그때부터 "평균보다 N% 저렴" 이
+      나옵니다.</p></div>` : ''}
     <div class="note"><b>누르는 것만으로는 부족할 수 있습니다</b>
       <p>버튼을 누르면 aviasales 검색이 열립니다. <b>항공권 목록이 실제로
       뜰 때까지 기다렸다가</b> 닫으세요. 결과가 나오기 전에 닫으면 검색이
@@ -1052,19 +1116,29 @@ function seedChecklist() {
         //   실제로 남았는지는 다음 스캔이 답한다 (그때 목록에서 사라진다).
         const label = opened ? '오늘 열어봄 · 결과 대기'
           : x.state === 'stale' ? `${x.age}일째 갱신 없음 · 새로고침 →`
+          : x.state === 'thin' ? `표본 ${x.n}/${SEED_THIN_N}건 · 더 채우기 →`
           : (age === null ? '검색하기 →' : `${age}일째 없음 →`);
+        const mark = opened ? '🕐 '
+          : x.state === 'stale' ? '🔄 ' : (x.state === 'thin' ? '🌡 ' : '');
         return `<a class="kv seedrow${opened ? ' done' : ''}" href="${esc(l.url)}"
             target="_blank" rel="noopener" data-seed="${esc(key)}">
           <span class="k" style="color:var(--tx);font-weight:700">
-            ${opened ? '🕐 ' : (x.state === 'stale' ? '🔄 ' : '')}${esc(x.city)}
+            ${mark}${x.pri && !opened ? '⭐ ' : ''}${esc(x.city)}
             <span style="font-family:var(--mono);font-size:11.5px;color:var(--tx3)"
               >${esc(x.dep)}→${esc(x.arr)}</span></span>
           <span class="v" style="font-size:12px;font-family:var(--sans);font-weight:700;
-            color:${opened ? 'var(--tx3)' : (x.state === 'stale' ? 'var(--warn)' : 'var(--pri)')}">
+            color:${opened ? 'var(--tx3)'
+              : (x.state === 'stale' || x.state === 'thin' ? 'var(--warn)' : 'var(--pri)')}">
             ${label}
           </span></a>`;
       }).join('')}
     </div>
+    ${grows.length ? `<p style="margin:10px 2px 0;font-size:12px;
+      color:var(--tx3);font-weight:600;line-height:1.55">
+      🌡 <b>${grows.length}곳</b>은 표본이 아직 10건이 안 되지만
+      (${grows.slice(0, 3).map(x => `${esc(x.city)} ${x.n}/${SEED_THIN_N}`).join(' · ')}${grows.length > 3 ? ' 외' : ''})
+      <b>매일 가격이 들어오고 있어 며칠이면 저절로 찹니다.</b>
+      손댈 필요 없습니다.</p>` : ''}
     <p style="margin:8px 2px 0;font-size:12px;color:var(--tx3);font-weight:600;line-height:1.5">
       이 앱이 대신 검색해 줄 수는 없습니다. 소스가 <b>실제 사람의 검색</b>만
       기록하기 때문입니다. 결과는 <b>다음 스캔(매일 오전 7시)</b> 이후에
