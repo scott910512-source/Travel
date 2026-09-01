@@ -1626,32 +1626,122 @@ def pick_baseline(o, baselines):
 STRONG_PCT_DEFAULT = 30      # 강력 특가 기준: 평균 대비 몇 % 이상 저렴한가
 
 
-def confidence(n):
-    """표본 수 → 신뢰도. 표본이 적으면 가격이 싸도 강력 특가로 올리지 않는다."""
+# 표본이 이만큼은 있어야 "싸다/비싸다" 를 말한다. 이 아래는 판정 보류다.
+# 표본 4건짜리 노선의 "평균보다 61% 싸다" 는 평균이 곧 그 4건이라는 뜻이다.
+MIN_JUDGE_N = 5
+
+# 표본 30개가 하루에 몰린 것과 30일 동안 쌓인 것은 다르다. 하루치는 그 날
+# 캐시에 뭐가 있었느냐일 뿐이라 "평소 가격" 이 못 된다. 추적일수로 상한을
+# 건다 — 이걸 안 걸면 오늘 348건이 전부 "신뢰도 높음" 으로 나간다.
+# (2026-09-01 실측: 추적 3일차인데 표본은 10~29건)
+DAYS_CAP = ((14, None), (7, "보통"), (3, "보통"), (0, "낮음"))
+
+
+def confidence(n, days=None):
+    """표본 수와 추적 기간 → 신뢰도 라벨.
+
+    표본만 보면 안 된다. 하루에 몰린 30건은 "평소" 를 말해 주지 않는다.
+    """
     if n >= 10:
-        return "높음"
-    if n >= 5:
-        return "보통"
-    if n >= 3:
-        return "낮음"
-    return "참고"
+        lab = "높음"
+    elif n >= MIN_JUDGE_N:
+        lab = "보통"
+    elif n >= 3:
+        lab = "낮음"
+    else:
+        lab = "참고"
+    if days is None:
+        return lab
+    order = ["참고", "낮음", "보통", "높음"]
+    for need, cap in DAYS_CAP:
+        if days >= need:
+            if cap and order.index(lab) > order.index(cap):
+                return cap
+            return lab
+    return lab
+
+
+# CONFIDENCE 는 DEAL(얼마나 싼가)과 다른 축이다. "이 판정을 믿어도 되나" 만
+# 본다. 싼 것과 믿을 만한 것을 한 숫자에 섞으면, 표본 4건짜리 61% 할인이
+# 표본 20건짜리 30% 할인보다 위에 오른다.
+def confidence_score(o, days=None):
+    """0~100 + 근거. 화면이 왜 그 점수인지 말할 수 있어야 한다."""
+    n = o.get("baseline_n") or 0
+    parts = []
+
+    # 표본 (40) — 이게 가장 크다. 비교 대상이 곧 판정의 근거다
+    if n >= 30:
+        p = 40
+    elif n >= 10:
+        p = 28
+    elif n >= MIN_JUDGE_N:
+        p = 14
+    else:
+        p = 0
+    parts.append(("표본 %d건" % n, p))
+
+    # 추적 기간 (25) — 며칠 동안 쌓였나
+    d = days or 0
+    p = 25 if d >= 30 else 20 if d >= 14 else 12 if d >= 7 else 6 if d >= 3 else 0
+    parts.append(("추적 %d일" % d, p))
+
+    # 가격의 나이 (15) — found_at 이 없으면 모르는 것이지 새 것이 아니다
+    fa = o.get("found_at")
+    if fa:
+        try:
+            age_h = (datetime.now(timezone.utc)
+                     - datetime.fromisoformat(fa.replace("Z", "+00:00"))
+                     ).total_seconds() / 3600
+            p = 15 if age_h <= 6 else 11 if age_h <= 24 else 6 if age_h <= 48 else 2
+            parts.append(("가격 %d시간 전" % age_h, p))
+        except (ValueError, TypeError):
+            parts.append(("가격 나이 불명", 4))
+    else:
+        parts.append(("가격 나이 불명", 4))
+
+    # 왕복 확인 (10) — 편도를 왕복으로 착각하면 값이 절반으로 보인다
+    parts.append(("왕복 확인" if o.get("roundtrip_verified") else "왕복 미확인",
+                  10 if o.get("roundtrip_verified") else 0))
+
+    # 직항 근거 (5) — 소스 주장과 확인된 값은 다르다
+    src = o.get("stops_src")
+    parts.append(({"row": "환승 확인", "endpoint": "직항은 소스 주장"}
+                  .get(src, "환승 정보 없음"),
+                  5 if src == "row" else 2 if src == "endpoint" else 0))
+
+    # provider 수 (5) — 두 곳이 같은 값을 주면 더 믿을 만하다
+    ns = len(o.get("sources") or []) or 1
+    parts.append(("provider %d곳" % ns, 5 if ns >= 2 else 2))
+
+    total = sum(p for _, p in parts)
+    # 표본이 판정 문턱 아래면 아무리 다른 게 좋아도 상한을 건다.
+    if n < MIN_JUDGE_N:
+        total = min(total, 25)
+    elif n < 10:
+        total = min(total, 45)
+    return min(total, 100), parts
 
 
 def deal_tier(pct, n, strong=STRONG_PCT_DEFAULT):
     """평균 대비 할인율 + 표본 수 → 특가 등급.
 
-    strong / deal 은 표본 문턱을 함께 넘어야 한다. 표본 3건짜리 노선에서
-    '평균보다 60% 싸다'는 말은 평균이 곧 그 3건이라는 뜻이라 근거가 못 된다.
+    ★ 표본이 MIN_JUDGE_N 미만이면 아무 등급도 주지 않는다. 예전에는
+      마지막에 "pct >= strong 이면 표본과 무관하게 후보" 라는 줄이 있었다.
+      표본 1건짜리 61% 할인이 '특가 후보' 로 올라갈 수 있었다는 뜻이다.
+      평균이 곧 그 1건인데 그걸 평균 대비 할인이라고 부를 수는 없다.
+
+      이 앱에서 가장 위험한 오류는 특가를 놓치는 것이 아니라, 특가가 아닌
+      것을 특가라고 확신시키는 것이다. 애매하면 판정하지 않는다.
     """
     if pct is None:
         return "unknown"
+    if n < MIN_JUDGE_N:
+        return "unknown"         # "가격 데이터 부족" — 싸다고도 비싸다고도 안 한다
     if pct >= strong and n >= 10:
         return "strong"
-    if pct >= 20 and n >= 5:
+    if pct >= 20:
         return "deal"
-    if pct >= 10 and n >= 3:
-        return "candidate"
-    if pct >= strong:            # 싸지만 표본이 모자라 확정 못 함
+    if pct >= 10:
         return "candidate"
     return "normal"
 
@@ -1698,7 +1788,7 @@ def deal_score(o, access=0, strong=STRONG_PCT_DEFAULT):
     return round(min(sc * mult, 100))
 
 
-def enrich(offers, baselines):
+def enrich(offers, baselines, freshness=None):
     """offer 에 기준선·할인율·등급을 붙인다.
 
     실부담가와 최종 점수는 여기서 확정하지 않는다. 교통비가 사용자 설정이라
@@ -1711,7 +1801,13 @@ def enrich(offers, baselines):
         o["baseline"] = bl["median"] if bl else None
         o["baseline_avg"] = bl["mean"] if bl else None
         o["baseline_n"] = bl["n"] if bl else 0
-        o["confidence"] = confidence(o["baseline_n"])
+        days = ((freshness or {}).get(f"{o['dep']}-{o['arr']}")
+                or {}).get("days_tracked")
+        o["baseline_days"] = days
+        o["confidence"] = confidence(o["baseline_n"], days)
+        sc, parts = confidence_score(o, days)
+        o["confidence_score"] = sc
+        o["confidence_parts"] = [{"k": k, "p": p} for k, p in parts]
 
         if o["baseline"]:
             # 평균가 대비 차액. 양수 = 그만큼 싸다, 음수 = 그만큼 비싸다.
@@ -2014,7 +2110,8 @@ OFFER_FIELDS = (
     "stops stops_src stops_conflict duration_min duration_rt_min price_krw found_at via via_name via_src link dep_hour ret_hour holiday weekend red_days "
     "source source_confidence live booking_url sources best_price "
     "annual_leave weekend_trip night_departure roundtrip_verified "
-    "baseline baseline_avg baseline_n baseline_tier confidence diff_krw "
+    "baseline baseline_avg baseline_n baseline_days baseline_tier "
+    "confidence confidence_score confidence_parts diff_krw "
     "discount_pct data_ok data_note tier tier_label deal_score "
     "low30 low_all route_avg change delta delta_days first_seen last_seen price_log"
 ).split()
@@ -2085,6 +2182,43 @@ def write_deals(offers, routes, meta, stats, gone, cjj_status=None,
     with open(p, "w", encoding="utf-8") as f:
         json.dump(out, f, ensure_ascii=False, separators=(",", ":"))
     return p
+
+
+# 스캔이 반쯤 실패해도 서킷이 안 열릴 수 있다. 그때 빈약한 결과가 지난
+# 정상 데이터를 그대로 밀어낸다 — 사용자는 "특가가 없어졌네" 로 읽지,
+# "수집이 실패했네" 로 읽지 않는다.
+#
+# 다만 무조건 붙들고 있어도 안 된다. 캐시가 빠져서 정말로 줄어든 것일 수도
+# 있고, 그때 옛 데이터를 최신인 척 보여주면 그게 더 큰 거짓말이다.
+# 그래서 "많이 줄었다 + 에러가 있었다" 둘 다일 때만 지킨다.
+KEEP_RATIO = 0.4        # 지난번의 이 비율 아래로 떨어지면 의심한다
+
+
+def guard_previous(offers, prev_path):
+    """지난 정상 데이터를 지킬지 판단. (지킬 offers, 안내문) 을 돌려준다.
+
+    돌려주는 offers 가 지난 것이면 화면이 반드시 그렇게 말해야 한다.
+    조용히 옛 값을 오늘 값인 척 내보내면 안 된다.
+    """
+    prev = load(prev_path, None)
+    if not isinstance(prev, dict):
+        return offers, None
+    old_rows = prev.get("offers") or []
+    if not old_rows:
+        return offers, None
+    if len(offers) >= len(old_rows) * KEEP_RATIO:
+        return offers, None
+    if not ERRORS and not CIRCUIT.tripped:
+        # 에러 없이 줄었다면 소스에 정말로 없는 것이다. 그대로 내보낸다.
+        return offers, None
+    when = (prev.get("meta") or {}).get("ts") or "이전 스캔"
+    return old_rows, {
+        "kept": True,
+        "reason": f"수집 {len(offers)}건 (지난 {len(old_rows)}건의 "
+                  f"{len(offers) / len(old_rows) * 100:.0f}%) · 에러 {len(ERRORS)}건",
+        "last_good": when,
+    }
+
 
 
 def main():
@@ -2235,10 +2369,13 @@ def main():
     hist = load(os.path.join(ROOT, "state", "price_history.json"), {"deals": {}})
     thin = track_samples(offers, hist)
     baselines = build_baselines(offers, thin)
-    offers = enrich(offers, baselines)
 
+    # ★ enrich 보다 track_routes 를 먼저 부른다. 신뢰도가 "며칠 동안 쌓인
+    #   표본인가" 를 봐야 하는데, 그 추적일수는 daily 에서만 나온다.
+    #   표본 30건이 하루에 몰린 것과 30일에 걸친 것은 다르다.
     lows = track_lows(offers, hist)
     daily = track_routes(offers, hist)
+    offers = enrich(offers, baselines, route_freshness(daily))
     stats, gone = diff(offers, hist)
 
     # 노선 집계를 offer 에 되먹인다 (30일/추적기간 최저는 점수와 화면 양쪽에 쓰인다)
@@ -2282,6 +2419,13 @@ def main():
             "merge": dict(MERGE_INFO),
             "drops": DROPS}
 
+    # ★ 반쯤 실패한 스캔이 지난 정상 데이터를 밀어내지 않게 한다.
+    kept, note = guard_previous(offers, os.path.join(ROOT, "state", "deals.json"))
+    if note:
+        offers = kept
+        meta["stale"] = note
+        print("   ⚠️ 수집이 지난번보다 크게 줄어 지난 데이터를 유지합니다")
+        print(f"      {note['reason']} · 마지막 정상 {note['last_good']}")
     write_deals(offers, routes, meta, stats, gone, cjj_status, freshness)
 
     # ── provider / 커버리지 로그 (§19) ──

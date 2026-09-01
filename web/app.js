@@ -143,29 +143,70 @@ const TIER_TEXT = {
 };
 const TIER_RANK = { strong: 0, deal: 1, candidate: 2, normal: 3, unknown: 4 };
 
+/* ── 세 축을 나눈다 ───────────────────────────────────
+   예전에는 DEAL 하나에 전부 섞여 있었다: 할인율 + 최저가 근접 + 절대
+   저렴함 + 직항 + 공항 보너스 + 신규 + 하락 + 주말 × 신뢰도 계수.
+   그러면 "표본 4건짜리 61% 할인" 이 "표본 20건짜리 30% 할인" 을 이긴다.
+   싼 것 / 믿을 만한 것 / 가기 편한 것은 서로 다른 질문이다. */
+
+// DEAL — 얼마나 싼가. 오로지 가격만 본다.
 function dealScore(o) {
   if (o.discount_pct == null) return 0;
   const strong = S.settings.strongPct;
-  let s = Math.max(0, Math.min(o.discount_pct / Math.max(strong, 1), 1)) * 40;
-
+  // 기준가 대비 할인 (60)
+  let s = Math.max(0, Math.min(o.discount_pct / Math.max(strong, 1), 1)) * 60;
+  // 추적기간 최저에 얼마나 가까운가 (25)
   if (o.low_all) {
     const gap = (o.price_krw - o.low_all) / o.low_all;
-    s += Math.max(0, 1 - gap / 0.30) * 15;
+    s += Math.max(0, 1 - gap / 0.30) * 25;
   }
-  const base = (S.data.region_base || {})[o.region] || 300000;
-  s += Math.max(0, Math.min((base - effective(o)) / base, 0.5)) / 0.5 * 15;
+  // 노선 중앙값 대비 위치 (15). route_avg 는 평균이라 이상치에 흔들린다 —
+  // 중앙값이 있으면 그걸 쓴다.
+  const r = (S.data.routes || {})[`${o.dep}-${o.arr}`] || {};
+  const mid = r.median || r.avg;
+  if (mid) s += Math.max(0, Math.min((mid - o.price_krw) / mid, 0.5)) / 0.5 * 15;
+  return Math.round(Math.min(s, 100));
+}
 
-  s += o.stops === 0 ? 10 : (o.stops === 1 ? 5 : 0);
-  s += bonusOf(o.dep);          // 편의성. 표시되는 실부담가는 건드리지 않는다
-  if (o.change === 'new') s += 5;
-  if (o.change === 'down') s += 7;
-  if (o.weekend_trip) s += 8;
+// CONFIDENCE — 이 판정을 믿어도 되나. 스캐너가 계산해서 보낸다.
+// 없으면(구버전 deals.json) 표본만으로 대충 되살린다.
+function confScore(o) {
+  if (typeof o.confidence_score === 'number') return o.confidence_score;
+  const n = o.baseline_n || 0;
+  return n >= 30 ? 60 : n >= 10 ? 45 : n >= 5 ? 30 : 15;
+}
 
-  const mult = { '높음': 1, '보통': 0.9, '낮음': 0.75 }[o.confidence] || 0.55;
+// TRIP FIT — 가기 얼마나 편한가. 값이 아니라 사람 사정을 본다.
+function tripFit(o) {
+  let s = 0;
+  s += o.stops === 0 ? 30 : (o.stops === 1 ? 18 : (o.stops == null ? 8 : 5));
+  // 연차가 적게 드는 쪽이 좋다
+  const lv = o.annual_leave;
+  s += lv == null ? 8 : lv <= 0 ? 25 : lv <= 0.5 ? 20 : lv <= 1 ? 15 : lv <= 2 ? 8 : 3;
+  if (o.weekend_trip) s += 12;
+  // 여행 기간: 너무 짧거나 너무 길면 쓰기 어렵다 (지역별로 다르다)
+  const n = o.nights;
+  const far = o.region === '유럽' || o.region === '미주';
+  s += n == null ? 5 : far
+    ? (n >= 7 && n <= 14 ? 18 : n >= 5 && n <= 18 ? 12 : 5)
+    : (n >= 2 && n <= 5 ? 18 : n >= 1 && n <= 7 ? 12 : 5);
+  // 공항 접근 부담. 실부담가에 이미 반영돼 있지만 "귀찮음" 은 따로다.
+  const acc = accessOf(o.dep);
+  s += acc === 0 ? 15 : acc <= 30000 ? 10 : acc <= 60000 ? 6 : 2;
+  return Math.round(Math.min(s, 100));
+}
+
+// 정렬용. 화면에 숫자로 노출하지 않는다 — 세 축을 하나로 접은 값이라
+// "이게 뭘 뜻하나" 를 설명할 수 없다. 순서를 정하는 데만 쓴다.
+// ★ DEAL 을 CONFIDENCE 로 눌러 준다. 못 믿을 싼 값이 위로 오면 안 된다.
+function rankScore(o) {
+  const d = dealScore(o), c = confScore(o), t = tripFit(o);
   if (S.settings.stops === 'direct' && o.stops !== 0) return 0;
   if (S.settings.stops === 'one' && o.stops > 1) return 0;
+  let s = d * (0.55 + 0.45 * (c / 100)) + t * 0.25 + bonusOf(o.dep);
+  if (o.change === 'down') s += 5;
   if (S.settings.stops === 'prefer' && o.stops > 1) s *= 0.8;
-  return Math.round(Math.min(s * mult, 100));
+  return Math.round(s);
 }
 
 /* 에러페어 "의심" — 확정이 아니라 사람이 확인할 후보를 올린다 */
@@ -217,7 +258,7 @@ function ranked(list) {
     if (Math.abs(gap) <= tieBreak() && (a.dep === home) !== (b.dep === home)) {
       return a.dep === home ? -1 : 1;
     }
-    const s = dealScore(b) - dealScore(a);
+    const s = rankScore(b) - rankScore(a);
     if (s) return s;
     return gap;
   });
@@ -237,6 +278,36 @@ function cmpHTML(o) {
       <span class="p">▲ ${Math.round(-o.discount_pct)}%</span></div>`;
   }
   return '<div class="cmp-line is-flat"><span class="t">평균과 같음</span></div>';
+}
+
+/* 세 점수를 나란히 보여준다. 숫자 하나만 크게 띄우면 그게 무슨 뜻인지
+   알 수 없고, 낮은 신뢰도가 높은 할인율 뒤에 숨는다. */
+function scoresHTML(o) {
+  if (o.discount_pct == null && !o.data_ok) return '';
+  const rows = [
+    { k: 'DEAL', v: dealScore(o), t: '얼마나 싼가' },
+    { k: 'CONFIDENCE', v: confScore(o), t: '이 판정을 믿어도 되나' },
+    { k: 'TRIP FIT', v: tripFit(o), t: '가기 얼마나 편한가' },
+  ];
+  return `<div class="scores">${rows.map(r => `
+    <div class="sc" title="${esc(r.t)}">
+      <span class="k">${r.k}</span>
+      <span class="bar"><i style="width:${Math.max(2, r.v)}%"></i></span>
+      <span class="v">${r.v}</span>
+    </div>`).join('')}</div>`;
+}
+
+/* CONFIDENCE 가 왜 그 점수인지. 상세에서만 편다 — 카드에 다 적으면
+   "5초 안에 판단" 이 안 된다. */
+function confParts(o) {
+  const ps = o.confidence_parts;
+  if (!ps || !ps.length) return '';
+  return `<div class="panel"><h4>신뢰도 ${confScore(o)} / 100</h4>
+    ${ps.map(x => `<div class="kv"><span class="k">${esc(x.k)}</span>
+      <span class="v">+${x.p}</span></div>`).join('')}
+    ${(o.baseline_days || 0) < 14 ? `<p class="live-note">추적 ${o.baseline_days || 0}일차입니다.
+      표본이 며칠에 걸쳐 쌓여야 "평소 가격" 이 됩니다 — 하루에 몰린 표본은
+      그날 캐시에 뭐가 있었느냐일 뿐입니다.</p>` : ''}</div>`;
 }
 
 function badgesHTML(o) {
@@ -407,8 +478,9 @@ function heroHTML(o, rank, plainLabel) {
              표본 없음</div></div>`}
       <div class="cmp">${cmpHTML(o)}</div>
     </div>
+    ${scoresHTML(o)}
     ${badgesHTML(o)}
-    <span class="cta">항공권 확인</span>
+    <span class="cta">현재 가격 확인</span>
   </button>`;
 }
 
@@ -430,6 +502,17 @@ function cardHTML(o, rank) {
 }
 
 /* ── 화면: 홈 ─────────────────────────────────────────── */
+/* 지난 스캔 데이터를 보고 있다면 숨기지 않는다. 옛 값을 오늘 값인 척
+   내보내는 것이 이 앱에서 가장 하면 안 되는 일이다. */
+function staleNote() {
+  const st = (S.data.meta || {}).stale;
+  if (!st) return '';
+  return `<div class="note warn"><b>⚠ 최신 스캔이 실패했습니다</b>
+    <p>아래 가격은 <b>${esc(st.last_good)}</b> 기준입니다. 그 뒤로 바뀌었을 수
+    있으니 예약 전 반드시 판매처에서 확인하세요.<br>
+    <span style="font-family:var(--mono);font-size:11.5px">${esc(st.reason)}</span></p></div>`;
+}
+
 function viewHome() {
   const pool = homeOffers();
   const ok = pool.filter(o => o.data_ok);
@@ -487,6 +570,7 @@ function viewHome() {
 
   return `${headerHTML()}${chipsHTML()}
   <div class="wrap">
+    ${staleNote()}
     <section class="sec">
       <div class="sec-hd">
         <div><h2>🔥 오늘의 강력 특가</h2>
@@ -710,7 +794,9 @@ function headerHTML() {
   return `<header class="hd"><div class="wrap"><div class="row">
     <img class="mark" src="icon.svg" alt="" width="34" height="34">
     <div class="grow"><h1>항공권 데일리 스캐너</h1>
-      <div class="upd">마지막 스캔 <b>${esc(m.ts || '—')}</b>${scanAgo(m.ts)}</div></div>
+      <div class="upd">${m.stale
+        ? `<span class="stale">⚠ 최신 스캔 실패</span> · 마지막 정상 <b>${esc(m.stale.last_good)}</b>`
+        : `마지막 스캔 <b>${esc(m.ts || '—')}</b>${scanAgo(m.ts)}`}</div></div>
     <button class="iconbtn" data-reload aria-label="새로고침">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
         stroke-linecap="round" width="20" height="20">
@@ -1658,9 +1744,10 @@ function detailHTML(o) {
       <div class="kv"><span class="k">비교 기준가</span><span class="v">${won(o.baseline)}원 <span style="color:var(--tx3);font-size:11px">이 항공편 판정에 쓴 값</span></span></div>
       <div class="kv"><span class="k">최근 30일 최저</span><span class="v">${won(r.low30)}원${r.low30_date ? ` <span style="color:var(--tx3)">${md(r.low30_date)}</span>` : ''}</span></div>
       <div class="kv"><span class="k">추적 기간 최저</span><span class="v">${won(r.low_all)}원${r.low_all_date ? ` <span style="color:var(--tx3)">${md(r.low_all_date)}</span>` : ''}</span></div>
-      <div class="kv"><span class="k">표본 수</span><span class="v">${o.baseline_n || 0}건 · 신뢰도 ${esc(o.confidence || '참고')}</span></div>
+      <div class="kv"><span class="k">표본 수</span><span class="v">${o.baseline_n || 0}건${o.baseline_days ? ` · 추적 ${o.baseline_days}일` : ''} · 신뢰도 ${esc(o.confidence || '참고')}</span></div>
       <div class="kv"><span class="k">평균 산출 기준</span><span class="v">${esc(o.baseline_tier || '—')}</span></div>
     </div>
+    ${confParts(o)}
 
     <div class="panel"><h4>가격 변화</h4>
       ${series.pts.length > 1
