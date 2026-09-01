@@ -963,13 +963,15 @@ def fetch_deep(org, dst, city, region, flex, window):
         STAGES[key]["api_raw"] = STAGES[key].get("api_raw", 0) + n
 
     # 1) cheap / direct — 응답 모양이 같아 한 파서로 처리한다.
-    #    direct 로 나온 건은 stops=0 을 확신할 수 있다. 지어내는 게 아니라
-    #    엔드포인트가 직항만 준다는 계약이다.
+    #    ★ direct 엔드포인트가 줬다고 stops=0 을 덮어쓰지 않는다. 그건
+    #      소스의 말이지 우리가 확인한 게 아니다. 실제로 직항이 없는
+    #      노선(대구→괌)을 직항으로 답한 사례가 보고돼 있다. 행이 환승
+    #      횟수를 직접 주면 그걸 쓰고, 어긋나면 어긋났다고 남긴다.
     # ★ return_date 를 안 넘기면 이 두 곳은 편도를 준다. 2026-08-30 실측에서
     #   취리히 23건이 전부 편도로 온 이유가 이것이었다. 달 단위로 왕복을
     #   요구한다.
-    for path, forced_stops in (("/v1/prices/cheap", None),
-                               ("/v1/prices/direct", 0)):
+    for path, direct_claim in (("/v1/prices/cheap", False),
+                               ("/v1/prices/direct", True)):
       for m in _months(window, 2):
         if CIRCUIT.tripped:
             break
@@ -993,8 +995,8 @@ def fetch_deep(org, dst, city, region, flex, window):
                 "flight_number": r.get("flight_number"),
                 "departure_at": r.get("departure_at"),
                 "return_at": r.get("return_at"),
-                "number_of_changes": (forced_stops if forced_stops is not None
-                                      else r.get("number_of_changes")),
+                "number_of_changes": r.get("number_of_changes"),
+                "_direct_claim": direct_claim,
                 "expires_at": r.get("expires_at"),
             }, r.get("departure_at"))
 
@@ -1040,6 +1042,28 @@ def _drop(org, dst, why):
     DROPS.setdefault(f"{org}-{dst}", {})
     DROPS[f"{org}-{dst}"][why] = DROPS[f"{org}-{dst}"].get(why, 0) + 1
     return None
+
+
+# 소스가 "직항" 이라고 한 것과 우리가 확인한 것은 다르다.
+# /v1/prices/direct 는 직항만 준다고 계약돼 있지만 그건 소스의 주장이고,
+# 실제로 직항편이 없는 노선을 직항으로 답한 사례가 있다(대구→괌).
+# 세 가지를 구분해 남긴다.
+#   row       응답 행이 환승 횟수를 직접 줬다 — 이건 믿는다
+#   endpoint  행에 값이 없고 엔드포인트 이름만 근거다 — 주장이다
+#   None      모른다 (화면은 "환승 정보 없음" 으로 쓴다)
+# 행과 엔드포인트가 어긋나면 행을 믿고, 어긋났다는 사실을 지우지 않는다.
+STOPS_CONFLICT = []
+
+
+def _stops_fields(org, dst, v):
+    raw = v.get("number_of_changes", v.get("transfers"))
+    claim = bool(v.get("_direct_claim"))
+    if raw is None:
+        return (0 if claim else None), ("endpoint" if claim else None), False
+    if claim and raw != 0:
+        STOPS_CONFLICT.append(f"{org}-{dst}: direct 엔드포인트인데 환승 {raw}회")
+        return raw, "row", True
+    return raw, "row", False
 
 
 def normalize(org, dst, city, region, dep, nights, v, flex=None, window=None):
@@ -1091,7 +1115,7 @@ def normalize(org, dst, city, region, dep, nights, v, flex=None, window=None):
         d1 = d0 + timedelta(days=nights)
         roundtrip = False          # ★ 왕복 미검증 → C등급 강등 사유
 
-    stops = v.get("number_of_changes", v.get("transfers"))
+    stops, stops_src, stops_conflict = _stops_fields(org, dst, v)
     if org in DIRECT_ONLY and stops != 0:
         # stops 가 None 이면 직항임을 확인할 수 없다. 지방공항에서는 버린다.
         return _drop(org, dst, f"환승편 제외 (지방공항 직항만, stops={stops})")
@@ -1113,6 +1137,9 @@ def normalize(org, dst, city, region, dep, nights, v, flex=None, window=None):
         "api_origin": v.get("origin"), "api_destination": v.get("destination"),
         "flight_no": v.get("flight_number"),
         "stops": stops,
+        # 그 stops 를 어디서 얻었는가. "직항" 이라는 말의 무게가 다르다.
+        "stops_src": stops_src,
+        "stops_conflict": stops_conflict,
         # v3 에서만 온다. 다른 소스에는 없으므로 대부분 None 이다.
         "duration_min": v.get("duration_min"),        # 가는 편
         "duration_rt_min": v.get("duration_rt_min"),  # 왕복 총합
@@ -1960,7 +1987,7 @@ def load(path, default):
 # 그대로 노출하지 않는다 (파일이 커지고, 화면이 안 쓰는 필드까지 딸려간다).
 OFFER_FIELDS = (
     "id dep arr city region depart_date return_date nights airline airline_kr "
-    "stops duration_min duration_rt_min price_krw found_at via via_name via_src link dep_hour ret_hour holiday weekend red_days "
+    "stops stops_src stops_conflict duration_min duration_rt_min price_krw found_at via via_name via_src link dep_hour ret_hour holiday weekend red_days "
     "source source_confidence live booking_url sources best_price "
     "annual_leave weekend_trip night_departure roundtrip_verified "
     "baseline baseline_avg baseline_n baseline_tier confidence diff_krw "
@@ -2222,6 +2249,8 @@ def main():
             "pooled_buckets": {f"{d}-{a}-{nn}": v
                                for (d, a, nn), v in baselines["pooled"].items()},
             "errors": ERRORS[:30],
+            # 소스가 스스로 모순된 곳. 조용히 고르지 않고 남긴다.
+            "stops_conflict": STOPS_CONFLICT[:30],
             "raw_counts": RAWCOUNT,
             "deep_tried": sorted(DEEP_TRIED),
             "v3": V3STAT,
@@ -2331,6 +2360,9 @@ def main():
                 f"비교불가 {tiers['unknown']}\n\n"
                 f"🆕 {stats['new']} · 📉 {stats['down']} · 📈 {stats['up']} · "
                 f"⚰️ {stats['gone']}\n\n"
+                + ("## 직항 표기 불일치\n"
+                   + "\n".join(f"- {c}" for c in STOPS_CONFLICT[:30]) + "\n\n"
+                   if STOPS_CONFLICT else "")
                 + ("## 오류\n" + "\n".join(f"- {e}" for e in ERRORS[:30])
                    if ERRORS else ""))
 
@@ -2347,6 +2379,9 @@ def main():
           f"후보 {tiers['candidate']} / 일반 {tiers['normal']} / "
           f"비교불가 {tiers['unknown']}")
     print(f"   🆕{stats['new']} 📉{stats['down']} 📈{stats['up']} ⚰️{stats['gone']}")
+    if STOPS_CONFLICT:
+        print(f"   ⚠️ 직항 표기 불일치 {len(STOPS_CONFLICT)}건 "
+              f"(direct 엔드포인트가 환승편을 줬다)")
     if ERRORS:
         print(f"   ⚠️ 오류 {len(ERRORS)}건 — 로그 확인")
     print(f"\n   → {os.path.join(ROOT, 'state', 'deals.json')}")

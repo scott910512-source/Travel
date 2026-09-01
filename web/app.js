@@ -248,6 +248,8 @@ function badgesHTML(o) {
     b.push(`<span class="bg ${t}">${TIER_LABEL[t]}</span>`);
     b.push(`<span class="bg">표본 ${o.baseline_n || 0} · 신뢰도 ${esc(o.confidence || '참고')}</span>`);
   }
+  const sn = stopSrcNote(o);
+  if (sn) b.push(`<span class="bg ${sn.cls}">${esc(sn.txt)}</span>`);
   if (o.weekend_trip) b.push(`<span class="bg pri">주말 · ${leaveTxt(o.annual_leave)}</span>`);
   if (o.holiday) b.push(`<span class="bg pri">${esc(o.holiday)}</span>`);
   if (o.change === 'new') b.push('<span class="bg pri">🆕 신규</span>');
@@ -358,12 +360,27 @@ function viaTxt(o) {
 }
 // 경유를 모를 때는 모른다고 적는다. 빈칸으로 두면 정보가 없다는 것조차 모른다.
 function stopDetail(o) {
-  if (o.stops === 0) return '직항';
+  // 근거가 엔드포인트 이름뿐이면 "직항" 이라고 단정하지 않는다.
+  if (o.stops === 0) return o.stops_src === 'endpoint' ? '직항(소스 주장)' : '직항';
   if (o.stops == null) return '환승 정보 없음';
   const v = viaTxt(o);
   return v ? `${stopTxt(o.stops)} · ${v}` : `${stopTxt(o.stops)} · 경유지 미상`;
 }
 const stopTxt = s => (s === 0 ? '직항' : (s === 1 ? '1회 환승' : (s == null ? '환승 정보 없음' : `${s}회 환승`)));
+
+/* "직항" 이라는 말의 무게가 늘 같지는 않다.
+   ★ 소스가 직항이라고 한 것과 우리가 확인한 것은 다르다. 실제로 직항편이
+     없는 노선을 직항으로 답한 사례가 있다(대구→괌). 근거가 엔드포인트
+     이름뿐이면 그렇게 적는다 — 지어내지도, 숨기지도 않는다. */
+function stopSrcNote(o) {
+  if (o.stops_conflict) {
+    return { cls: 'up', txt: `⚠️ 소스 불일치 · 직항만 준다는 곳에서 ${o.stops}회 환승으로 왔습니다` };
+  }
+  if (o.stops === 0 && o.stops_src === 'endpoint') {
+    return { cls: 'pri', txt: '직항 여부는 소스 주장 · 예약 전 확인' };
+  }
+  return null;
+}
 
 function heroHTML(o, rank, plainLabel) {
   const acc = accessOf(o.dep);
