@@ -226,6 +226,39 @@ function isErrorFare(o) {
   if ((o.baseline_n || 0) < 10) return false;
   return true;
 }
+/* 에러페어 신뢰 단계. 핵심은 "몇 개 소스가 같은 값을 봤는가" 다.
+   ★ 지금은 Travelpayouts 하나뿐이라 실제로는 전부 LEVEL 1 이다.
+     Duffel·Skyscanner 토큰이 없으면 교차검증 자체가 불가능하다.
+     그걸 숨기고 높은 숫자를 띄우면 이 앱이 하지 말아야 할 일을 하는 것이다.
+     소스가 붙는 순간 자동으로 2·3단계가 뜬다. */
+function efLevel(o) {
+  const srcs = o.sources || (o.source ? [{ source: o.source }] : []);
+  const names = [...new Set(srcs.map(s => s.source || s).filter(Boolean))];
+  const n = names.length;
+  const flags = errorFareFlags(o).length;
+
+  if (n >= 2 && flags >= 4) {
+    return { lv: 3, icon: '🔥', label: '강한 이상가격 후보', cls: 'strong',
+             pct: 91, why: `${names.join(' · ')} 에서 조건까지 일치`,
+             note: '가격이 빠르게 사라질 수 있습니다.' };
+  }
+  if (n >= 2) {
+    return { lv: 2, icon: '⚡', label: '에러페어 의심', cls: 'deal',
+             pct: 72, why: `${names.join(' · ')} 두 곳에서 비슷한 가격`,
+             note: '' };
+  }
+  return { lv: 1, icon: '⚠️', label: '이상가격 발견', cls: 'pri',
+           pct: 31, why: `${names[0] || '한 소스'} 에서만 발견`,
+           note: '다른 소스에서 확인되지 않았습니다.' };
+}
+
+/* 지금 교차검증이 가능한 상태인가. 불가능하면 그렇게 적는다. */
+function crossCheckable() {
+  const ps = (S.data.meta || {}).providers || {};
+  const on = Object.keys(ps).filter(k => ps[k].enabled !== false);
+  return { on, off: Object.keys(ps).filter(k => ps[k].enabled === false) };
+}
+
 function errorConfidence(o) {
   const n = errorFareFlags(o).length;
   return n >= 4 ? '높음' : (n >= 3 ? '보통' : '낮음');
@@ -1524,6 +1557,19 @@ function swissDiag() {
 }
 
 /* ── 화면: 에러페어 ───────────────────────────────────── */
+/* 교차검증이 가능한 상태인지 먼저 말한다.
+   소스가 하나뿐인데 "신뢰도 84%" 같은 숫자를 띄우면 그건 지어낸 것이다. */
+function crossNote() {
+  const { on, off } = crossCheckable();
+  if (off.length === 0) return '';
+  return `<div class="note"><b>지금은 교차검증을 할 수 없습니다</b>
+    <p>서로 다른 소스가 같은 가격을 보여야 "에러페어 의심" 이 올라갑니다.
+    현재 켜져 있는 소스는 <b>${esc(on.join(' · ') || '없음')}</b> 하나뿐이라,
+    아래는 전부 <b>1단계(한 소스에서만 발견)</b> 입니다.<br>
+    ${esc(off.join(' · '))} 는 토큰이 없어 꺼져 있습니다. 토큰을 넣으면
+    2·3단계 판정이 자동으로 켜집니다.</p></div>`;
+}
+
 function viewError() {
   const pool = visibleOffers().filter(isErrorFare)
     .sort((a, b) => b.discount_pct - a.discount_pct);
@@ -1531,19 +1577,23 @@ function viewError() {
   const body = pool.length
     ? `<div class="list two">${pool.slice(0, 30).map(o => {
         const r = (S.data.routes || {})[`${o.dep}-${o.arr}`] || {};
+        const lv = efLevel(o);
         return `<button class="cd" data-open="${esc(o.id)}">
-          <div class="top"><span class="rk r1">⚡</span>
+          <div class="top"><span class="rk r1">${lv.icon}</span>
             <div class="ttl"><div class="route">${esc(depCity(o.dep))} → ${esc(o.city)}</div>
               <div class="sub">${esc(o.dep)}→${esc(o.arr)} · ${md(o.depart_date)} → ${md(o.return_date)} · ${o.nights}박 · ${stopTxt(o.stops)}</div></div>
             <div class="price"><div class="v">${won(effective(o))}</div>
               <div class="k">실부담</div></div></div>
           <div class="foot">${cmpHTML(o)}</div>
           <div class="badges">
-            <span class="bg strong">⚡ 에러페어 의심</span>
-            <span class="bg">평균 ${won(r.avg || o.baseline)}원</span>
-            <span class="bg">표본 ${o.baseline_n}</span>
-            <span class="bg">신뢰도 ${esc(errorConfidence(o))}</span>
-          </div></button>`;
+            <span class="bg ${lv.cls}">${lv.icon} ${esc(lv.label)}</span>
+            <span class="bg">교차검증 ${lv.pct}% · ${esc(lv.why)}</span>
+            <span class="bg">기준가 ${won(o.baseline || r.median || r.avg)}원</span>
+            <span class="bg">표본 ${o.baseline_n}${o.baseline_days ? ` · 추적 ${o.baseline_days}일` : ''}</span>
+          </div>
+          ${lv.note ? `<p style="margin:8px 0 0;font-size:12px;font-weight:700;
+            color:var(--tx3);text-align:left;line-height:1.5">${esc(lv.note)}</p>` : ''}
+          </button>`;
       }).join('')}</div>`
     : emptyBlock('지금 에러페어 의심 건이 없습니다',
         '평균 대비 50% 이상 저렴하면서 표본이 10건 이상인 항공권만 여기 올립니다.');
@@ -1563,8 +1613,11 @@ function viewError() {
   return `${plainHeader('에러페어', '오류운임 "의심" 탐지 — 확정이 아닙니다')}
   <div class="wrap">
     <div class="note warn" style="margin-top:16px"><b>⚡ 의심이지 확정이 아닙니다</b>
-      <p>항공사 오류운임인지 이 데이터만으로는 확정할 수 없습니다.
-      캐시가 오래됐거나 특가 프로모션일 수도 있습니다. 반드시 판매처에서 직접 확인하세요.</p></div>
+      <p>가격 데이터에서 비정상적으로 낮은 값을 자동으로 찾아 올립니다.
+      <b>오류운임 확정이 아니라 "의심 후보"</b>입니다. 캐시가 오래됐거나
+      특가 프로모션일 수도 있습니다. 실제 구매 가능 여부는 항공사·판매처에서
+      다시 확인해야 합니다.</p></div>
+    ${crossNote()}
     <section class="sec"><div class="sec-hd"><div><h2>의심 건</h2>
       <p>평균 대비 50%+ 하락 · 표본 10건 이상</p></div></div>${body}</section>
     ${steepBlock}
