@@ -1,8 +1,8 @@
 {
  "date": "2026-09-01",
- "ts": "2026-09-01 21:53 KST",
+ "ts": "2026-09-01 22:04 KST",
  "status": "OK",
- "headline": "볼 것 405건 · 강력특가 37 · 주말여행 3 · CJJ 3 · 신규 1",
+ "headline": "볼 것 405건 · 강력특가 37 · 주말여행 3 · CJJ 3",
  "home": "CJJ",
  "reason": null,
  "degraded": null,
@@ -15,10 +15,10 @@
   "candidate": 35,
   "weekend": 88,
   "home": 35,
-  "new": 1,
+  "new": 0,
   "down": 0,
-  "up": 38,
-  "gone": 1
+  "up": 47,
+  "gone": 0
  },
  "source_note": "Travelpayouts 캐시 데이터 · 실시간 확정가 아님",
  "access_note": "실부담가 = 항공권 + CJJ 기준 왕복 교통비 (추정치)",
@@ -65,14 +65,14 @@
  ],
  "weekend": [
   {
-   "text": "후쿠오카 CJJ→FUK · 09-04~09-06 2박 · 319,864원 · 평균보다 19% 저렴 · 주말 연차1일",
+   "text": "후쿠오카 CJJ→FUK · 09-04~09-06 2박 · 320,079원 · 평균보다 19% 저렴 · 주말 연차1일",
    "tier": "candidate",
    "tier_label": "특가 후보",
    "confidence": "보통",
    "sample": 9,
-   "price": 319864,
+   "price": 320079,
    "access": 0,
-   "effective": 319864,
+   "effective": 320079,
    "weekend_trip": true,
    "leave": 1.0,
    "link": "https://www.aviasales.com/search/CJJ0409FUK06091"
@@ -132,14 +132,14 @@
    "link": "https://www.aviasales.com/search/CJJ1309CJU15091"
   },
   {
-   "text": "후쿠오카 CJJ→FUK · 09-04~09-06 2박 · 319,864원 · 평균보다 19% 저렴 · 주말 연차1일",
+   "text": "후쿠오카 CJJ→FUK · 09-04~09-06 2박 · 320,079원 · 평균보다 19% 저렴 · 주말 연차1일",
    "tier": "candidate",
    "tier_label": "특가 후보",
    "confidence": "보통",
    "sample": 9,
-   "price": 319864,
+   "price": 320079,
    "access": 0,
-   "effective": 319864,
+   "effective": 320079,
    "weekend_trip": true,
    "leave": 1.0,
    "link": "https://www.aviasales.com/search/CJJ0409FUK06091"
