@@ -1,53 +1,40 @@
 {
  "date": "2026-09-01",
- "ts": "2026-09-02 04:17 KST",
+ "ts": "2026-09-02 08:52 KST",
  "status": "OK",
- "headline": "볼 것 390건 · 강력특가 34 · 주말여행 3 · CJJ 3 · 신규 10 · 하락 9",
+ "headline": "볼 것 387건 · 강력특가 37 · 주말여행 3 · CJJ 3 · 신규 3",
  "home": "CJJ",
  "reason": null,
  "degraded": null,
  "holiday_gap": null,
  "counts": {
-  "total": 393,
-  "comparable": 390,
-  "strong": 34,
-  "deal": 27,
-  "candidate": 32,
+  "total": 390,
+  "comparable": 387,
+  "strong": 37,
+  "deal": 24,
+  "candidate": 33,
   "weekend": 87,
   "home": 31,
-  "new": 10,
-  "down": 9,
-  "up": 39,
-  "gone": 16
+  "new": 3,
+  "down": 0,
+  "up": 60,
+  "gone": 6
  },
  "source_note": "Travelpayouts 캐시 데이터 · 실시간 확정가 아님",
  "access_note": "실부담가 = 항공권 + CJJ 기준 왕복 교통비 (추정치)",
  "top": [
   {
-   "text": "오사카 ICN→KIX · 09-28~09-30 2박 · 142,650원 (실부담 186,650) · 평균보다 46% 저렴 · 강력 특가  🔻추적기간 최저",
+   "text": "오사카 ICN→KIX · 09-28~09-30 2박 · 142,650원 (실부담 186,650) · 평균보다 55% 저렴 · 강력 특가  🔻추적기간 최저",
    "tier": "strong",
    "tier_label": "강력 특가",
    "confidence": "보통",
-   "sample": 19,
+   "sample": 17,
    "price": 142650,
    "access": 44000,
    "effective": 186650,
    "weekend_trip": false,
    "leave": 2.5,
    "link": "https://www.aviasales.com/search/ICN2809KIX30091"
-  },
-  {
-   "text": "방콕 ICN→BKK · 09-15~09-18 3박 · 218,757원 (실부담 262,757) · 평균보다 38% 저렴 · 특가  🔻추적기간 최저",
-   "tier": "deal",
-   "tier_label": "특가",
-   "confidence": "보통",
-   "sample": 9,
-   "price": 218757,
-   "access": 44000,
-   "effective": 262757,
-   "weekend_trip": false,
-   "leave": 3.5,
-   "link": "https://www.aviasales.com/search/ICN1509BKK18091"
   },
   {
    "text": "오사카 PUS→KIX · 09-20~09-23 3박 · 132,482원 (실부담 188,482) · 평균보다 54% 저렴 · 강력 특가  🔻추적기간 최저",
@@ -61,9 +48,35 @@
    "weekend_trip": false,
    "leave": 3.0,
    "link": "https://www.aviasales.com/search/PUS2009KIX23091"
+  },
+  {
+   "text": "오사카 ICN→KIX · 09-28~10-01 3박 · 151,645원 (실부담 195,645) · 평균보다 40% 저렴 · 강력 특가",
+   "tier": "strong",
+   "tier_label": "강력 특가",
+   "confidence": "보통",
+   "sample": 24,
+   "price": 151645,
+   "access": 44000,
+   "effective": 195645,
+   "weekend_trip": false,
+   "leave": 3.5,
+   "link": "https://www.aviasales.com/search/ICN2809KIX01101"
   }
  ],
  "weekend": [
+  {
+   "text": "오사카 ICN→KIX · 09-05~09-07 2박 · 195,482원 (실부담 239,482) · 평균보다 39% 저렴 · 강력 특가 · 주말 연차1일",
+   "tier": "strong",
+   "tier_label": "강력 특가",
+   "confidence": "보통",
+   "sample": 17,
+   "price": 195482,
+   "access": 44000,
+   "effective": 239482,
+   "weekend_trip": true,
+   "leave": 1.0,
+   "link": "https://www.aviasales.com/search/ICN0509KIX07091"
+  },
   {
    "text": "도쿄 ICN→NRT · 09-04~09-06 2박 · 235,812원 (실부담 279,812) · 평균보다 30% 저렴 · 특가 · 주말 연차1일",
    "tier": "deal",
@@ -78,30 +91,17 @@
    "link": "https://www.aviasales.com/search/ICN0409NRT06091"
   },
   {
-   "text": "후쿠오카 CJJ→FUK · 09-04~09-06 2박 · 319,838원 · 평균보다 15% 저렴 · 주말 연차1일",
+   "text": "후쿠오카 CJJ→FUK · 09-04~09-06 2박 · 319,912원 · 평균보다 15% 저렴 · 주말 연차1일",
    "tier": "candidate",
    "tier_label": "특가 후보",
    "confidence": "보통",
    "sample": 6,
-   "price": 319838,
+   "price": 319912,
    "access": 0,
-   "effective": 319838,
+   "effective": 319912,
    "weekend_trip": true,
    "leave": 1.0,
    "link": "https://www.aviasales.com/search/CJJ0409FUK06091"
-  },
-  {
-   "text": "타이베이 PUS→TPE · 09-10~09-13 3박 · 205,189원 (실부담 261,189) · 평균보다 26% 저렴 · 특가 · 주말 연차1일",
-   "tier": "deal",
-   "tier_label": "특가",
-   "confidence": "보통",
-   "sample": 7,
-   "price": 205189,
-   "access": 56000,
-   "effective": 261189,
-   "weekend_trip": true,
-   "leave": 1.0,
-   "link": "https://www.aviasales.com/search/PUS1009TPE13091"
   }
  ],
  "home_airport": [
@@ -119,14 +119,14 @@
    "link": "https://www.aviasales.com/search/CJJ1509KIX17091"
   },
   {
-   "text": "후쿠오카 CJJ→FUK · 09-04~09-06 2박 · 319,838원 · 평균보다 15% 저렴 · 주말 연차1일",
+   "text": "후쿠오카 CJJ→FUK · 09-04~09-06 2박 · 319,912원 · 평균보다 15% 저렴 · 주말 연차1일",
    "tier": "candidate",
    "tier_label": "특가 후보",
    "confidence": "보통",
    "sample": 6,
-   "price": 319838,
+   "price": 319912,
    "access": 0,
-   "effective": 319838,
+   "effective": 319912,
    "weekend_trip": true,
    "leave": 1.0,
    "link": "https://www.aviasales.com/search/CJJ0409FUK06091"
