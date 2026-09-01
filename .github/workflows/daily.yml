@@ -136,10 +136,22 @@ jobs:
           (이번 결과는 다음 실행에서 다시 커밋됩니다)"
 
       # Pages 산출물 = 정적 앱(web/) + 데이터(deals.json, brief.json)
+      # ★ 캐시 무력화. app.js 에 버전이 안 붙어 있으면 기기가 옛 파일을
+      #   계속 쓴다. UI 전체가 app.js 안에 있으므로 그게 곧 "과거 화면" 이
+      #   된다. deals.json 은 no-cache 로 받으니 데이터만 최신이고 화면은
+      #   옛것인 상태가 되어 원인을 찾기 어렵다.
+      #   GitHub Pages 는 max-age=600 을 주는데, iOS 홈 화면 앱은 그보다
+      #   훨씬 오래 붙들고 있는다. 배포마다 URL 이 바뀌어야 확실하다.
       - name: Pages 산출물 준비
         run: |
           mkdir -p public
           cp web/index.html web/app.css web/app.js public/
+          BUILD="${GITHUB_SHA::7}"
+          sed -i "s|href=\"app.css\"|href=\"app.css?v=${BUILD}\"|" public/index.html
+          sed -i "s|src=\"app.js\"|src=\"app.js?v=${BUILD}\"|"   public/index.html
+          sed -i "s|__BUILD__|${BUILD}|"                            public/index.html
+          echo "빌드 ${BUILD}"
+          grep -E 'app\.(js|css)' public/index.html
           cp web/icon.svg web/icon-32.png web/icon-180.png \
              web/icon-192.png web/icon-512.png public/
           cp web/manifest.webmanifest public/

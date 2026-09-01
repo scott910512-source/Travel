@@ -71,6 +71,9 @@ a{color:inherit}
 }
 .chip[aria-pressed="true"]{background:var(--pri);border-color:var(--pri);color:#fff}
 
+/* 스캔이 6시간 주기보다 오래됐다 — 뭔가 멈춘 것이다 */
+.upd .stale{color:var(--warn);font-weight:800}
+
 /* 국내 / 해외 — 출발지 칩보다 큰 구분이라 위에 두고 폭을 꽉 채운다.
    가로 스크롤이 아니라 3등분이어야 "전체 구분" 으로 읽힌다. */
 .scopes{

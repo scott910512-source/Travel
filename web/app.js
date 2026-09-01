@@ -687,12 +687,30 @@ function emptyBlock(title, body) {
   return `<div class="note warn"><b>${esc(title)}</b><p>${esc(body)}</p></div>`;
 }
 
+/* 스캔이 몇 시간 전인지. "21:12 KST" 만 적어 두면 그게 오늘인지
+   그저께인지 사용자가 직접 따져야 한다.
+   ★ ts 는 스캐너가 KST 로 찍는다. 브라우저 시간대가 뭐든 KST 로 해석해야
+     한다 — 로컬로 읽으면 뉴욕에서 13시간 어긋난다. */
+function scanAgo(ts) {
+  if (!ts) return '';
+  const m = String(ts).match(/(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
+  if (!m) return '';
+  const t = Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4] - 9, +m[5]);  // KST → UTC
+  const min = Math.floor((Date.now() - t) / 60000);
+  if (!isFinite(min) || min < 0) return '';
+  const txt = min < 60 ? `${min}분 전`
+    : min < 1440 ? `${Math.floor(min / 60)}시간 ${min % 60}분 전`
+    : `${Math.floor(min / 1440)}일 전`;
+  // 6시간마다 도는데 그보다 오래됐으면 뭔가 멈춘 것이다. 눈에 띄게 한다.
+  return ` · <span class="${min > 420 ? 'stale' : ''}">${txt}</span>`;
+}
+
 function headerHTML() {
   const m = S.data.meta || {};
   return `<header class="hd"><div class="wrap"><div class="row">
     <img class="mark" src="icon.svg" alt="" width="34" height="34">
     <div class="grow"><h1>항공권 데일리 스캐너</h1>
-      <div class="upd">마지막 업데이트 <b>${esc(m.ts || '—')}</b></div></div>
+      <div class="upd">마지막 스캔 <b>${esc(m.ts || '—')}</b>${scanAgo(m.ts)}</div></div>
     <button class="iconbtn" data-reload aria-label="새로고침">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
         stroke-linecap="round" width="20" height="20">
@@ -724,12 +742,37 @@ function scopeChipsHTML() {
     }).join('') + `</div>`;
 }
 
+/* 이 기기가 지금 어떤 app.js 를 들고 있는가.
+   ★ 배포는 멀쩡한데 기기가 옛 파일을 캐시하고 있으면 원인을 찾을 길이
+     없다. 화면이 스스로 답하게 한다. 배포 시 workflow 가 커밋 SHA 를
+     넣고, 로컬에서는 __BUILD__ 그대로라 "로컬" 로 적는다. */
+function buildId() {
+  const el = document.querySelector('meta[name="build"]');
+  const v = el && el.getAttribute('content');
+  return (!v || v === '__BUILD__') ? '로컬' : v;
+}
+
+/* provider 별 상태. 실패한 곳이 있으면 결과 0건과 구분해서 적는다. */
+function providerLine() {
+  const ps = (S.data.meta || {}).providers;
+  if (!ps || !Object.keys(ps).length) return '소스 상태 정보 없음';
+  // 실제 모양: {calls, rows, errors:[], enabled, skipped}
+  //   ⚠️ 켜져 있는데 에러가 났다 — 결과 0건과 절대 같이 보이면 안 된다
+  //   ○  토큰이 없어 꺼져 있다 (고장이 아니다)
+  //   ✓  정상
+  const mark = p => (p.errors && p.errors.length) ? '⚠️'
+    : (p.enabled === false ? '○' : '✓');
+  return '소스 ' + Object.keys(ps).map(k =>
+    `${esc(k)} ${mark(ps[k])}`).join(' · ');
+}
+
 function footerHTML() {
   const m = S.data.meta || {};
   return `<footer>
     수집 ${m.count || 0}건 · 검색 ${m.used || 0}/${m.cap || 0}<br>
     소스 Travelpayouts 캐시 · 실시간 확정가가 아닙니다. 예약 전 판매처에서 확인하세요.<br>
-    GitHub Actions 마지막 실행 ${esc(m.ts || '—')}
+    ${providerLine()}<br>
+    GitHub Actions 마지막 실행 ${esc(m.ts || '—')} · 화면 ${esc(buildId())}
   </footer>`;
 }
 
