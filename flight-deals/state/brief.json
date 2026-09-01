@@ -1,24 +1,24 @@
 {
  "date": "2026-09-01",
- "ts": "2026-09-01 22:04 KST",
+ "ts": "2026-09-01 23:37 KST",
  "status": "OK",
- "headline": "볼 것 405건 · 강력특가 37 · 주말여행 3 · CJJ 3",
+ "headline": "볼 것 397건 · 강력특가 36 · 주말여행 3 · CJJ 3 · 신규 2 · 하락 4",
  "home": "CJJ",
  "reason": null,
  "degraded": null,
  "holiday_gap": null,
  "counts": {
-  "total": 407,
-  "comparable": 405,
-  "strong": 37,
-  "deal": 30,
-  "candidate": 35,
+  "total": 399,
+  "comparable": 397,
+  "strong": 36,
+  "deal": 29,
+  "candidate": 32,
   "weekend": 88,
-  "home": 35,
-  "new": 0,
-  "down": 0,
-  "up": 47,
-  "gone": 0
+  "home": 34,
+  "new": 2,
+  "down": 4,
+  "up": 46,
+  "gone": 10
  },
  "source_note": "Travelpayouts 캐시 데이터 · 실시간 확정가 아님",
  "access_note": "실부담가 = 항공권 + CJJ 기준 왕복 교통비 (추정치)",
@@ -65,19 +65,6 @@
  ],
  "weekend": [
   {
-   "text": "후쿠오카 CJJ→FUK · 09-04~09-06 2박 · 320,079원 · 평균보다 19% 저렴 · 주말 연차1일",
-   "tier": "candidate",
-   "tier_label": "특가 후보",
-   "confidence": "보통",
-   "sample": 9,
-   "price": 320079,
-   "access": 0,
-   "effective": 320079,
-   "weekend_trip": true,
-   "leave": 1.0,
-   "link": "https://www.aviasales.com/search/CJJ0409FUK06091"
-  },
-  {
    "text": "도쿄 ICN→NRT · 09-04~09-06 2박 · 235,812원 (실부담 279,812) · 평균보다 30% 저렴 · 특가 · 주말 연차1일",
    "tier": "deal",
    "tier_label": "특가",
@@ -89,6 +76,19 @@
    "weekend_trip": true,
    "leave": 1.0,
    "link": "https://www.aviasales.com/search/ICN0409NRT06091"
+  },
+  {
+   "text": "후쿠오카 CJJ→FUK · 09-04~09-06 2박 · 320,084원 · 평균보다 15% 저렴 · 주말 연차1일",
+   "tier": "candidate",
+   "tier_label": "특가 후보",
+   "confidence": "보통",
+   "sample": 6,
+   "price": 320084,
+   "access": 0,
+   "effective": 320084,
+   "weekend_trip": true,
+   "leave": 1.0,
+   "link": "https://www.aviasales.com/search/CJJ0409FUK06091"
   },
   {
    "text": "타이베이 PUS→TPE · 09-10~09-13 3박 · 205,189원 (실부담 261,189) · 평균보다 26% 저렴 · 특가 · 주말 연차1일",
@@ -132,14 +132,14 @@
    "link": "https://www.aviasales.com/search/CJJ1309CJU15091"
   },
   {
-   "text": "후쿠오카 CJJ→FUK · 09-04~09-06 2박 · 320,079원 · 평균보다 19% 저렴 · 주말 연차1일",
+   "text": "후쿠오카 CJJ→FUK · 09-04~09-06 2박 · 320,084원 · 평균보다 15% 저렴 · 주말 연차1일",
    "tier": "candidate",
    "tier_label": "특가 후보",
    "confidence": "보통",
-   "sample": 9,
-   "price": 320079,
+   "sample": 6,
+   "price": 320084,
    "access": 0,
-   "effective": 320079,
+   "effective": 320084,
    "weekend_trip": true,
    "leave": 1.0,
    "link": "https://www.aviasales.com/search/CJJ0409FUK06091"
