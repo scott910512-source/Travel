@@ -322,18 +322,15 @@ function srcBadge(o) {
 // 계산하고, 알 수 없으면 "직전 기록" 이라고만 한다 (지어내지 않는다).
 function deltaTxt(o) {
   if (!o.delta || (o.change !== 'down' && o.change !== 'up')) return '';
-  const log = o.price_log || [];
-  let when = '직전 기록';
-  if (log.length >= 2) {
-    // ★ Date.now() 와 비교하면 안 된다. 로그 날짜는 스캐너(KST)가 찍고
-    //   브라우저는 UTC 일 수 있어서 하루씩 밀린다. 로그끼리만 비교한다.
-    const a = Date.parse(log[log.length - 2].d + 'T00:00:00Z');
-    const b = Date.parse(log[log.length - 1].d + 'T00:00:00Z');
-    const days = (a && b) ? Math.round((b - a) / 86400000) : null;
-    if (days === 0) when = '오늘 앞선 조회';
-    else if (days === 1) when = '어제';
-    else if (days > 1) when = `${days}일 전`;
-  }
+  // ★ 며칠 전인지는 스캐너가 계산해서 delta_days 로 보내 준다.
+  //   브라우저가 로그 날짜로 직접 재면 안 된다 — 로그는 스캐너(KST)가
+  //   찍고 브라우저는 UTC 일 수 있어 하루씩 밀린다. 6시간마다 도는
+  //   지금은 "오늘 앞선 조회" 를 "어제" 라고 부르게 된다.
+  const d = o.delta_days;
+  const when = d === 0 ? '오늘 앞선 조회'
+    : d === 1 ? '어제'
+    : (typeof d === 'number' && d > 1) ? `${d}일 전`
+    : '직전 기록';
   const down = o.delta < 0;
   return `${down ? '📉' : '📈'} ${when}보다 ${won(Math.abs(o.delta))}원 ${down ? '내림' : '오름'}`;
 }
@@ -502,7 +499,7 @@ function viewHome() {
 
     <section class="sec">
       <div class="sec-hd"><div><h2>오늘 변화</h2>
-        <p>어제 스캔 대비</p></div></div>
+        <p>직전 스캔 대비 (6시간마다)</p></div></div>
       <div class="tiles">
         <button class="tile new" data-list="new"><div class="k">🆕 신규 특가</div>
           <div class="v">${newN}</div></button>
@@ -989,7 +986,7 @@ function markSeeded(key) {
     localStorage.setItem(SEED_KEY, JSON.stringify(m));
   } catch (_) {}
 }
-// 오늘 눌렀는가. 스캔은 하루 한 번이라 "오늘 눌렀으면 내일 결과를 기다리는
+// 오늘 눌렀는가. 스캔은 6시간마다라 "오늘 눌렀으면 다음 스캔 결과를 기다리는
 // 중" 이 맞다. 그 이전 기록은 이미 반영됐거나 실패한 것이므로 다시 권한다.
 function seededToday(key) {
   return loadSeeded()[key] === new Date().toISOString().slice(0, 10);
@@ -1158,9 +1155,9 @@ function seedChecklist() {
       손댈 필요 없습니다.</p>` : ''}
     <p style="margin:8px 2px 0;font-size:12px;color:var(--tx3);font-weight:600;line-height:1.5">
       이 앱이 대신 검색해 줄 수는 없습니다. 소스가 <b>실제 사람의 검색</b>만
-      기록하기 때문입니다. 결과는 <b>다음 스캔(매일 오전 7시)</b> 이후에
-      보입니다. 내일도 목록에 남아 있으면 검색이 끝까지 안 돌았다는 뜻이니
-      한 번 더 눌러 주세요.</p>
+      기록하기 때문입니다. 결과는 <b>다음 스캔(6시간마다 · 01·07·13·19시)</b>
+      이후에 보입니다. 다음 스캔 뒤에도 목록에 남아 있으면 검색이 끝까지
+      안 돌았다는 뜻이니 한 번 더 눌러 주세요.</p>
   </section>`;
 }
 

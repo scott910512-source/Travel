@@ -1792,7 +1792,11 @@ def track_routes(offers, hist):
         if k not in todays or p < todays[k]:
             todays[k] = p
     for k, p in todays.items():
-        daily.setdefault(k, {})[today] = p
+        # ★ 하루에 여러 번 도는 경우, 그냥 덮어쓰면 아침에 본 더 싼 값이
+        #   점심에 사라졌을 때 "그날 최저가" 가 올라가 버린다. 최저는
+        #   내려가기만 해야 한다.
+        cur = daily.setdefault(k, {}).get(today)
+        daily[k][today] = p if cur is None else min(cur, p)
 
     cut = str(date.today() - timedelta(days=90))
     for k in list(daily):
@@ -1864,6 +1868,16 @@ def route_stats(offers, daily, lows):
     return out
 
 
+def _days_since(d):
+    """기준일이 며칠 전인가. 0 = 같은 날(오늘 앞선 조회), 1 = 어제."""
+    if not d:
+        return None
+    try:
+        return (date.today() - datetime.strptime(d[:10], "%Y-%m-%d").date()).days
+    except ValueError:
+        return None
+
+
 def diff(offers, hist):
     prev = hist.get("deals", {})
     today = str(date.today())
@@ -1881,13 +1895,23 @@ def diff(offers, hist):
         else:
             log = p.get("price_log", [])
             last = log[-1]["p"] if log else p.get("price_krw")
+            ref_d = log[-1]["d"] if log else None
             d = o["price_krw"] - last
             o["delta"] = d
+            # ★ "무엇 대비" 인지를 여기서 계산해 넘긴다. 브라우저가 로그
+            #   날짜로 추측하게 두면 안 된다 — 로그는 스캐너(KST)가 찍고
+            #   브라우저는 UTC 일 수 있어 하루씩 밀린다. 6시간마다 돌면
+            #   "오늘 앞선 조회" 를 "어제" 라고 부르는 일까지 생긴다.
+            o["delta_days"] = _days_since(ref_d)
             o["change"] = "down" if d < 0 else ("up" if d > 0 else "flat")
             if d < 0: stats["down"] += 1
             elif d > 0: stats["up"] += 1
             if not log or log[-1]["d"] != today:
                 log = log + [{"d": today, "p": o["price_krw"]}]
+            else:
+                # 같은 날 다시 돌았다. 하루 한 점을 유지하되 그날의
+                # 최저로 남긴다 (record_low 가 이 값을 본다).
+                log = log[:-1] + [{"d": today, "p": min(last, o["price_krw"])}]
             o["price_log"] = log[-30:]
             o["first_seen"] = p.get("first_seen", today)
             lows = [x["p"] for x in o["price_log"]]
@@ -1992,7 +2016,7 @@ OFFER_FIELDS = (
     "annual_leave weekend_trip night_departure roundtrip_verified "
     "baseline baseline_avg baseline_n baseline_tier confidence diff_krw "
     "discount_pct data_ok data_note tier tier_label deal_score "
-    "low30 low_all route_avg change delta first_seen last_seen price_log"
+    "low30 low_all route_avg change delta delta_days first_seen last_seen price_log"
 ).split()
 
 
