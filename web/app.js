@@ -919,6 +919,77 @@ const LIST_FILTERS = [
   { k: 'weekend', l: '주말여행' },
 ];
 
+/* 지금 무엇이 걸려 있는가. 칩이 두 줄이라 하나만 보고 "왜 이것밖에 없지"
+   가 되기 쉽다. 건수 옆에 조건을 그대로 적는다. */
+function activeFilterTxt(mo) {
+  const g = GROUPS.find(x => x.key === S.origin);
+  const bits = [];
+  if (S.origin !== 'all' && g) bits.push(g.label);
+  if (S.scope !== 'all') bits.push(scopeLabel());
+  if (mo) bits.push(`${monthLabel(mo)} 출발`);
+  return bits.length ? bits.join(' · ') : '전체';
+}
+
+/* 지금 조건이 앱이 가진 것보다 훨씬 좁으면 그렇게 말한다.
+   ★ 조회가 안 되는 것과 조건이 좁은 것은 다르다. 구분해 주지 않으면
+     사용자는 "조회가 안 된다" 로 읽는다. 실제로 그렇게 읽혔다 —
+     청주+해외 22건을 보고 앱 전체에 22건뿐인 줄 알았다 (실제 419건).
+   ★ 숫자는 "그 버튼을 누르면 실제로 보게 될 값" 이어야 한다. 예전 초안은
+     두 조건을 다 푼 값(37)을 적어 놓고 버튼은 출발지만 풀어서(36) 눌러
+     보면 숫자가 달랐다. 안내가 틀리면 안내가 없느니만 못하다. */
+function narrowInfo(mo) {
+  const inMonth = o => !mo || monthKey(o) === mo;
+  const wide = visibleOffers().filter(inMonth);
+  const now = wide.filter(o => inGroup(o.dep, S.origin) && inScope(o, S.scope)).length;
+
+  // 출발지만 푼 경우 (국내/해외는 그대로) — '전체 비교로 보기' 가 하는 일
+  const byOrigin = S.origin === 'all' ? now
+    : wide.filter(o => inScope(o, S.scope)).length;
+  // 국내/해외만 푼 경우 (출발지는 그대로)
+  const byScope = S.scope === 'all' ? now
+    : wide.filter(o => inGroup(o.dep, S.origin)).length;
+
+  return { now, byOrigin, byScope,
+           gain: Math.max(byOrigin, byScope) > now };
+}
+
+function narrowNote() {
+  const mo = S.listMonth || null;
+  const info = narrowInfo(mo);
+  if (!info.gain) return '';
+
+  const inMonth = o => !mo || monthKey(o) === mo;
+  const lines = [];
+  if (info.byOrigin > info.now) {
+    const g = GROUPS.find(x => x.key === S.origin);
+    lines.push(`출발지를 <b>${esc(g ? g.label : S.origin)}</b>로 좁혀 두었습니다.
+      풀면 <b>${info.byOrigin}건</b>입니다.`);
+  }
+  if (info.byScope > info.now) {
+    lines.push(`<b>${esc(scopeLabel())}</b>만 보고 있습니다.
+      전체로 보면 <b>${info.byScope}건</b>입니다.`);
+  }
+
+  // 어느 출발지에 얼마나 있는지까지 적어야 어디를 눌러야 할지 안다.
+  const rows = GROUPS.filter(g => g.key !== 'all' && g.key !== S.origin).map(g => ({
+    g, n: visibleOffers().filter(o =>
+      inMonth(o) && inGroup(o.dep, g.key) && inScope(o, S.scope)).length,
+  })).filter(x => x.n > 0).sort((a, b) => b.n - a.n);
+
+  return `<div class="note"><b>${info.now
+      ? '지금 보이는 건수가 적은 이유'
+      : '조회가 안 되는 게 아니라 조건이 좁습니다'}</b>
+    <p>${lines.join('<br>')}</p>
+    <div class="frow" style="margin-top:8px">
+      ${S.origin !== 'all'
+        ? `<button class="fchip" data-origin="all">전체 출발지 ${info.byOrigin}건</button>` : ''}
+      ${S.scope !== 'all'
+        ? `<button class="fchip" data-scope="all">국내+해외 ${info.byScope}건</button>` : ''}
+      ${rows.slice(0, 3).map(x => `<button class="fchip" data-origin="${x.g.key}"
+        >${esc(x.g.label)} ${x.n}</button>`).join('')}
+    </div></div>`;
+}
+
 function viewList() {
   const f = S.listFilter || 'all';
   const mo = S.listMonth || null;
@@ -936,9 +1007,17 @@ function viewList() {
   // 필터 후 기준으로 만들면 강력특가처럼 한 달에 몰린 조건에서 달이 하나만
   // 남아 월 칩이 통째로 사라진다. 그러면 "10월엔 강력특가가 없다" 는 사실이
   // 보이는 대신 숨겨진다. 0건인 달도 0이라고 적어 두는 편이 낫다.
+  //
+  // ★ 목록 자체는 출발지·국내해외를 걸기 *전* 에서 만든다. 예전에는 지금
+  //   pool 에 있는 달만 만들어서, 청주+해외처럼 좁은 조합에서 11월 칩이
+  //   통째로 사라졌다. 앱 전체로는 11월 해외가 38건 있는데도 화면에는
+  //   9·10·12월만 보이니 "다른 월은 조회가 안 된다" 로 읽힌다.
+  //   0이면 0이라고 적어 두는 편이 "없다" 를 정확히 말한다.
   const counts = {};
   pool.forEach(o => { const k = monthKey(o); if (k) counts[k] = (counts[k] || 0) + 1; });
-  const months = monthsIn(base).map(m => ({ k: m.k, n: counts[m.k] || 0 }));
+  const wide = visibleOffers();
+  const months = monthsIn(wide).map(m => ({ k: m.k, n: counts[m.k] || 0,
+                                            all: m.n }));
   if (mo) pool = pool.filter(o => monthKey(o) === mo);
 
   const LIST_CAP = 120;
@@ -947,7 +1026,9 @@ function viewList() {
   const monthRow = months.length > 1 ? `<div class="filters"><div class="frow">
       <button class="fchip" data-month="all" aria-pressed="${!mo}">전체 기간</button>
       ${months.map(m => `<button class="fchip${m.n ? '' : ' zero'}"
-        data-month="${m.k}" aria-pressed="${mo === m.k}">${monthLabel(m.k)} <span
+        data-month="${m.k}" aria-pressed="${mo === m.k}"
+        title="${m.n ? '' : `지금 조건에는 없습니다. 조건을 넓히면 ${m.all}건`}"
+        >${monthLabel(m.k)} <span
         style="font-family:var(--mono);opacity:.65">${m.n}</span></button>`).join('')}
     </div></div>` : '';
 
@@ -959,14 +1040,17 @@ function viewList() {
     </div></div>
     ${monthRow}
     <p style="font-size:12px;color:var(--tx3);margin:2px 0 12px;font-weight:600">
-      ${matched}건${mo ? ` · ${monthLabel(mo)} 출발` : ''} ·
-      실부담가(항공권 + 청주 기준 이동비) 순${
+      ${esc(activeFilterTxt(mo))} · ${matched}건 ·
+      실부담가(항공권 + ${esc(homeCity())} 기준 이동비) 순${
         matched > LIST_CAP ? ` · 상위 ${LIST_CAP}건 표시` : ''}</p>
+    ${narrowNote()}
     ${list.length
       ? `<div class="list two">${list.map(o => cardHTML(o)).join('')}</div>`
-      : emptyBlock('조건에 맞는 항공권이 없습니다',
-          mo ? `${monthLabel(mo)} 출발 중에는 없습니다. 다른 달을 눌러 보세요.`
-             : '필터를 넓혀 보세요.')}
+      : emptyBlock(`${activeFilterTxt(mo)} 조건에 맞는 항공권이 없습니다`,
+          narrowInfo(mo).gain
+            ? '위 안내에서 조건을 넓혀 보세요.'
+            : (mo ? `${monthLabel(mo)} 출발은 어느 출발지에도 없습니다.`
+                  : '설정에서 여행 기간이나 환승 조건을 넓혀 보세요.'))}
     ${footerHTML()}
   </div>`;
 }
