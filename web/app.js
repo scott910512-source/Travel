@@ -24,7 +24,10 @@ const S = {
   origin: 'all',       // 출발지 칩 (어디서 뜨나)
   scope: 'all',        // 국내 / 해외 (어디로 가나) — 출발지와 다른 축이다
   listFilter: null,    // 전체 특가 리스트 필터 (등급·성격 축)
-  listMonth: null,     // 출발 월 필터 (독립 축). null = 전체
+  month: null,         // 출발 월 (독립 축). null = 전체.
+                       // ★ 홈과 목록이 같은 값을 쓴다. 두 벌로 두면
+                       //   홈에서 10월을 고르고 "전체 보기" 를 눌렀을 때
+                       //   목록이 전체 기간으로 돌아가 버린다.
   weekendSpan: 'all',
 };
 
@@ -546,8 +549,33 @@ function staleNote() {
     <span style="font-family:var(--mono);font-size:11.5px">${esc(st.reason)}</span></p></div>`;
 }
 
-function viewHome() {
+const inMonth = o => !S.month || monthKey(o) === S.month;
+
+/* 홈 월 칩. 목록 화면의 월 칩과 같은 S.month 를 쓴다.
+   ★ 목록은 만들 때 출발지·국내해외를 걸기 *전* 에서 만든다. 그래야
+     "청주 해외에 11월은 0건" 이 보인다. 칩이 사라지면 조회가 안 되는
+     것으로 읽힌다 (실제로 그렇게 읽혔다). */
+function monthChipsHTML() {
+  const wide = visibleOffers();
+  const months = monthsIn(wide);
+  if (months.length < 2) return '';
   const pool = homeOffers();
+  const cnt = {};
+  pool.forEach(o => { const k = monthKey(o); if (k) cnt[k] = (cnt[k] || 0) + 1; });
+  return `<div class="filters"><div class="frow" role="group" aria-label="출발 월">
+    <button class="fchip" data-month="${'all'}" aria-pressed="${!S.month}">전체 기간</button>
+    ${months.map(m => {
+      const n = cnt[m.k] || 0;
+      return `<button class="fchip${n ? '' : ' zero'}" data-month="${m.k}"
+        aria-pressed="${S.month === m.k}">${monthLabel(m.k)} <span
+        style="font-family:var(--mono);opacity:.65">${n}</span></button>`;
+    }).join('')}
+  </div></div>`;
+}
+
+function viewHome() {
+  // 달은 출발지·국내해외와 또 다른 축이다. 곱해서 걸린다.
+  const pool = homeOffers().filter(inMonth);
   const ok = pool.filter(o => o.data_ok);
   const top = ranked(ok).slice(0, 5);
   const strong = ok.filter(o => dealTier(o) === 'strong');
@@ -559,12 +587,13 @@ function viewHome() {
 
   let deals;
   if (!pool.length) {
-    deals = emptyBlock(
-      S.scope === 'all' ? '조건에 맞는 항공권이 없습니다'
-                        : `${scopeLabel()} 노선에 조건에 맞는 항공권이 없습니다`,
-      S.scope === 'all'
-        ? '설정에서 출발지나 여행 기간 범위를 넓혀 보세요.'
-        : `위 "전체" 를 누르면 ${S.scope === 'dom' ? '해외' : '국내'} 노선까지 같이 봅니다. 여행 기간 범위를 넓혀 봐도 됩니다.`);
+    // 무엇 때문에 비었는지를 적는다. "없습니다" 만 적으면 조회가 안 되는
+    // 것으로 읽힌다 — 전체 특가 화면에서 겪은 것과 같은 문제다.
+    deals = emptyBlock(`${activeFilterTxt(S.month)} 조건에 맞는 항공권이 없습니다`,
+      narrowInfo(S.month).gain
+        ? '아래 안내에서 조건을 넓혀 보세요.'
+        : (S.month ? `${monthLabel(S.month)} 출발은 어느 조건에도 없습니다. 위 "전체 기간" 을 눌러 보세요.`
+                   : '설정에서 여행 기간이나 환승 조건을 넓혀 보세요.'));
   } else if (!top.length) {
     deals = emptyBlock('비교 가능한 항공권이 없습니다',
       '표본이 모자라 평균가를 만들지 못했습니다. 며칠 더 쌓이면 판정이 살아납니다.');
@@ -601,17 +630,19 @@ function viewHome() {
       <div class="list">${top.slice(1).map((o, i) => cardHTML(o, i + 2)).join('')}</div></div>`;
   }
 
-  return `${headerHTML()}${chipsHTML()}
+  return `${headerHTML()}${chipsHTML()}${monthChipsHTML()}
   <div class="wrap">
     ${staleNote()}
     <section class="sec">
       <div class="sec-hd">
         <div><h2>🔥 오늘의 강력 특가</h2>
-          <p>${S.scope === 'all' ? '국내 + 해외' : esc(scopeLabel())} ·
+          <p>${S.scope === 'all' ? '국내 + 해외' : esc(scopeLabel())}${
+            S.month ? ` · ${monthLabel(S.month)} 출발` : ''} ·
             ${esc(homeCity())} 기준 이동비 포함 실부담가 순</p></div>
         <button class="more" data-view="list">전체 보기 →</button>
       </div>
       ${deals}
+      ${narrowNote()}
     </section>
 
     <section class="sec">
@@ -765,14 +796,16 @@ function monthSection(pool) {
 
   return `<section class="sec">
     <div class="sec-hd"><div><h2>📅 월별로 보기</h2>
-      <p>출발 월별 최저 실부담가. 눌러서 그 달만 볼 수 있습니다.</p></div></div>
+      <p>출발 월별 최저 실부담가. 눌러서 그 달 목록으로 갑니다.<br>위 월 칩으로는 이 화면에서 바로 걸 수 있습니다.</p></div></div>
     <div class="panel">
       ${rows.map(r => {
         const thin = r.n < THIN_MONTH;
         const best = r.k === cheapest.k && !thin;
-        return `<button class="kv mrow" data-month="${r.k}">
+        const on = S.month === r.k;
+        return `<button class="kv mrow${on ? ' on' : ''}" data-month="${r.k}"
+            data-month-goto="1" aria-pressed="${on}">
           <span class="k" style="color:var(--tx);font-weight:700">
-            ${best ? '💰 ' : ''}${monthLabel(r.k)}
+            ${on ? '✓ ' : (best ? '💰 ' : '')}${monthLabel(r.k)}
             <span style="font-family:var(--mono);font-size:11.5px;color:var(--tx3);font-weight:600">
               ${r.n}건${r.strong ? ` · 강력특가 ${r.strong}` : ''}</span></span>
           <span class="v">${won(effective(r.lo))}원
@@ -954,7 +987,7 @@ function narrowInfo(mo) {
 }
 
 function narrowNote() {
-  const mo = S.listMonth || null;
+  const mo = S.month || null;
   const info = narrowInfo(mo);
   if (!info.gain) return '';
 
@@ -992,7 +1025,7 @@ function narrowNote() {
 
 function viewList() {
   const f = S.listFilter || 'all';
-  const mo = S.listMonth || null;
+  const mo = S.month || null;
   const base = homeOffers();          // 등급 필터 걸기 전 (월 축의 기준)
   let pool = base;
   if (f === 'strong') pool = pool.filter(o => dealTier(o) === 'strong');
@@ -2026,8 +2059,14 @@ document.addEventListener('click', ev => {
   const sd = t.getAttribute('data-seed');
   if (sd) { markSeeded(sd); setTimeout(render, 60); return; }   // 링크는 그대로 열린다
   const mf = t.getAttribute('data-month');
-  if (mf) { S.listMonth = (mf === 'all' ? null : mf); S.view = 'list';
-            window.scrollTo(0, 0); return render(); }
+  if (mf) {
+    S.month = (mf === 'all' ? null : mf);
+    // ★ 칩은 지금 보고 있는 화면에 그대로 건다. 예전에는 월을 누르면
+    //   무조건 목록으로 튀어서, 홈에서 달만 바꿔 보는 게 불가능했다.
+    //   '월별로 보기' 의 줄만 그 달 목록으로 넘어간다.
+    if (t.hasAttribute('data-month-goto')) { S.view = 'list'; window.scrollTo(0, 0); }
+    return render();
+  }
 
   const ws = t.getAttribute('data-wspan');
   if (ws) { S.weekendSpan = ws; return render(); }

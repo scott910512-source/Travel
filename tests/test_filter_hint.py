@@ -60,5 +60,23 @@ chk(".note>b{display:block" in css, "안내 제목만 block 이다")
 chk(".note p b{display:inline" in css,
     "문단 안 <b> 는 inline (예전에는 '36건' 이 매번 줄바꿈됐다)")
 
+# ── 6. 홈에서도 달을 고를 수 있는가 ────────────────────
+chk("function monthChipsHTML(" in app, "홈에 월 칩 줄이 있다")
+chk("${headerHTML()}${chipsHTML()}${monthChipsHTML()}" in app,
+    "홈이 월 칩을 그린다")
+chk("S.listMonth" not in app,
+    "홈과 목록이 같은 S.month 를 쓴다 (두 벌이면 '전체 보기' 에서 어긋난다)")
+chk("const inMonth = o => !S.month || monthKey(o) === S.month;" in app,
+    "달이 출발지·국내해외와 곱해서 걸린다")
+chk("homeOffers().filter(inMonth)" in app, "홈 pool 에 달이 걸린다")
+hnd = app[app.index("const mf = t.getAttribute('data-month');"):][:600]
+chk("t.hasAttribute('data-month-goto')" in hnd,
+    "칩은 그 자리에서 걸고, '월별로 보기' 줄만 목록으로 넘어간다")
+chk("data-month-goto" in app.split("function monthSection(")[1],
+    "월 섹션 줄에만 이동 표식이 붙는다")
+m2 = re.search(r"function monthChipsHTML\(\)[\s\S]*?\n}", app)
+chk(m2 and "monthsIn(wide)" in m2.group(0),
+    "홈 월 칩도 좁히기 전 목록에서 만든다 (0건인 달이 사라지지 않는다)")
+
 print("실패 %d" % len(fail))
 sys.exit(1 if fail else 0)
