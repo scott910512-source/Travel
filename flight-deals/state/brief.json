@@ -1,53 +1,40 @@
 {
  "date": "2026-09-04",
- "ts": "2026-09-05 03:54 KST",
+ "ts": "2026-09-05 08:49 KST",
  "status": "OK",
- "headline": "볼 것 458건 · 강력특가 34 · 주말여행 3 · CJJ 3 · 신규 28 · 하락 55",
+ "headline": "볼 것 452건 · 강력특가 29 · 주말여행 3 · CJJ 3 · 신규 1 · 하락 77",
  "home": "CJJ",
  "reason": null,
  "degraded": null,
  "holiday_gap": null,
  "counts": {
-  "total": 458,
-  "comparable": 458,
-  "strong": 34,
-  "deal": 25,
-  "candidate": 61,
-  "weekend": 92,
+  "total": 452,
+  "comparable": 452,
+  "strong": 29,
+  "deal": 26,
+  "candidate": 66,
+  "weekend": 89,
   "home": 44,
-  "new": 28,
-  "down": 55,
-  "up": 3,
-  "gone": 14
+  "new": 1,
+  "down": 77,
+  "up": 4,
+  "gone": 7
  },
  "source_note": "Travelpayouts 캐시 데이터 · 실시간 확정가 아님",
  "access_note": "실부담가 = 항공권 + CJJ 기준 왕복 교통비 (추정치)",
  "top": [
   {
-   "text": "상하이 CJJ→PVG · 09-13~09-19 6박 · 197,169원 · 평균보다 34% 저렴 · 강력 특가  📉-604  🔻추적기간 최저",
+   "text": "상하이 CJJ→PVG · 09-13~09-19 6박 · 197,050원 · 평균보다 34% 저렴 · 강력 특가  📉-119  🔻추적기간 최저",
    "tier": "strong",
    "tier_label": "강력 특가",
    "confidence": "보통",
    "sample": 10,
-   "price": 197169,
+   "price": 197050,
    "access": 0,
-   "effective": 197169,
+   "effective": 197050,
    "weekend_trip": false,
    "leave": 5.0,
    "link": "https://www.aviasales.com/search/CJJ1309PVG19091"
-  },
-  {
-   "text": "상하이 CJJ→PVG · 09-13~09-18 5박 · 197,381원 · 평균보다 35% 저렴 · 특가  📉-1,666",
-   "tier": "deal",
-   "tier_label": "특가",
-   "confidence": "보통",
-   "sample": 9,
-   "price": 197381,
-   "access": 0,
-   "effective": 197381,
-   "weekend_trip": false,
-   "leave": 5.0,
-   "link": "https://www.aviasales.com/search/CJJ1309PVG18091"
   },
   {
    "text": "제주 CJJ→CJU · 09-07~09-12 5박 · 56,154원 · 평균보다 61% 저렴 · 강력 특가",
@@ -61,6 +48,19 @@
    "weekend_trip": false,
    "leave": 4.5,
    "link": "https://www.aviasales.com/search/CJJ0709CJU12091"
+  },
+  {
+   "text": "상하이 CJJ→PVG · 09-13~09-18 5박 · 197,381원 · 평균보다 35% 저렴 · 특가",
+   "tier": "deal",
+   "tier_label": "특가",
+   "confidence": "보통",
+   "sample": 9,
+   "price": 197381,
+   "access": 0,
+   "effective": 197381,
+   "weekend_trip": false,
+   "leave": 5.0,
+   "link": "https://www.aviasales.com/search/CJJ1309PVG18091"
   }
  ],
  "weekend": [
@@ -78,19 +78,6 @@
    "link": "https://www.aviasales.com/search/GMP1909HND21091"
   },
   {
-   "text": "도쿄 GMP→HND · 09-25~09-28 3박 · 523,847원 (실부담 563,847) · 평균보다 10% 저렴 · 주말 연차1일 · 추석  📉-100,181",
-   "tier": "candidate",
-   "tier_label": "특가 후보",
-   "confidence": "보통",
-   "sample": 33,
-   "price": 523847,
-   "access": 40000,
-   "effective": 563847,
-   "weekend_trip": true,
-   "leave": 1.0,
-   "link": "https://www.aviasales.com/search/GMP2509HND28091"
-  },
-  {
    "text": "제주 CJJ→CJU · 09-18~09-20 2박 · 114,103원 · 평균보다 14% 저렴 · 주말 연차0.5일",
    "tier": "candidate",
    "tier_label": "특가 후보",
@@ -102,34 +89,34 @@
    "weekend_trip": true,
    "leave": 0.5,
    "link": "https://www.aviasales.com/search/CJJ1809CJU20091"
+  },
+  {
+   "text": "도쿄 GMP→HND · 10-10~10-12 2박 · 537,804원 (실부담 577,804) · 평균보다 12% 저렴 · 주말 연차1일",
+   "tier": "candidate",
+   "tier_label": "특가 후보",
+   "confidence": "보통",
+   "sample": 21,
+   "price": 537804,
+   "access": 40000,
+   "effective": 577804,
+   "weekend_trip": true,
+   "leave": 1.0,
+   "link": "https://www.aviasales.com/search/GMP1010HND12101"
   }
  ],
  "home_airport": [
   {
-   "text": "상하이 CJJ→PVG · 09-13~09-19 6박 · 197,169원 · 평균보다 34% 저렴 · 강력 특가  📉-604  🔻추적기간 최저",
+   "text": "상하이 CJJ→PVG · 09-13~09-19 6박 · 197,050원 · 평균보다 34% 저렴 · 강력 특가  📉-119  🔻추적기간 최저",
    "tier": "strong",
    "tier_label": "강력 특가",
    "confidence": "보통",
    "sample": 10,
-   "price": 197169,
+   "price": 197050,
    "access": 0,
-   "effective": 197169,
+   "effective": 197050,
    "weekend_trip": false,
    "leave": 5.0,
    "link": "https://www.aviasales.com/search/CJJ1309PVG19091"
-  },
-  {
-   "text": "상하이 CJJ→PVG · 09-13~09-18 5박 · 197,381원 · 평균보다 35% 저렴 · 특가  📉-1,666",
-   "tier": "deal",
-   "tier_label": "특가",
-   "confidence": "보통",
-   "sample": 9,
-   "price": 197381,
-   "access": 0,
-   "effective": 197381,
-   "weekend_trip": false,
-   "leave": 5.0,
-   "link": "https://www.aviasales.com/search/CJJ1309PVG18091"
   },
   {
    "text": "제주 CJJ→CJU · 09-07~09-12 5박 · 56,154원 · 평균보다 61% 저렴 · 강력 특가",
@@ -143,6 +130,19 @@
    "weekend_trip": false,
    "leave": 4.5,
    "link": "https://www.aviasales.com/search/CJJ0709CJU12091"
+  },
+  {
+   "text": "상하이 CJJ→PVG · 09-13~09-18 5박 · 197,381원 · 평균보다 35% 저렴 · 특가",
+   "tier": "deal",
+   "tier_label": "특가",
+   "confidence": "보통",
+   "sample": 9,
+   "price": 197381,
+   "access": 0,
+   "effective": 197381,
+   "weekend_trip": false,
+   "leave": 5.0,
+   "link": "https://www.aviasales.com/search/CJJ1309PVG18091"
   }
  ],
  "swiss": [
