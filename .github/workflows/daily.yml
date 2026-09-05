@@ -12,10 +12,15 @@ on:
     # 아니라 6시간 이내로 유지하는 것이다.
     - cron: "0 22,4,10,16 * * *"
   workflow_dispatch:        # 수동 실행 버튼
-  push:                     # 화면(web/) 만 고쳐도 바로 반영되도록
-    branches: ["**"]
+  pull_request:             # PR 은 검증만 (배포 안 함)
+  push:
+    branches: ["**"]        # 검증은 모든 브랜치에서, 배포는 운영 브랜치만
     paths:
       - "web/**"
+      - "core/**"
+      - "sources/**"
+      - "tests/**"
+      - "scanner.py"
       - ".github/workflows/daily.yml"
 
 permissions:
@@ -24,11 +29,86 @@ permissions:
   id-token: write
 
 concurrency:
-  group: flight-scan
+  group: flight-scan-${{ github.ref_name }}
   cancel-in-progress: false
 
+env:
+  # ★ 운영 배포 브랜치. 이 레포에는 main 이 없다 — 원격 브랜치가 하나뿐이고
+  #   GitHub Pages 가 그 브랜치의 워크플로 실행에서 배포된다. 'main' 이라고
+  #   가정하면 배포가 통째로 멈춘다.
+  #   다른 브랜치·PR 에서는 검증만 하고 배포하지 않는다.
+  PROD_BRANCH: claude/file-creation-execution-iqjo4z
+
 jobs:
+  # 배포 전에 반드시 통과해야 하는 검증. 어느 브랜치에서든 돈다.
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: JavaScript 구문 검사
+        run: |
+          node --check web/app.js
+          node -e "JSON.parse(require('fs').readFileSync('web/manifest.webmanifest','utf8'))"
+
+      - name: Python 구문 검사
+        run: python -m compileall -q scanner.py core sources
+
+      - name: 테스트
+        run: |
+          fail=0
+          for f in tests/test_*.py; do
+            if python "$f" > /tmp/out.txt 2>&1; then
+              echo "✅ $f"
+            else
+              echo "❌ $f"; cat /tmp/out.txt; fail=1
+            fi
+          done
+          exit $fail
+
+      - name: 데이터 스키마 검증
+        run: |
+          python - <<'EOF'
+          import json, sys
+          d = json.load(open("flight-deals/state/deals.json", encoding="utf-8"))
+          b = json.load(open("flight-deals/state/brief.json", encoding="utf-8"))
+          need = ("schema", "meta", "routes", "offers", "access_cost_default",
+                  "home", "stats")
+          for k in need:
+              if k not in d:
+                  print(f"::error::deals.json 에 {k} 가 없습니다"); sys.exit(1)
+          if not isinstance(d["offers"], list):
+              print("::error::offers 가 리스트가 아닙니다"); sys.exit(1)
+          for k in ("status", "headline", "counts"):
+              if k not in b:
+                  print(f"::error::brief.json 에 {k} 가 없습니다"); sys.exit(1)
+          print(f"schema={d['schema']} offers={len(d['offers'])} status={b['status']}")
+          EOF
+
+      - name: 토큰이 산출물에 섞이지 않았는지
+        run: |
+          # 프런트엔드·데이터 파일에 토큰이 들어가면 안 된다.
+          if grep -rInE '(TP_TOKEN|DUFFEL_TOKEN|SKYSCANNER_API_KEY)[^A-Z_]*[:=][[:space:]]*["'"'"'][A-Za-z0-9]{8,}' \
+               web/ flight-deals/state/ 2>/dev/null; then
+            echo "::error::산출물에 토큰처럼 보이는 값이 있습니다"; exit 1
+          fi
+          if grep -qE 'DEFAULT_TOKEN\s*=\s*["'"'"'][A-Za-z0-9]' scanner.py; then
+            echo "::error::scanner.py 의 DEFAULT_TOKEN 이 비어 있지 않습니다"; exit 1
+          fi
+          echo "토큰 노출 없음"
+
   scan:
+    needs: verify
+    # ★ 운영 브랜치가 아니면 API 를 때리지도, 배포하지도 않는다.
+    #   다른 브랜치·PR 은 verify 까지만 돈다.
+    if: github.ref_name == 'claude/file-creation-execution-iqjo4z' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 30      # 응답 지연으로 러너가 매달리는 것 방지
     outputs:
@@ -55,6 +135,7 @@ jobs:
           else
             echo "scan=true" >> "$GITHUB_OUTPUT"
           fi
+          echo "브랜치=${{ github.ref_name }} (운영=${PROD_BRANCH})"
 
       - name: 스캔 실행
         if: steps.mode.outputs.scan == 'true'
@@ -166,6 +247,9 @@ jobs:
 
   deploy:
     needs: scan
+    # 운영 브랜치에서만. scan 이 이미 걸러 내지만 여기서도 한 번 더 막는다 —
+    # 배포는 되돌리기 어려우므로 조건을 한 곳에만 두지 않는다.
+    if: github.ref_name == 'claude/file-creation-execution-iqjo4z' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     environment:
       name: github-pages

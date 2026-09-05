@@ -1,0 +1,18 @@
+{
+  "_읽어주세요": [
+    "Python(brief.json)과 JavaScript(화면)의 특가 판정이 어긋나지 않게",
+    "붙잡아 두는 공유 사례다. 한쪽만 고치면 이 테스트가 깨진다.",
+    "strong_pct 는 사용자 설정이라 사례마다 명시한다."
+  ],
+  "cases": [
+    {"why": "표본 부족 — 아무리 싸도 판정 보류", "pct": 61.4, "n": 4,  "strong": 30, "tier": "unknown"},
+    {"why": "표본 1건",                          "pct": 80.0, "n": 1,  "strong": 30, "tier": "unknown"},
+    {"why": "문턱 바로 위",                      "pct": 25.0, "n": 5,  "strong": 30, "tier": "deal"},
+    {"why": "강력 특가",                         "pct": 35.0, "n": 10, "strong": 30, "tier": "strong"},
+    {"why": "할인율은 크나 표본이 9건",           "pct": 40.0, "n": 9,  "strong": 30, "tier": "deal"},
+    {"why": "후보",                              "pct": 12.0, "n": 20, "strong": 30, "tier": "candidate"},
+    {"why": "일반",                              "pct": 3.0,  "n": 20, "strong": 30, "tier": "normal"},
+    {"why": "기준을 50으로 올리면 강력특가 아님", "pct": 35.0, "n": 20, "strong": 50, "tier": "deal"},
+    {"why": "할인율 없음",                       "pct": null, "n": 20, "strong": 30, "tier": "unknown"}
+  ]
+}
