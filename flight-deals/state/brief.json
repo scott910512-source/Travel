@@ -1,41 +1,28 @@
 {
  "date": "2026-09-05",
- "ts": "2026-09-05 17:10 KST",
+ "ts": "2026-09-05 22:18 KST",
  "status": "OK",
- "headline": "볼 것 459건 · 강력특가 30 · 주말여행 3 · CJJ 3 · 신규 36 · 하락 6",
+ "headline": "볼 것 462건 · 강력특가 28 · 주말여행 3 · CJJ 3 · 신규 26 · 하락 9",
  "home": "CJJ",
  "reason": null,
  "degraded": null,
  "holiday_gap": null,
  "counts": {
-  "total": 459,
-  "comparable": 459,
-  "strong": 30,
-  "deal": 30,
-  "candidate": 57,
-  "weekend": 89,
-  "home": 51,
-  "new": 36,
-  "down": 6,
-  "up": 22,
-  "gone": 29
+  "total": 463,
+  "comparable": 462,
+  "strong": 28,
+  "deal": 31,
+  "candidate": 50,
+  "weekend": 85,
+  "home": 49,
+  "new": 26,
+  "down": 9,
+  "up": 40,
+  "gone": 22
  },
  "source_note": "Travelpayouts 캐시 데이터 · 실시간 확정가 아님",
  "access_note": "실부담가 = 항공권 + CJJ 기준 왕복 교통비 (추정치)",
  "top": [
-  {
-   "text": "다낭 CJJ→DAD · 09-27~10-06 9박 · 357,804원 · 평균보다 46% 저렴 · 강력 특가 · 개천절  🆕  🔻추적기간 최저",
-   "tier": "strong",
-   "tier_label": "강력 특가",
-   "confidence": "보통",
-   "sample": 11,
-   "price": 357804,
-   "access": 0,
-   "effective": 357804,
-   "weekend_trip": false,
-   "leave": 6.0,
-   "link": "https://www.aviasales.com/search/CJJ2709DAD06101"
-  },
   {
    "text": "상하이 CJJ→PVG · 09-13~09-19 6박 · 197,050원 · 평균보다 34% 저렴 · 강력 특가  🔻추적기간 최저",
    "tier": "strong",
@@ -61,15 +48,41 @@
    "weekend_trip": false,
    "leave": 5.0,
    "link": "https://www.aviasales.com/search/CJJ1309PVG18091"
+  },
+  {
+   "text": "오키나와 CJJ→OKA · 09-09~09-12 3박 · 354,886원 · 평균보다 28% 저렴 · 특가  🆕  🔻추적기간 최저",
+   "tier": "deal",
+   "tier_label": "특가",
+   "confidence": "보통",
+   "sample": 10,
+   "price": 354886,
+   "access": 0,
+   "effective": 354886,
+   "weekend_trip": false,
+   "leave": 3.0,
+   "link": "https://www.aviasales.com/search/CJJ0909OKA12091"
   }
  ],
  "weekend": [
   {
-   "text": "도쿄 GMP→HND · 09-19~09-21 2박 · 504,569원 (실부담 544,569) · 평균보다 23% 저렴 · 특가 · 주말 연차1일",
-   "tier": "deal",
-   "tier_label": "특가",
+   "text": "다낭 CJJ→DAD · 09-24~09-28 4박 · 650,476원 · 평균보다 17% 저렴 · 주말 연차1일 · 추석  📉-114,191",
+   "tier": "candidate",
+   "tier_label": "특가 후보",
    "confidence": "보통",
-   "sample": 21,
+   "sample": 7,
+   "price": 650476,
+   "access": 0,
+   "effective": 650476,
+   "weekend_trip": true,
+   "leave": 1.0,
+   "link": "https://www.aviasales.com/search/CJJ2409DAD28091"
+  },
+  {
+   "text": "도쿄 GMP→HND · 09-19~09-21 2박 · 504,569원 (실부담 544,569) · 평균보다 15% 저렴 · 주말 연차1일",
+   "tier": "candidate",
+   "tier_label": "특가 후보",
+   "confidence": "보통",
+   "sample": 20,
    "price": 504569,
    "access": 40000,
    "effective": 544569,
@@ -78,46 +91,20 @@
    "link": "https://www.aviasales.com/search/GMP1909HND21091"
   },
   {
-   "text": "다낭 CJJ→DAD · 10-03~10-06 3박 · 440,205원 · 평균보다 24% 저렴 · 주말 연차1일 · 개천절  🆕",
+   "text": "다낭 CJJ→DAD · 10-03~10-06 3박 · 440,709원 · 평균보다 24% 저렴 · 주말 연차1일 · 개천절",
    "tier": "unknown",
    "tier_label": "비교 불가",
    "confidence": "낮음",
    "sample": 3,
-   "price": 440205,
+   "price": 440709,
    "access": 0,
-   "effective": 440205,
+   "effective": 440709,
    "weekend_trip": true,
    "leave": 1.0,
    "link": "https://www.aviasales.com/search/CJJ0310DAD06101"
-  },
-  {
-   "text": "도쿄 GMP→HND · 10-10~10-12 2박 · 537,804원 (실부담 577,804) · 평균보다 18% 저렴 · 주말 연차1일",
-   "tier": "candidate",
-   "tier_label": "특가 후보",
-   "confidence": "보통",
-   "sample": 21,
-   "price": 537804,
-   "access": 40000,
-   "effective": 577804,
-   "weekend_trip": true,
-   "leave": 1.0,
-   "link": "https://www.aviasales.com/search/GMP1010HND12101"
   }
  ],
  "home_airport": [
-  {
-   "text": "다낭 CJJ→DAD · 09-27~10-06 9박 · 357,804원 · 평균보다 46% 저렴 · 강력 특가 · 개천절  🆕  🔻추적기간 최저",
-   "tier": "strong",
-   "tier_label": "강력 특가",
-   "confidence": "보통",
-   "sample": 11,
-   "price": 357804,
-   "access": 0,
-   "effective": 357804,
-   "weekend_trip": false,
-   "leave": 6.0,
-   "link": "https://www.aviasales.com/search/CJJ2709DAD06101"
-  },
   {
    "text": "상하이 CJJ→PVG · 09-13~09-19 6박 · 197,050원 · 평균보다 34% 저렴 · 강력 특가  🔻추적기간 최저",
    "tier": "strong",
@@ -143,6 +130,19 @@
    "weekend_trip": false,
    "leave": 5.0,
    "link": "https://www.aviasales.com/search/CJJ1309PVG18091"
+  },
+  {
+   "text": "오키나와 CJJ→OKA · 09-09~09-12 3박 · 354,886원 · 평균보다 28% 저렴 · 특가  🆕  🔻추적기간 최저",
+   "tier": "deal",
+   "tier_label": "특가",
+   "confidence": "보통",
+   "sample": 10,
+   "price": 354886,
+   "access": 0,
+   "effective": 354886,
+   "weekend_trip": false,
+   "leave": 3.0,
+   "link": "https://www.aviasales.com/search/CJJ0909OKA12091"
   }
  ],
  "swiss": [
