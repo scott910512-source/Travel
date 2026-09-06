@@ -1,6 +1,9 @@
 # provider 응답 → 공통 Offer 변환. 통화·왕복 날짜·환승 수를 본다.
 import sys, os, json, io
-sys.path.insert(0, "/home/user/Travel"); os.chdir("/home/user/Travel")
+# 레포 위치에 상관없이 돈다. 절대경로를 박아 두면 CI 러너에서 깨진다
+# (실제로 그랬다 — verify 가 생기고 나서야 드러났다).
+_R = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, _R); os.chdir(_R)
 from core.normalize import make_offer, trip_stops, sum_stops, nights_between, day
 from sources.duffel import DuffelProvider
 from sources.skyscanner import parse_rows

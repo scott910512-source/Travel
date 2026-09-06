@@ -1,7 +1,10 @@
 # 신뢰도 우선순위: 실시간 확정 > 실시간 메타서치 > 캐시.
 # 싼 캐시값이 실시간 확정가를 밀어내면, 눌렀을 때 없는 가격을 보여주게 된다.
 import sys, os
-sys.path.insert(0, "/home/user/Travel"); os.chdir("/home/user/Travel")
+# 레포 위치에 상관없이 돈다. 절대경로를 박아 두면 CI 러너에서 깨진다
+# (실제로 그랬다 — verify 가 생기고 나서야 드러났다).
+_R = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, _R); os.chdir(_R)
 from core.normalize import source_priority, SOURCE_META, make_offer
 from core.merge import merge_offers
 

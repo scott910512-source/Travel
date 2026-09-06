@@ -2,7 +2,10 @@
 # 멀쩡한 왕복이 전부 "평균보다 비쌈" 이 된다. 구조적으로 막혔는지 본다.
 import sys, os, json
 from datetime import date, timedelta
-sys.path.insert(0, "/home/user/Travel"); os.chdir("/home/user/Travel")
+# 레포 위치에 상관없이 돈다. 절대경로를 박아 두면 CI 러너에서 깨진다
+# (실제로 그랬다 — verify 가 생기고 나서야 드러났다).
+_R = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, _R); os.chdir(_R)
 import scanner as S
 
 D = lambda n: (date.today() + timedelta(days=n)).strftime("%Y-%m-%d")
