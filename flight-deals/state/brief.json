@@ -1,42 +1,29 @@
 {
  "date": "2026-09-06",
- "ts": "2026-09-06 22:53 KST",
+ "ts": "2026-09-07 03:08 KST",
  "status": "OK",
- "headline": "볼 것 473건 · 강력특가 20 · CJJ 3 · 신규 2",
+ "headline": "볼 것 461건 · 강력특가 21 · CJJ 3 · 신규 9 · 하락 3",
  "home": "CJJ",
  "reason": null,
  "degraded": null,
  "holiday_gap": null,
  "counts": {
-  "total": 474,
-  "comparable": 473,
-  "strong": 20,
-  "deal": 35,
-  "candidate": 58,
+  "total": 462,
+  "comparable": 461,
+  "strong": 21,
+  "deal": 31,
+  "candidate": 63,
   "weekend": 0,
-  "home": 43,
-  "new": 2,
-  "down": 0,
-  "up": 8,
-  "gone": 0
+  "home": 39,
+  "new": 9,
+  "down": 3,
+  "up": 12,
+  "gone": 21
  },
  "source_note": "Travelpayouts 캐시 데이터 · 실시간 확정가 아님",
  "access_note": "실부담가 = 항공권 + CJJ 기준 왕복 교통비 (추정치)",
  "top": [
   {
-   "text": "상하이 CJJ→PVG · 09-16~09-18 2박 · 197,330원 · 비교 기준가보다 24% 저렴 · 특가  🆕",
-   "tier": "deal",
-   "tier_label": "특가",
-   "confidence": "보통",
-   "sample": 12,
-   "price": 197330,
-   "access": 0,
-   "effective": 197330,
-   "weekend_trip": false,
-   "leave": 3.0,
-   "link": "https://www.aviasales.com/search/CJJ1609PVG18091"
-  },
-  {
    "text": "상하이 CJJ→PVG · 09-13~09-18 5박 · 200,530원 · 비교 기준가보다 27% 저렴 · 특가",
    "tier": "deal",
    "tier_label": "특가",
@@ -61,24 +48,24 @@
    "weekend_trip": false,
    "leave": 5.0,
    "link": "https://www.aviasales.com/search/CJJ1309PVG19091"
+  },
+  {
+   "text": "상하이 CJJ→PVG · 09-16~09-18 2박 · 197,330원 · 비교 기준가보다 24% 저렴 · 특가",
+   "tier": "deal",
+   "tier_label": "특가",
+   "confidence": "보통",
+   "sample": 12,
+   "price": 197330,
+   "access": 0,
+   "effective": 197330,
+   "weekend_trip": false,
+   "leave": 3.0,
+   "link": "https://www.aviasales.com/search/CJJ1609PVG18091"
   }
  ],
  "weekend": [],
  "home_airport": [
   {
-   "text": "상하이 CJJ→PVG · 09-16~09-18 2박 · 197,330원 · 비교 기준가보다 24% 저렴 · 특가  🆕",
-   "tier": "deal",
-   "tier_label": "특가",
-   "confidence": "보통",
-   "sample": 12,
-   "price": 197330,
-   "access": 0,
-   "effective": 197330,
-   "weekend_trip": false,
-   "leave": 3.0,
-   "link": "https://www.aviasales.com/search/CJJ1609PVG18091"
-  },
-  {
    "text": "상하이 CJJ→PVG · 09-13~09-18 5박 · 200,530원 · 비교 기준가보다 27% 저렴 · 특가",
    "tier": "deal",
    "tier_label": "특가",
@@ -103,15 +90,28 @@
    "weekend_trip": false,
    "leave": 5.0,
    "link": "https://www.aviasales.com/search/CJJ1309PVG19091"
+  },
+  {
+   "text": "상하이 CJJ→PVG · 09-16~09-18 2박 · 197,330원 · 비교 기준가보다 24% 저렴 · 특가",
+   "tier": "deal",
+   "tier_label": "특가",
+   "confidence": "보통",
+   "sample": 12,
+   "price": 197330,
+   "access": 0,
+   "effective": 197330,
+   "weekend_trip": false,
+   "leave": 3.0,
+   "link": "https://www.aviasales.com/search/CJJ1609PVG18091"
   }
  ],
  "swiss": [
   {
-   "text": "취리히 ICN→ZRH · 10-29~11-08 10박 · 835,864원 (실부담 879,864) · 비교 기준가보다 20% 저렴",
+   "text": "취리히 ICN→ZRH · 10-29~11-08 10박 · 835,864원 (실부담 879,864) · 비교 기준가보다 17% 저렴",
    "tier": "candidate",
    "tier_label": "특가 후보",
    "confidence": "보통",
-   "sample": 16,
+   "sample": 13,
    "price": 835864,
    "access": 44000,
    "effective": 879864,
@@ -120,30 +120,30 @@
    "link": "https://www.aviasales.com/search/ICN2910ZRH08111"
   },
   {
-   "text": "취리히 ICN→ZRH · 11-13~11-23 10박 · 961,910원 (실부담 1,005,910) · 비교 기준가보다 8% 저렴",
-   "tier": "normal",
-   "tier_label": "일반",
-   "confidence": "보통",
-   "sample": 16,
-   "price": 961910,
+   "text": "바젤 ICN→BSL · 10-15~10-25 10박 · 1,110,135원 (실부담 1,154,135)",
+   "tier": "unknown",
+   "tier_label": "비교 불가",
+   "confidence": "낮음",
+   "sample": 3,
+   "price": 1110135,
    "access": 44000,
-   "effective": 1005910,
+   "effective": 1154135,
    "weekend_trip": false,
-   "leave": 6.5,
-   "link": "https://www.aviasales.com/search/ICN1311ZRH23111"
+   "leave": 7.0,
+   "link": "https://www.aviasales.com/search/ICN1510BSL25101"
   },
   {
-   "text": "취리히 ICN→ZRH · 12-13~12-23 10박 · 1,079,831원 (실부담 1,123,831) · 비교 기준가보다 4% 비쌈",
+   "text": "취리히 ICN→ZRH · 10-16~10-26 10박 · 1,127,911원 (실부담 1,171,911) · 비교 기준가보다 13% 비쌈",
    "tier": "normal",
    "tier_label": "일반",
    "confidence": "보통",
-   "sample": 16,
-   "price": 1079831,
+   "sample": 13,
+   "price": 1127911,
    "access": 44000,
-   "effective": 1123831,
+   "effective": 1171911,
    "weekend_trip": false,
-   "leave": 8.0,
-   "link": "https://www.aviasales.com/search/ICN1312ZRH23121"
+   "leave": 7.0,
+   "link": "https://www.aviasales.com/search/ICN1610ZRH26101"
   }
  ],
  "dashboard": "index.html"
