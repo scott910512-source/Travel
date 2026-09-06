@@ -53,6 +53,11 @@ jobs:
         with:
           node-version: "20"
 
+      # 워크플로 YAML 을 파싱하는 테스트가 있다. 러너에는 PyYAML 이 없다
+      # (개발 컨테이너에만 있어서 로컬에서는 드러나지 않았다).
+      - name: 테스트 의존성
+        run: python -m pip install --quiet pyyaml
+
       - name: JavaScript 구문 검사
         run: |
           node --check web/app.js
