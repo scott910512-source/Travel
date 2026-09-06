@@ -1066,6 +1066,64 @@ def _stops_fields(org, dst, v):
     return raw, "row", False
 
 
+
+# ── 귀국: 현지 출발 ≠ 한국 도착 ──────────────────────────
+# 소스의 return_at 은 **귀국편의 현지 출발 시각**이다. 한국 도착이 아니다.
+# 유럽에서 일요일 20시에 떠나면 한국 도착은 월요일이다. 예전 코드는 현지
+# 출발일을 그대로 "귀국일" 로 적어서, 그 월요일 연차가 통째로 빠졌다.
+#
+# 도착 시각을 지어내지 않는다. 계산할 수 있을 때만 계산하고, 못 하면
+# 미확인으로 남긴다.
+KST_OFFSET_MIN = 9 * 60
+
+
+def _tz_offset_min(ts):
+    """'2026-10-25T20:00:00+02:00' → 120. 표기가 없으면 None."""
+    if not isinstance(ts, str) or len(ts) < 25:
+        return None
+    sign, hh, mm = ts[19], ts[20:22], ts[23:25]
+    if sign not in "+-" or not (hh.isdigit() and mm.isdigit()):
+        return None
+    v = int(hh) * 60 + int(mm)
+    return v if sign == "+" else -v
+
+
+def home_arrival(ret_at, leg_min):
+    """귀국편 현지 출발 + 소요시간 → 한국 도착 (날짜, 시각, 근거).
+
+    leg_min 이 없으면 (None, None, None) — 모른다고 답한다.
+    """
+    if not ret_at or not leg_min or leg_min <= 0:
+        return None, None, None
+    off = _tz_offset_min(ret_at)
+    if off is None:
+        return None, None, None
+    try:
+        naive = datetime.strptime(ret_at[:19], "%Y-%m-%dT%H:%M:%S")
+    except (ValueError, TypeError):
+        return None, None, None
+    # 현지 출발 → UTC → KST 도착
+    arrive = naive - timedelta(minutes=off) + timedelta(minutes=leg_min + KST_OFFSET_MIN)
+    return arrive.date(), arrive.hour, "duration"
+
+
+def return_leg_minutes(v):
+    """오는 편 소요시간(분). v3 만 duration/duration_to 를 준다.
+
+    duration        왕복 총합
+    duration_to     가는 편
+    둘 다 있어야 오는 편을 뺄 수 있다. 하나라도 없으면 None.
+    """
+    rt, to = v.get("duration_rt_min") or v.get("duration"), \
+             v.get("duration_min") or v.get("duration_to")
+    try:
+        if rt and to and int(rt) > int(to):
+            return int(rt) - int(to)
+    except (TypeError, ValueError):
+        pass
+    return None
+
+
 def normalize(org, dst, city, region, dep, nights, v, flex=None, window=None):
     price = v.get("price")
     if not price or price <= 0:
@@ -1124,7 +1182,10 @@ def normalize(org, dst, city, region, dep, nights, v, flex=None, window=None):
 
     al = v.get("airline") or "?"
     dep_hour = parse_hour(v.get("departure_at"))
-    tp = trip_profile(d0, d1, dep_hour)
+    # ★ 연차는 "한국에 돌아온 날" 까지 센다. 현지 출발일에서 끊으면
+    #   일요일 유럽 출발 → 월요일 한국 도착의 그 월요일이 빠진다.
+    arr_d, arr_h, arr_src = home_arrival(v.get("return_at"), return_leg_minutes(v))
+    tp = trip_profile(d0, d1, dep_hour, arr_d)
     access = ACCESS_COST.get(org, 0)
     return {
         "id": f"{org}-{dst}-{d0}-{d1}-{al}-ECONOMY",
@@ -1160,14 +1221,26 @@ def normalize(org, dst, city, region, dep, nights, v, flex=None, window=None):
         "link": aviasales_link(org, dst, d0, d1),
         "dep_hour": dep_hour,
         "ret_hour": parse_hour(v.get("return_at")),
+        # 한국 출발 / 현지 도착 / 현지 출발 / 한국 도착을 분리한다.
+        # return_date 는 **현지 출발일** 이다 (이름은 호환 때문에 유지).
+        "ret_local_date": str(d1) if roundtrip else None,
+        "ret_local_offset_min": _tz_offset_min(v.get("return_at")),
+        "home_arrive_date": str(arr_d) if arr_d else None,
+        "home_arrive_hour": arr_h,
+        "home_arrive_src": arr_src,          # 'duration' | None(미확인)
         "holiday": tp["holiday"],
         "weekend": tp["weekend"],
         "red_days": tp["red"],
         "annual_leave": tp["leave"],
+        # 한국 도착일을 알고 센 값인가. False 면 "이 값 이상" 이라는 뜻이다.
+        "annual_leave_confirmed": tp["leave_confirmed"],
         "night_departure": tp["night_departure"],
         # 사용자 기준: 주말(토·일) 포함 + 연차 0~1일.
         # 빨간날이 붙으면 그만큼 일정이 길어져도 조건을 유지한다.
-        "weekend_trip": tp["weekend"] and tp["leave"] <= 1.0,
+        # ★ 연차가 확정되지 않았으면 주말여행이라고 단정하지 않는다.
+        #   미확인 상태의 leave 는 최소값이라 실제로는 더 들 수 있다.
+        "weekend_trip": tp["weekend"] and tp["leave"] <= 1.0
+                        and tp["leave_confirmed"],
     }
 
 
@@ -1295,7 +1368,7 @@ def leave_for_departure_day(dep_hour):
     return 1.0
 
 
-def trip_profile(d0, d1, dep_hour=None):
+def trip_profile(d0, d1, dep_hour=None, home_arrive=None):
     """여행 구간의 빨간날·연차 구성.
 
     연차 기준 (청주 거주자 시점):
@@ -1304,14 +1377,20 @@ def trip_profile(d0, d1, dep_hour=None):
         토·일·월(공휴일)·화 일정이면 화요일 1일만 연차다.
       - 출국일이 평일이면 출발 시각에 따라 0 / 0.5 / 1 로 나눈다.
 
-    귀국일은 항상 1로 센다. 캘린더 API 의 return_at 은 도착이 아니라
-    현지 출발 시각이라 한국 도착 시각을 알 수 없기 때문이다. 모르는 것을
-    유리하게 반올림하지 않는다.
+    ★ 마지막 날은 **한국에 돌아온 날** 이다. 소스의 return_at 은 귀국편의
+      현지 출발 시각이라 그날을 그대로 마지막 날로 쓰면 안 된다. 유럽에서
+      일요일 20시에 떠나면 한국 도착은 월요일이고, 그 월요일 연차가
+      통째로 빠진다 (실측 재현).
+
+      home_arrive 를 알면 거기까지 센다. 모르면 현지 출발일까지만 세고
+      leave_confirmed=False 로 표시한다 — 모르는 것을 유리하게 반올림해서
+      "연차 7일" 이라고 확정하지 않는다.
     """
     weekend, red, leave, holi = False, 0, 0.0, None
     night_dep = False
+    last = home_arrive if home_arrive and home_arrive > d1 else d1
     d = d0
-    while d <= d1:
+    while d <= last:
         key = str(d)
         is_hol = key in HOLIDAYS
         if is_hol and holi is None:
@@ -1328,7 +1407,10 @@ def trip_profile(d0, d1, dep_hour=None):
             leave += 1.0
         d += timedelta(days=1)
     return {"weekend": weekend, "red": red, "leave": round(leave, 1),
-            "holiday": holi, "night_departure": night_dep}
+            "holiday": holi, "night_departure": night_dep,
+            # 한국 도착일을 알고 센 값인가. False 면 최소값이다 (그 이상일 수 있다).
+            "leave_confirmed": bool(home_arrive),
+            "last_day": str(last)}
 
 
 # ══════════════════════════════════════════════════════════
@@ -1511,6 +1593,44 @@ def bucket_key(o):
     return f"{o['dep']}-{o['arr']}-{o['nights']}"
 
 
+
+def flight_fp(o):
+    """한 여정을 식별하는 지문. 같은 편을 여러 날 봐도 하나로 센다.
+
+    ★ 예전에는 표본을 '가격 숫자' 로만 쌓았다. 캐시가 안 바뀐 채 7일을
+      관측하면 같은 항공권 하나가 표본 7개가 됐다. 실측으로 재현했다
+      (baseline n=7). 표본이 부풀면 신뢰도와 특가 판정이 통째로 틀어진다.
+    """
+    return "|".join(str(x) for x in (
+        o.get("airline") or "?", o.get("flight_no") or "?",
+        o.get("depart_date") or "?", o.get("return_date") or "?",
+        o.get("stops") if o.get("stops") is not None else "?"))
+
+
+def _pool_past(days, today):
+    """과거 관측을 '고유 여정' 기준으로 편다.
+
+    같은 지문은 한 번만 센다 (가장 최근 관측값을 쓴다). 지문이 없는
+    옛 기록(가격 숫자만 있던 시절)은 지어내지 않고, 같은 값이면 같은
+    편으로 보아 안전한 쪽으로 합친다 — 그리고 legacy 로 표시한다.
+    """
+    seen, out, legacy = {}, [], False
+    for d in sorted(days, reverse=True):          # 최근 날짜부터
+        if d == today:
+            continue
+        for r in days[d] or []:
+            if isinstance(r, dict) and "k" in r:
+                k, p = r["k"], r.get("p")
+            else:                                  # 옛 형식: 가격 숫자만
+                legacy = True
+                k, p = ("legacy:%s" % r), r
+            if p is None or k in seen:
+                continue
+            seen[k] = p
+            out.append(p)
+    return out, legacy, len(seen)
+
+
 def track_samples(offers, hist):
     """표본이 얇은 (출발지·목적지·박수) 버킷만 과거 가격을 누적한다.
 
@@ -1524,13 +1644,16 @@ def track_samples(offers, hist):
     today = str(date.today())
     todays = {}
     for o in offers:
-        todays.setdefault(bucket_key(o), []).append(o["price_krw"])
+        # ★ 가격만 쌓지 않는다. 어떤 편의 가격인지 같이 남겨야 같은 편을
+        #   여러 날 본 것을 하나로 셀 수 있다.
+        todays.setdefault(bucket_key(o), {})[flight_fp(o)] = o["price_krw"]
 
-    for k, ps in todays.items():
-        if len(ps) >= THIN_SAMPLE:
+    for k, fps in todays.items():
+        if len(fps) >= THIN_SAMPLE:
             store.pop(k, None)
             continue
-        store.setdefault(k, {})[today] = sorted(ps)[:SAMPLE_CAP]
+        rows = [{"k": fp, "p": p} for fp, p in sorted(fps.items())]
+        store.setdefault(k, {})[today] = rows[:SAMPLE_CAP]
 
     for k in list(store):
         dep = k.split("-")[0]
@@ -1576,12 +1699,14 @@ def build_baselines(offers, thin=None):
             continue
         if k1 not in b1:
             continue                      # 오늘 없는 버킷은 되살리지 않는다
-        past = [p for d, ps in days.items() if d != today for p in ps]
+        past, legacy, uniq = _pool_past(days, today)
         if not past:
             continue
         if len(b1[k1]) < THIN_SAMPLE:
             b1[k1] = b1[k1] + past
-            pooled[k1] = retention(dep)
+            pooled[k1] = {"days": retention(dep), "uniq": uniq,
+                          "observed_days": len([d for d in days if d != today]),
+                          "legacy": legacy}
         if k2 in b2 and len(b2[k2]) < THIN_SAMPLE:
             b2[k2] = b2[k2] + past
 
@@ -1606,14 +1731,22 @@ def pick_baseline(o, baselines):
     key = (o["dep"], o["arr"], o["nights"])
     bl = baselines["exact"].get(key)
     if bl:
-        days = baselines["pooled"].get(key)
-        return bl, ("노선·박수" if not days else f"노선·박수 · {days}일 누적")
+        p = baselines["pooled"].get(key)
+        if not p:
+            return bl, "같은 노선·같은 박수"
+        # 고유 여정 수와 관측 일수를 따로 적는다. "표본 7" 이 7개의 다른
+        # 항공권인지, 같은 편을 7일 본 것인지는 완전히 다른 이야기다.
+        lab = (f"같은 노선·같은 박수 · 과거 {p['observed_days']}일에서 "
+               f"고유 여정 {p['uniq']}건 보강")
+        if p.get("legacy"):
+            lab += " (옛 기록 일부는 편 식별 정보 없음)"
+        return bl, lab
     bl = baselines["route"].get((o["dep"], o["arr"]))
     if bl:
-        return bl, "노선 전체 박수"
+        return bl, "같은 노선 · 박수 혼합"
     bl = baselines["dest"].get((o["arr"], o["nights"]))
     if bl:
-        return bl, "목적지 기준 (출발지 혼합)"
+        return bl, "같은 목적지 · 출발지 혼합"
     return None, None
 
 
@@ -2067,9 +2200,9 @@ def brief_line(o):
         txt += f" (실부담 {eff:,})"
     pct = o.get("discount_pct")
     if pct is not None and pct > 0:
-        txt += f" · 평균보다 {pct:.0f}% 저렴"
+        txt += f" · 비교 기준가보다 {pct:.0f}% 저렴"
     elif pct is not None and pct < 0:
-        txt += f" · 평균보다 {abs(pct):.0f}% 비쌈"
+        txt += f" · 비교 기준가보다 {abs(pct):.0f}% 비쌈"
     if o.get("tier") in ("strong", "deal"):
         txt += f" · {o['tier_label']}"
     lv = o.get("annual_leave")
@@ -2107,9 +2240,10 @@ def load(path, default):
 # 그대로 노출하지 않는다 (파일이 커지고, 화면이 안 쓰는 필드까지 딸려간다).
 OFFER_FIELDS = (
     "id dep arr city region depart_date return_date nights airline airline_kr "
+    "ret_local_date ret_local_offset_min home_arrive_date home_arrive_hour home_arrive_src "
     "stops stops_src stops_conflict duration_min duration_rt_min price_krw found_at via via_name via_src link dep_hour ret_hour holiday weekend red_days "
-    "source source_confidence live booking_url sources best_price "
-    "annual_leave weekend_trip night_departure roundtrip_verified "
+    "source source_confidence live booking_url expires_at sources best_price "
+    "annual_leave annual_leave_confirmed weekend_trip night_departure roundtrip_verified "
     "baseline baseline_avg baseline_n baseline_days baseline_tier "
     "confidence confidence_score confidence_parts diff_krw "
     "discount_pct data_ok data_note tier tier_label deal_score "

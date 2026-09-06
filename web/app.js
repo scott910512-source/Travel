@@ -39,7 +39,19 @@ const esc = t => String(t == null ? '' : t)
   .replace(/"/g, '&quot;');
 const md = d => (d || '').slice(5).replace('-', '/');
 const dow = d => { const t = new Date(d + 'T00:00:00'); return DAY[t.getDay()] || ''; };
-const leaveTxt = v => (v == null ? '—' : `연차 ${Number(v) % 1 ? v : Math.round(v)}일`);
+/* 연차. 한국 도착일을 모르면 확정하지 않는다 — '+' 는 "이 값 이상" 이다.
+   ★ 소스의 return_at 은 귀국편의 현지 출발 시각이다. 유럽에서 일요일에
+     떠나면 한국 도착은 월요일이고 그 하루가 더 든다. 도착을 모르면
+     지금 값은 최소값일 뿐이다. */
+const leaveTxt = (v, confirmed) => {
+  if (v == null) return '—';
+  const n = Number(v) % 1 ? v : Math.round(v);
+  // ★ confirmed 가 true 일 때만 확정으로 본다. 필드가 없는 옛 데이터도
+  //   '이 값 이상' 이다 — 그때는 현지 출발일까지만 세고 있었기 때문이다.
+  //   모르는 것을 유리하게 반올림하지 않는다. 다음 스캔부터 확정된다.
+  return `연차 ${n}일${confirmed === true ? '' : '+'}`;
+};
+const leaveOf = o => leaveTxt(o.annual_leave, o.annual_leave_confirmed);
 
 function defaultSettings(data) {
   const acc = Object.assign({}, data.access_cost_default || {});
@@ -48,8 +60,14 @@ function defaultSettings(data) {
     origins: {},           // 비어 있으면 전부 ON
     minNights: 2,
     maxNights: 8,
+    stops: 'prefer',       // prefer | direct | one | any
+    // 장거리는 조건이 다르다. 예전에는 스위스 탭이 조건을 통째로
+    // 무시했는데, 그건 "몰래 완화" 라서 화면과 실제가 어긋난다.
+    // 기본값을 넓게 두되 설정에서 보이고 고칠 수 있게 한다.
+    longMinNights: 2,
+    longMaxNights: 21,
+    longStops: 'any',
     strongPct: (data.meta && data.meta.strong_pct_default) || 30,
-    stops: 'prefer',       // prefer | direct | any
   };
 }
 
@@ -126,13 +144,22 @@ function inGroup(dep, key) {
 }
 
 /* ── 판정 (scanner.py 와 동일 규칙) ───────────────────── */
+// 표본이 이만큼은 있어야 "싸다/비싸다" 를 말한다 (scanner.py MIN_JUDGE_N).
+const MIN_JUDGE_N = 5;
+
+/* ★ scanner.py 의 deal_tier() 와 **같은 규칙**이어야 한다.
+     tests/test_tier_parity.py 가 공유 사례로 둘을 붙잡아 둔다.
+     예전에는 여기 마지막 줄이 `if (pct >= strong) return 'candidate';` 라
+     표본과 무관하게 후보를 줬다. 파이썬 쪽만 고쳐 놔서, 표본 4건짜리
+     항공권이 화면에는 '특가 후보', 아침 브리프에는 '판정 보류' 로
+     나오고 있었다. */
 function dealTier(o) {
   if (!o.data_ok || o.discount_pct == null) return 'unknown';
   const pct = o.discount_pct, n = o.baseline_n || 0, strong = S.settings.strongPct;
+  if (n < MIN_JUDGE_N) return 'unknown';     // 비교 자료 부족 — 판정하지 않는다
   if (pct >= strong && n >= 10) return 'strong';
-  if (pct >= 20 && n >= 5) return 'deal';
-  if (pct >= 10 && n >= 3) return 'candidate';
-  if (pct >= strong) return 'candidate';
+  if (pct >= 20) return 'deal';
+  if (pct >= 10) return 'candidate';
   return 'normal';
 }
 const TIER_LABEL = {
@@ -174,6 +201,19 @@ function dealScore(o) {
 // CONFIDENCE — 이 판정을 믿어도 되나. 스캐너가 계산해서 보낸다.
 // 없으면(구버전 deals.json) 표본만으로 대충 되살린다.
 function confScore(o) {
+  const base = confBase(o);
+  // 가격 나이를 모르면 감점한다. 스캐너가 이미 반영하지만, 페이지를
+  // 열어 둔 채 시간이 흐르면 화면 쪽이 더 정확하다.
+  const h = priceAgeHours(o);
+  let adj = 0;
+  if (o.found_at == null) adj -= 8;          // 최신성 불명
+  else if (h != null && h > 48) adj -= 8;
+  else if (h != null && h > 24) adj -= 4;
+  if (isExpired(o)) adj -= 25;
+  return Math.max(0, Math.min(100, base + adj));
+}
+
+function confBase(o) {
   if (typeof o.confidence_score === 'number') return o.confidence_score;
   const n = o.baseline_n || 0;
   return n >= 30 ? 60 : n >= 10 ? 45 : n >= 5 ? 30 : 15;
@@ -215,7 +255,7 @@ function rankScore(o) {
 /* 에러페어 "의심" — 확정이 아니라 사람이 확인할 후보를 올린다 */
 function errorFareFlags(o) {
   const f = [];
-  if (o.discount_pct != null && o.discount_pct >= 50) f.push('평균 대비 50% 이상 하락');
+  if (o.discount_pct != null && o.discount_pct >= 50) f.push('비교 기준가 대비 50% 이상 하락');
   if ((o.baseline_n || 0) >= 10) f.push(`표본 ${o.baseline_n}건 확보`);
   if (o.low_all && o.price_krw < o.low_all * 0.85) f.push('추적기간 최저보다 15% 이상 낮음');
   if (o.change === 'down' && o.delta && o.baseline &&
@@ -229,30 +269,93 @@ function isErrorFare(o) {
   if ((o.baseline_n || 0) < 10) return false;
   return true;
 }
-/* 에러페어 신뢰 단계. 핵심은 "몇 개 소스가 같은 값을 봤는가" 다.
-   ★ 지금은 Travelpayouts 하나뿐이라 실제로는 전부 LEVEL 1 이다.
-     Duffel·Skyscanner 토큰이 없으면 교차검증 자체가 불가능하다.
-     그걸 숨기고 높은 숫자를 띄우면 이 앱이 하지 말아야 할 일을 하는 것이다.
-     소스가 붙는 순간 자동으로 2·3단계가 뜬다. */
-function efLevel(o) {
-  const srcs = o.sources || (o.source ? [{ source: o.source }] : []);
-  const names = [...new Set(srcs.map(s => s.source || s).filter(Boolean))];
-  const n = names.length;
-  const flags = errorFareFlags(o).length;
+/* ── 교차검증 ────────────────────────────────────────
+   ★ 예전 efLevel() 은 **소스 개수만** 보고 "두 곳에서 비슷한 가격 · 72%"
+     라고 적었다. Travelpayouts 10만원 + Duffel 90만원을 넣어도 그렇게
+     나왔다 (실측 재현). 가격을 아예 비교하지 않았고, 31/72/91 이라는
+     숫자는 어떤 통계에서도 나온 값이 아니었다.
 
-  if (n >= 2 && flags >= 4) {
-    return { lv: 3, icon: '🔥', label: '강한 이상가격 후보', cls: 'strong',
-             pct: 91, why: `${names.join(' · ')} 에서 조건까지 일치`,
-             note: '가격이 빠르게 사라질 수 있습니다.' };
+   지금은 이렇게 한다.
+     1) 같은 조건인지 먼저 본다 (통화·좌석등급·인원·세금포함·왕복여부).
+        하나라도 모르면 비교 자체를 성립시키지 않는다 — "확인 불가".
+     2) 조건이 같을 때만 가격 차이를 본다. 허용오차는 EF_PRICE_TOL 로
+        한 곳에서 관리한다.
+     3) 확률은 적지 않는다. 검증된 모델이 없으면 숫자를 지어내는 것이다.
+     4) '예약 가능 확인' 은 실제로 재확인했을 때만 준다. 우리는 재확인을
+        하지 않으므로 이 상태를 자동으로 부여하지 않는다. */
+
+// 가격 일치로 볼 허용오차. 세금·수하물 차이로 몇 % 는 흔히 갈린다.
+const EF_PRICE_TOL = 0.10;
+
+// 두 소스를 같은 조건으로 비교하려면 이 값들이 모두 있고 같아야 한다.
+const EF_COMPARE_KEYS = [
+  ['currency', '통화'], ['cabin', '좌석 등급'], ['pax', '인원'],
+  ['tax_included', '세금 포함 여부'], ['roundtrip', '왕복 여부'],
+];
+
+function efCompare(a, b) {
+  const missing = [], differ = [];
+  EF_COMPARE_KEYS.forEach(([k, label]) => {
+    const va = a[k], vb = b[k];
+    if (va === undefined || va === null || vb === undefined || vb === null) missing.push(label);
+    else if (va !== vb) differ.push(label);
+  });
+  return { ok: !missing.length && !differ.length, missing, differ };
+}
+
+/* 상태는 근거로 부른다. 확률을 붙이지 않는다. */
+const EF_STATE = {
+  single:   { icon: '⚠️', label: '단일 소스 발견',      cls: 'pri' },
+  unknown:  { icon: '❔', label: '동일 조건 확인 불가',  cls: 'pri' },
+  differ:   { icon: '✳️', label: '조건이 달라 비교 불가', cls: 'pri' },
+  gap:      { icon: '↔️', label: '소스 간 가격 불일치',  cls: 'warn' },
+  match:    { icon: '⚡', label: '동일 조건 가격 일치',  cls: 'deal' },
+  // booking: '예약 가능 확인' — 실제 재확인 없이는 절대 부여하지 않는다
+};
+
+function efLevel(o) {
+  const srcs = (o.sources || []).filter(s => s && s.source);
+  const names = [...new Set(srcs.map(s => s.source))];
+
+  if (srcs.length < 2) {
+    return Object.assign({ state: 'single' }, EF_STATE.single, {
+      why: `${esc(names[0] || o.source || '한 소스')}에서만 발견`,
+      note: '다른 소스에서 확인되지 않았습니다.', detail: null });
   }
-  if (n >= 2) {
-    return { lv: 2, icon: '⚡', label: '에러페어 의심', cls: 'deal',
-             pct: 72, why: `${names.join(' · ')} 두 곳에서 비슷한 가격`,
-             note: '' };
+
+  // 가격이 가장 낮은 것과 가장 높은 것을 비교한다. 둘이 맞으면 나머지도
+  // 그 사이에 있다.
+  const priced = srcs.filter(s => typeof s.price === 'number' && s.price > 0)
+                     .sort((x, y) => x.price - y.price);
+  if (priced.length < 2) {
+    return Object.assign({ state: 'unknown' }, EF_STATE.unknown, {
+      why: '가격을 준 소스가 하나뿐입니다', note: '', detail: null });
   }
-  return { lv: 1, icon: '⚠️', label: '이상가격 발견', cls: 'pri',
-           pct: 31, why: `${names[0] || '한 소스'} 에서만 발견`,
-           note: '다른 소스에서 확인되지 않았습니다.' };
+  const lo = priced[0], hi = priced[priced.length - 1];
+  const cmp = efCompare(lo, hi);
+  const gap = (hi.price - lo.price) / lo.price;
+  const gapTxt = `${esc(lo.source)} ${won(lo.price)}원 · ${esc(hi.source)} ${won(hi.price)}원`;
+
+  if (cmp.differ.length) {
+    return Object.assign({ state: 'differ' }, EF_STATE.differ, {
+      why: `${cmp.differ.join('·')} 조건이 서로 다릅니다`, note: gapTxt, detail: cmp });
+  }
+  if (cmp.missing.length) {
+    // ★ 여기가 핵심이다. 모르는 것을 "같다" 로 취급하지 않는다.
+    return Object.assign({ state: 'unknown' }, EF_STATE.unknown, {
+      why: `${cmp.missing.join('·')} 조건을 알 수 없습니다`,
+      note: `${gapTxt} — 조건을 모르므로 같은 가격인지 판단할 수 없습니다.`,
+      detail: cmp });
+  }
+  if (gap > EF_PRICE_TOL) {
+    return Object.assign({ state: 'gap' }, EF_STATE.gap, {
+      why: `같은 조건인데 ${Math.round(gap * 100)}% 차이`,
+      note: `${gapTxt} — 어느 쪽이 맞는지 확인이 필요합니다.`, detail: cmp });
+  }
+  return Object.assign({ state: 'match' }, EF_STATE.match, {
+    why: `${names.join(' · ')} · 오차 ${Math.round(gap * 100)}% 이내`,
+    note: `${gapTxt} — 가격이 같다는 것이 오류운임 확정을 뜻하지는 않습니다.`,
+    detail: cmp });
 }
 
 /* 지금 교차검증이 가능한 상태인가. 불가능하면 그렇게 적는다. */
@@ -268,13 +371,41 @@ function errorConfidence(o) {
 }
 
 /* ── 데이터 파생 ──────────────────────────────────────── */
-function visibleOffers() {
+/* 여행 조건 한 곳에서 판정한다. 탭마다 다시 쓰면 규칙이 갈라진다.
+
+   ★ 환승 횟수를 모르는 편(stops == null)을 '1회 환승 이하' 충족으로
+     취급하지 않는다. 예전 코드는 `st.stops !== 'one' || o.stops == null ||
+     o.stops <= 1` 이라, 환승 정보가 없는 편이 전부 조건을 통과했다.
+     모르는 것을 유리하게 반올림하면 안 된다.
+
+   trip 은 근거리/장거리 각각의 조건 묶음이다. */
+function tripRules(long) {
   const st = S.settings;
+  return long
+    ? { min: st.longMinNights, max: st.longMaxNights, stops: st.longStops,
+        name: '장거리(유럽·미주)' }
+    : { min: st.minNights, max: st.maxNights, stops: st.stops, name: '근거리' };
+}
+
+const LONG_REGION = ['유럽', '미주'];
+const isLong = o => LONG_REGION.indexOf(o.region) !== -1;
+
+function matchesTrip(o, rules) {
+  const r = rules || tripRules(isLong(o));
+  if (!(o.nights >= r.min && o.nights <= r.max)) return false;
+  if (r.stops === 'direct') return o.stops === 0;
+  if (r.stops === 'one') return o.stops !== null && o.stops !== undefined && o.stops <= 1;
+  return true;                       // 'prefer' / 'any' — 거르지 않는다
+}
+
+function visibleOffers() {
+  // ★ 만료된 가격은 '지금 살 수 있는 후보' 가 아니다. 목록에서 뺀다.
+  //   지우는 게 아니라 expiredOffers() 로 따로 볼 수 있게 남긴다.
   return S.data.offers.filter(o =>
-    originOn(o.dep) &&
-    o.nights >= st.minNights && o.nights <= st.maxNights &&
-    (st.stops !== 'direct' || o.stops === 0) &&
-    (st.stops !== 'one' || o.stops == null || o.stops <= 1));
+    originOn(o.dep) && matchesTrip(o) && !isExpired(o));
+}
+function expiredOffers() {
+  return S.data.offers.filter(o => isExpired(o));
 }
 // 국내/해외 칩을 걸기 *전* 단계. 칩에 적는 건수의 기준이다 —
 // 걸고 나서 세면 고른 칩만 0 이 아니게 되어 아무 정보도 못 준다.
@@ -306,14 +437,14 @@ const cheapest = list =>
 function cmpHTML(o) {
   if (o.diff_krw == null) return '';
   if (o.diff_krw > 0) {
-    return `<div class="cmp-line is-down"><span class="t">평균보다 ${won(o.diff_krw)}원 저렴</span>
+    return `<div class="cmp-line is-down"><span class="t">비교 기준가보다 ${won(o.diff_krw)}원 저렴</span>
       <span class="p">▼ ${Math.round(o.discount_pct)}%</span></div>`;
   }
   if (o.diff_krw < 0) {
-    return `<div class="cmp-line is-up"><span class="t">평균보다 ${won(-o.diff_krw)}원 비쌈</span>
+    return `<div class="cmp-line is-up"><span class="t">비교 기준가보다 ${won(-o.diff_krw)}원 비쌈</span>
       <span class="p">▲ ${Math.round(-o.discount_pct)}%</span></div>`;
   }
-  return '<div class="cmp-line is-flat"><span class="t">평균과 같음</span></div>';
+  return '<div class="cmp-line is-flat"><span class="t">비교 기준가와 같음</span></div>';
 }
 
 /* 세 점수를 나란히 보여준다. 숫자 하나만 크게 띄우면 그게 무슨 뜻인지
@@ -346,6 +477,17 @@ function confParts(o) {
       그날 캐시에 뭐가 있었느냐일 뿐입니다.</p>` : ''}</div>`;
 }
 
+/* 가격 최신성 배지. 값이 없으면 비워 두지 않고 '불명' 이라고 적는다 —
+   비워 두면 "최신" 처럼 읽힌다. */
+function freshBadge(o) {
+  if (isExpired(o)) {
+    return `<span class="bg up">⛔ 만료된 가격 · ${esc(ageTxt(o.found_at))}</span>`;
+  }
+  const h = priceAgeHours(o);
+  const cls = o.found_at == null ? 'warn' : (h > 48 ? 'warn' : '');
+  return `<span class="bg ${cls}">🕐 ${esc(ageTxt(o.found_at))}</span>`;
+}
+
 function badgesHTML(o) {
   const t = dealTier(o), b = [];
   if (t === 'unknown') {
@@ -355,9 +497,10 @@ function badgesHTML(o) {
     b.push(`<span class="bg ${t}">${TIER_LABEL[t]}</span>`);
     b.push(`<span class="bg">표본 ${o.baseline_n || 0} · 신뢰도 ${esc(o.confidence || '참고')}</span>`);
   }
+  b.push(freshBadge(o));
   const sn = stopSrcNote(o);
   if (sn) b.push(`<span class="bg ${sn.cls}">${esc(sn.txt)}</span>`);
-  if (o.weekend_trip) b.push(`<span class="bg pri">주말 · ${leaveTxt(o.annual_leave)}</span>`);
+  if (o.weekend_trip) b.push(`<span class="bg pri">주말 · ${leaveOf(o)}</span>`);
   if (o.holiday) b.push(`<span class="bg pri">${esc(o.holiday)}</span>`);
   if (o.change === 'new') b.push('<span class="bg pri">🆕 신규</span>');
   // 가격 변동. 전에는 "-2,754" 만 찍었는데 단위도 기준도 없어서
@@ -442,15 +585,51 @@ function deltaTxt(o) {
   return `${down ? '📉' : '📈'} ${when}보다 ${won(Math.abs(o.delta))}원 ${down ? '내림' : '오름'}`;
 }
 
+/* 네 가지 시각을 구분한다. 하나로 뭉치면 "지금 확인된 가격" 처럼 보인다.
+     meta.ts            스캐너가 돌아간 시각 (수집 시각)
+     o.found_at         원본이 이 가격을 확인한 시각
+     o.expires_at       이 가격의 유효 만료 시각
+     Date.now()         지금 페이지를 보고 있는 시각
+   ★ 같은 캐시를 다시 읽었다고 found_at 을 지금으로 갱신하지 않는다.
+     스캐너는 소스가 준 값을 그대로 싣고, 안 주면 비운다. */
+function priceAgeHours(o) {
+  if (!o.found_at) return null;
+  const t = Date.parse(o.found_at);
+  if (!t) return null;
+  const h = (Date.now() - t) / 3600000;
+  return h < 0 ? null : h;
+}
+
 function ageTxt(iso) {
-  if (!iso) return '';
+  if (!iso) return '가격 확인 시각 불명';
   const t = Date.parse(iso);
-  if (!t) return '';
+  if (!t) return '가격 확인 시각 불명';
   const h = Math.floor((Date.now() - t) / 3600000);
-  if (h < 0) return '';
-  if (h < 1) return '방금 검색된 값';
-  if (h < 24) return `${h}시간 전 검색된 값`;
-  return `${Math.floor(h / 24)}일 전 검색된 값`;
+  if (h < 0) return '가격 확인 시각 불명';
+  if (h < 1) return '방금 확인된 가격';
+  if (h < 24) return `${h}시간 전 확인된 가격`;
+  return `${Math.floor(h / 24)}일 전 확인된 가격`;
+}
+
+/* 이 가격이 이미 만료됐나. 만료된 값은 '지금 살 수 있는 후보' 가 아니다. */
+function isExpired(o) {
+  if (!o.expires_at) return false;
+  const t = Date.parse(o.expires_at);
+  return !!t && t < Date.now();
+}
+
+/* 예약 링크. 그 가격을 준 소스의 링크가 있으면 그것을 쓰고, 없으면
+   일반 검색 링크를 쓰되 이름을 다르게 붙인다 — 같은 가격이 나온다고
+   약속하지 않는다. */
+function bookingLink(o) {
+  const src = (o.sources || []).find(s => s && s.booking_url);
+  if (o.booking_url || src) {
+    return { url: o.booking_url || src.booking_url,
+             label: '이 가격으로 예약 페이지 열기',
+             direct: true, source: (src && src.source) || o.source };
+  }
+  return { url: o.link, label: '동일 일정 다시 검색', direct: false,
+           source: null };
 }
 // 경유지. 확정과 추정을 절대 같은 얼굴로 보여주지 않는다.
 //   via_src === 'segment'  provider 가 준 실제 구간 → 그대로 적는다
@@ -501,7 +680,7 @@ function heroHTML(o, rank, plainLabel) {
     <div class="codes">${esc(o.dep)} → ${esc(o.arr)} · ${esc(o.airline_kr || o.airline)}</div>
     <div class="codes" style="margin-top:3px">${esc(stopDetail(o))}</div>
     <div class="when"><b>${md(o.depart_date)} ${dow(o.depart_date)}</b> → <b>${md(o.return_date)} ${dow(o.return_date)}</b></div>
-    <div class="meta">${o.nights}박 ${o.nights + 1}일 · ${leaveTxt(o.annual_leave)}</div>
+    <div class="meta">${o.nights}박 ${o.nights + 1}일 · ${leaveOf(o)}</div>
     <div class="grid">
       <div><div class="k">항공권</div><div class="v">${won(o.price_krw)}원</div></div>
       <div><div class="k">${acc ? `${esc(homeCity())} → ${esc(depCity(o.dep))} 이동비` : '공항 이동비'}</div>
@@ -516,7 +695,7 @@ function heroHTML(o, rank, plainLabel) {
     </div>
     ${scoresHTML(o)}
     ${badgesHTML(o)}
-    <span class="cta">현재 가격 확인</span>
+    <span class="cta">${esc(bookingLink(o).label)}</span>
   </button>`;
 }
 
@@ -609,7 +788,7 @@ function viewHome() {
           .slice(0, 3).map(o => o.id)));
     const more = top.filter(o => !shown.has(o.id)).slice(0, 4);
     deals = `<div class="note hot"><b>🔥 오늘 강력 특가가 없습니다</b>
-        <p>기준(평균 대비 ${S.settings.strongPct}% 이상 저렴 · 표본 10건 이상)을 넘는 항공권이 없습니다.
+        <p>기준(비교 기준가 대비 ${S.settings.strongPct}% 이상 저렴 · 표본 10건 이상)을 넘는 항공권이 없습니다.
         지금 가장 저렴한 항공권은 아래와 같습니다.</p></div>
       <div style="margin-top:10px">${heroHTML(c, 1)}</div>
       <div class="panel">
@@ -1387,7 +1566,7 @@ function seedChecklist() {
       <p>평균과 비교해야 싼지 아닌지 말할 수 있는데, 그러려면 같은 노선
       기록이 <b>10건</b>은 있어야 합니다. 아래 🌡 표시가 붙은 노선은
       가격은 들어왔지만 아직 그만큼이 아닙니다. <b>날짜를 바꿔 가며 몇 번
-      더 검색</b>하면 기준선이 생기고, 그때부터 "평균보다 N% 저렴" 이
+      더 검색</b>하면 기준선이 생기고, 그때부터 "비교 기준가보다 N% 저렴" 이
       나옵니다.</p></div>` : ''}
     <div class="note"><b>누르는 것만으로는 부족할 수 있습니다</b>
       <p>버튼을 누르면 aviasales 검색이 열립니다. <b>항공권 목록이 실제로
@@ -1488,18 +1667,69 @@ function liveSearchHTML(dep, arr, cityName) {
   </div>`;
 }
 
+const STOPS_LABEL = { direct: '직항만', one: '1회 환승 이하',
+                      prefer: '환승 제한 없음(직항 우대)', any: '환승 제한 없음' };
+
+/* 지금 어떤 조건이 걸려 있는지 적고, 조건 밖 편이 몇 건인지 밝힌다.
+   조건을 몰래 완화하지 않는다 — 보여줄 거면 '조건 밖' 이라고 적는다. */
+function swissCondNote(rules, cond, total, outside) {
+  return `<div class="note"><b>지금 걸린 여행 조건</b>
+    <p><b>${esc(cond)}</b> (장거리 전용 설정) · 수집 ${total}건 중
+    조건 충족 ${total - outside.length}건${outside.length
+      ? ` · <b>조건 밖 ${outside.length}건</b>은 아래에 따로 있습니다` : ''}.<br>
+    <span style="font-size:11.5px">설정 탭에서 장거리 조건을 바꿀 수
+    있습니다. 근거리(일본·동남아)와 따로 관리됩니다.</span></p>
+    <div class="frow" style="margin-top:8px">
+      <button class="fchip" data-view="settings-long">장거리 조건 바꾸기</button>
+    </div></div>`;
+}
+
+/* 조건 밖 편은 지우지도, 섞지도 않는다. 따로 묶어서 왜 밖인지 적는다. */
+function outsideSection(outside, rules) {
+  if (!outside.length) return '';
+  const why = o => {
+    const b = [];
+    if (!(o.nights >= rules.min && o.nights <= rules.max)) b.push(`${o.nights}박`);
+    if (rules.stops === 'direct' && o.stops !== 0) b.push(stopTxt(o.stops));
+    if (rules.stops === 'one' && !(o.stops <= 1)) b.push(stopTxt(o.stops));
+    return b.join(' · ') || '조건 밖';
+  };
+  const rows = outside.slice().sort((x, y) => effective(x) - effective(y)).slice(0, 8);
+  return `<section class="sec">
+    <div class="sec-hd"><div><h2>➕ 조건 밖 대안</h2>
+      <p>지금 걸린 여행 조건에는 맞지 않지만 스위스행입니다.
+        위 목록과 섞지 않았습니다.</p></div></div>
+    <div class="list two">${rows.map(o => `
+      <button class="cd" data-open="${esc(o.id)}" style="border-style:dashed">
+        <div class="top"><div class="ttl">
+          <div class="route">${esc(depCity(o.dep))} → ${esc(o.city)}</div>
+          <div class="sub">${esc(o.dep)}→${esc(o.arr)} · ${md(o.depart_date)} → ${md(o.return_date)}</div></div>
+          <div class="price"><div class="v">${won(effective(o))}</div>
+            <div class="k">실부담</div></div></div>
+        <div class="badges"><span class="bg warn">조건 밖 · ${esc(why(o))}</span>
+          ${srcBadge(o)}</div></button>`).join('')}</div>
+  </section>`;
+}
+
 function viewSwiss() {
-  // 여행 기간·환승 설정을 일부러 적용하지 않는다. 유럽은 캐시가 얇아
-  // 근거리용 조건을 씌우면 있는 것마저 사라진다. 환승은 제한 없이 다 본다.
+  // ★ 예전에는 여행 기간·환승 설정을 통째로 무시했다. 유럽 캐시가 얇다는
+  //   이유였지만, 조건을 몰래 완화하면 화면과 설정이 서로 다른 말을 한다.
+  //   이제 장거리 전용 조건(longMinNights/longMaxNights/longStops)을 쓰고,
+  //   그 조건을 화면에 적고, 조건 밖 편은 '조건 밖 대안' 으로 따로 묶는다.
   //
   // SWISS_ORDER(ZRH/GVA/BSL) 만 본다. 스위스 도착이 아닌 항공권은 여기
   // 들어오지 않는다 — "인천 → 뮌헨" 을 스위스 항공권처럼 보여주면 거짓이다.
-  const all = S.data.offers.filter(o =>
+  const rules = tripRules(true);
+  const pool = S.data.offers.filter(o =>
     SWISS_ORDER.includes(o.arr) && originOn(o.dep));
+  const all = pool.filter(o => matchesTrip(o, rules));
+  const outside = pool.filter(o => !matchesTrip(o, rules));
+  const cond = `${rules.min}~${rules.max}박 · ${STOPS_LABEL[rules.stops] || rules.stops}`;
 
   if (!all.length) {
-    return `${plainHeader('스위스', '취리히 우선 · 환승 제한 없음')}
-      <div class="wrap">${swissDiag()}${swissNote()}${footerHTML()}</div>`;
+    return `${plainHeader('스위스', `취리히 우선 · ${cond}`)}
+      <div class="wrap">${swissCondNote(rules, cond, pool.length, outside)}
+        ${swissDiag()}${swissNote()}${footerHTML()}</div>`;
   }
 
   // 도시 안에서는 직항 → 1회 → 2회+ , 그다음 실부담가
@@ -1635,8 +1865,9 @@ function viewSwiss() {
   // 데이터가 있는 도시라도 실제 예약 전에는 실시간을 보는 게 맞다.
   // 대표편 도시 기준으로 맨 아래 한 번 더 둔다.
   const liveAll = liveSearchHTML('ICN', hero.arr, SWISS_CITY[hero.arr] || hero.arr);
-  return `${plainHeader('스위스', '취리히 우선 · 환승 제한 없음')}
-  <div class="wrap">${head}${sections}${pos}${liveAll}${swissNote()}${footerHTML()}</div>`;
+  return `${plainHeader('스위스', `취리히 우선 · ${cond}`)}
+  <div class="wrap">${swissCondNote(rules, cond, pool.length, outside)}${head}${sections}
+    ${outsideSection(outside, rules)}${pos}${liveAll}${swissNote()}${footerHTML()}</div>`;
 }
 
 function swissNote() {
@@ -1680,11 +1911,14 @@ function crossNote() {
   const { on, off } = crossCheckable();
   if (off.length === 0) return '';
   return `<div class="note"><b>지금은 교차검증을 할 수 없습니다</b>
-    <p>서로 다른 소스가 같은 가격을 보여야 "에러페어 의심" 이 올라갑니다.
-    현재 켜져 있는 소스는 <b>${esc(on.join(' · ') || '없음')}</b> 하나뿐이라,
-    아래는 전부 <b>1단계(한 소스에서만 발견)</b> 입니다.<br>
-    ${esc(off.join(' · '))} 는 토큰이 없어 꺼져 있습니다. 토큰을 넣으면
-    2·3단계 판정이 자동으로 켜집니다.</p></div>`;
+    <p>서로 다른 소스가 <b>같은 조건에서</b> 같은 가격을 보여야 교차검증이
+    성립합니다. 현재 켜져 있는 소스는 <b>${esc(on.join(' · ') || '없음')}</b>
+    하나뿐이라 아래는 전부 <b>단일 소스 발견</b> 입니다.<br>
+    ${esc(off.join(' · '))} 는 토큰이 없어 꺼져 있습니다.<br>
+    <span style="font-size:11.5px">소스가 둘 이상이어도 좌석 등급·인원·세금
+    포함 여부를 알 수 없으면 <b>동일 조건 확인 불가</b> 로 남습니다.
+    모르는 것을 같다고 보지 않습니다. 가격이 같다는 것도 오류운임 확정을
+    뜻하지 않습니다.</span></p></div>`;
 }
 
 function viewError() {
@@ -1713,7 +1947,7 @@ function viewError() {
           </button>`;
       }).join('')}</div>`
     : emptyBlock('지금 에러페어 의심 건이 없습니다',
-        '평균 대비 50% 이상 저렴하면서 표본이 10건 이상인 항공권만 여기 올립니다.');
+        '비교 기준가 대비 50% 이상 저렴하면서 표본이 10건 이상인 항공권만 여기 올립니다.');
 
   // 의심 건이 없어도 "그럼 오늘 제일 많이 빠진 건 뭔데"에는 답한다.
   const steep = visibleOffers()
@@ -1736,10 +1970,10 @@ function viewError() {
       다시 확인해야 합니다.</p></div>
     ${crossNote()}
     <section class="sec"><div class="sec-hd"><div><h2>의심 건</h2>
-      <p>평균 대비 50%+ 하락 · 표본 10건 이상</p></div></div>${body}</section>
+      <p>비교 기준가 대비 50%+ 하락 · 표본 10건 이상</p></div></div>${body}</section>
     ${steepBlock}
     <div class="panel"><h4>판정 조건</h4>
-      <div class="kv"><span class="k">필수</span><span class="v">평균 대비 50% 이상 하락</span></div>
+      <div class="kv"><span class="k">필수</span><span class="v">비교 기준가 대비 50% 이상 하락</span></div>
       <div class="kv"><span class="k">필수</span><span class="v">표본 10건 이상</span></div>
       <div class="kv"><span class="k">가점</span><span class="v">추적기간 최저보다 15% 이상 낮음</span></div>
       <div class="kv"><span class="k">가점</span><span class="v">하루 만에 25% 이상 급락</span></div>
@@ -1779,13 +2013,32 @@ function viewSettings() {
       ${costRows}
     </div>
 
-    <div class="panel"><h4>여행 기간</h4>
+    <div class="panel"><h4>여행 기간 · 근거리 (일본·중화권·동남아)</h4>
       <div class="set-row"><div class="lb">최소<small>박</small></div>
         <input type="number" inputmode="numeric" min="1" max="30"
-          value="${st.minNights}" data-set="minNights" aria-label="최소 박수"></div>
+          value="${st.minNights}" data-set="minNights" aria-label="근거리 최소 박수"></div>
       <div class="set-row"><div class="lb">최대<small>박</small></div>
         <input type="number" inputmode="numeric" min="1" max="30"
-          value="${st.maxNights}" data-set="maxNights" aria-label="최대 박수"></div>
+          value="${st.maxNights}" data-set="maxNights" aria-label="근거리 최대 박수"></div>
+    </div>
+
+    <div class="panel" id="settings-long"><h4>여행 기간 · 장거리 (유럽·미주)</h4>
+      <div class="set-row"><div class="lb">최소<small>박</small></div>
+        <input type="number" inputmode="numeric" min="1" max="40"
+          value="${st.longMinNights}" data-set="longMinNights" aria-label="장거리 최소 박수"></div>
+      <div class="set-row"><div class="lb">최대<small>박</small></div>
+        <input type="number" inputmode="numeric" min="1" max="40"
+          value="${st.longMaxNights}" data-set="longMaxNights" aria-label="장거리 최대 박수"></div>
+      <div class="set-row"><div class="lb">환승<small>장거리 전용</small></div>
+        <div class="seg" style="flex:1">
+          ${[['any', '제한 없음'], ['one', '1회 이하'], ['direct', '직항만']]
+            .map(([k, l]) => `<button data-longstops="${k}"
+              aria-pressed="${st.longStops === k}">${l}</button>`).join('')}
+        </div></div>
+      <p style="margin:8px 0 0;font-size:12px;color:var(--tx3);font-weight:600;line-height:1.5">
+        ★ 스위스 탭은 <b>이 조건</b>을 씁니다. 예전에는 조건을 통째로 무시했는데,
+        그러면 설정과 화면이 서로 다른 말을 합니다. 조건 밖 편은 지우지 않고
+        <b>'조건 밖 대안'</b> 으로 따로 보여줍니다.</p>
     </div>
 
     <div class="panel"><h4>강력 특가 기준</h4>
@@ -1810,7 +2063,10 @@ function viewSettings() {
              <b>항상 직항만</b> 수집합니다. 환승편 가격이 섞이면 기준선까지
              오염되기 때문입니다.`
           : ''}
-        서울권(인천·김포)과 스위스에만 위 설정이 적용됩니다.</p>
+        위 환승 설정은 <b>근거리</b>에 적용됩니다. 장거리(유럽·미주)는 아래
+        장거리 패널에서 따로 정합니다.<br>
+        <b>환승 횟수를 모르는 편</b>은 '1회 이하'·'직항만' 조건을 충족한
+        것으로 보지 않습니다.</p>
     </div>
 
     <div class="panel"><h4>표본이 얇은 노선</h4>
@@ -1894,9 +2150,20 @@ function detailHTML(o) {
 
     <div class="panel"><h4>일정</h4>
       <div class="kv"><span class="k">가는 날</span><span class="v">${o.depart_date} (${dow(o.depart_date)})${o.dep_hour != null ? ` ${String(o.dep_hour).padStart(2, '0')}시대` : ''}</span></div>
-      <div class="kv"><span class="k">오는 날</span><span class="v">${o.return_date} (${dow(o.return_date)})</span></div>
+      <div class="kv"><span class="k">현지 출발</span><span class="v">${o.return_date} (${dow(o.return_date)})${
+        o.ret_hour != null ? ` ${o.ret_hour}시` : ''}</span></div>
+      <div class="kv"><span class="k">한국 도착</span><span class="v">${o.home_arrive_date
+        ? `${o.home_arrive_date} (${dow(o.home_arrive_date)})${o.home_arrive_hour != null ? ` ${o.home_arrive_hour}시` : ''}`
+        : '<span style="font-size:12.5px;font-family:var(--sans);color:var(--tx3)">미확인 — 소스가 도착 시각을 주지 않습니다</span>'}</span></div>
       <div class="kv"><span class="k">숙박</span><span class="v">${o.nights}박 ${o.nights + 1}일</span></div>
-      <div class="kv"><span class="k">필요 연차</span><span class="v">${leaveTxt(o.annual_leave)}${o.night_departure ? ' · 퇴근 후 출발' : ''}</span></div>
+      <div class="kv"><span class="k">필요 연차</span><span class="v">${leaveOf(o)}${
+        o.night_departure ? ' · 야간 출발' : ''}</span></div>
+      ${o.annual_leave_confirmed === false ? `<p class="live-note">한국 도착일을
+        모르므로 <b>최소값</b>입니다. 현지에서 밤에 떠나면 다음 날 도착이라
+        연차가 하루 더 들 수 있습니다.</p>` : ''}
+      ${o.night_departure ? `<p class="live-note">출발 시각만 보고 "퇴근 후
+        출발 가능" 이라고 확정하지 않습니다. 공항까지 이동 시간(청주→인천
+        약 2시간)과 수속을 더해 직접 판단하세요.</p>` : ''}
       <div class="kv"><span class="k">항공사</span><span class="v">${esc(o.airline_kr || o.airline)}</span></div>
       <div class="kv"><span class="k">경유</span><span class="v">${stopTxt(o.stops)}</span></div>
     </div>
@@ -1915,7 +2182,13 @@ function detailHTML(o) {
       <div class="kv"><span class="k">최근 30일 최저</span><span class="v">${won(r.low30)}원${r.low30_date ? ` <span style="color:var(--tx3)">${md(r.low30_date)}</span>` : ''}</span></div>
       <div class="kv"><span class="k">추적 기간 최저</span><span class="v">${won(r.low_all)}원${r.low_all_date ? ` <span style="color:var(--tx3)">${md(r.low_all_date)}</span>` : ''}</span></div>
       <div class="kv"><span class="k">표본 수</span><span class="v">${o.baseline_n || 0}건${o.baseline_days ? ` · 추적 ${o.baseline_days}일` : ''} · 신뢰도 ${esc(o.confidence || '참고')}</span></div>
-      <div class="kv"><span class="k">평균 산출 기준</span><span class="v">${esc(o.baseline_tier || '—')}</span></div>
+      <div class="kv"><span class="k">비교 조건</span><span class="v"
+        style="font-size:12px;font-family:var(--sans)">${esc(o.baseline_tier || '—')}</span></div>
+      <p class="live-note">비교 기준가는 <b>중앙값</b>입니다(평균이 아닙니다).
+        같은 노선·같은 박수끼리 비교하고, 자료가 모자라면 박수나 출발지를
+        넓힌 기준으로 내려갑니다 — 위 '비교 조건' 에 어느 단계인지 적혀
+        있습니다. 표본 ${o.baseline_n || 0}건${o.baseline_days
+          ? ` · 관측 ${o.baseline_days}일` : ''}.</p>
     </div>
     ${confParts(o)}
 
@@ -1935,7 +2208,12 @@ function detailHTML(o) {
       </div>
     </div>
 
-    <a class="cta" href="${esc(o.link)}" target="_blank" rel="noopener">항공권 확인 →</a>
+    <a class="cta" href="${esc(bookingLink(o).url)}" target="_blank" rel="noopener"
+      >${esc(bookingLink(o).label)} →</a>
+    ${bookingLink(o).direct
+      ? `<p class="live-note">${esc(bookingLink(o).source)} 가 이 가격으로 준 링크입니다.</p>`
+      : `<p class="live-note">이 가격의 전용 예약 링크가 없어 <b>같은 일정으로
+         다시 검색</b>하는 링크입니다. 검색 결과가 위 가격과 다를 수 있습니다.</p>`}
     <p style="margin:10px 0 0;font-size:11.5px;color:var(--tx3);text-align:center;font-weight:600">
       캐시 기반 참고값입니다. 판매처에서 최종 가격을 확인하세요.</p>
   </div></div>`;
@@ -2037,6 +2315,9 @@ document.addEventListener('click', ev => {
   if (t.hasAttribute('data-reload') || t.hasAttribute('data-retry')) return location.reload();
   if (t.hasAttribute('data-back')) { S.view = null; return render(); }
 
+  if (t.getAttribute('data-view') === 'settings-long') {
+    S.tab = 'settings'; S.view = null; window.scrollTo(0, 0); return render();
+  }
   const tab = t.getAttribute('data-tab');
   if (tab) { S.tab = tab; S.view = null; S.detail = null; window.scrollTo(0, 0); return render(); }
 
@@ -2082,6 +2363,8 @@ document.addEventListener('click', ev => {
 
   const sp = t.getAttribute('data-stops');
   if (sp) { S.settings.stops = sp; saveSettings(); return render(); }
+  const lsp = t.getAttribute('data-longstops');
+  if (lsp) { S.settings.longStops = lsp; saveSettings(); return render(); }
 
   if (t.hasAttribute('data-reset')) {
     try { localStorage.removeItem(SETTINGS_KEY); } catch (_) {}
@@ -2100,12 +2383,15 @@ document.addEventListener('change', ev => {
   const key = el.getAttribute && el.getAttribute('data-set');
   if (key) {
     let v = Number(el.value) || 0;
-    if (key === 'minNights') v = Math.max(1, Math.min(30, v));
-    if (key === 'maxNights') v = Math.max(1, Math.min(30, v));
+    if (key === 'minNights' || key === 'maxNights') v = Math.max(1, Math.min(30, v));
+    if (key === 'longMinNights' || key === 'longMaxNights') v = Math.max(1, Math.min(40, v));
     if (key === 'strongPct') v = Math.max(5, Math.min(80, v));
     S.settings[key] = v;
     if (S.settings.minNights > S.settings.maxNights) {
       S.settings.maxNights = S.settings.minNights;
+    }
+    if (S.settings.longMinNights > S.settings.longMaxNights) {
+      S.settings.longMaxNights = S.settings.longMinNights;
     }
     saveSettings(); return render();
   }

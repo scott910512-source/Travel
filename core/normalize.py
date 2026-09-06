@@ -35,7 +35,10 @@ def make_offer(source, dep, arr, departure_at, price, currency="KRW", *,
                return_at=None, airline=None, outbound_stops=None,
                return_stops=None, booking_url=None, found_at=None,
                live=None, confidence=None, duration_min=None,
-               duration_rt_min=None, flight_no=None, raw=None):
+               duration_rt_min=None, flight_no=None, raw=None,
+               cabin=None, pax=None, tax_included=None, baggage=None,
+               refundable=None, price_valid_until=None, fare_brand=None,
+               segments=None):
     """provider 응답 한 건 → 공통 Offer.
 
     필수는 source/dep/arr/departure_at/price 뿐이다. 나머지를 못 주는
@@ -60,8 +63,42 @@ def make_offer(source, dep, arr, departure_at, price, currency="KRW", *,
         "source_confidence": confidence or conf,
         "duration_min": duration_min,
         "duration_rt_min": duration_rt_min,
+        # ── 운임 조건 ────────────────────────────────────
+        # 두 소스의 가격을 비교하려면 "같은 것을 비교하고 있나" 를 먼저
+        # 답할 수 있어야 한다. 못 주는 provider 는 None 으로 남긴다 —
+        # 모르는 것을 채워 넣으면 "동일 조건" 이 거짓말이 된다.
+        "cabin": cabin,                      # economy / premium / business
+        "pax": pax,                          # 승객 수
+        "tax_included": tax_included,        # 세금·유류할증 포함 여부
+        "baggage": baggage,                  # 위탁 수하물 (개수 또는 설명)
+        "refundable": refundable,            # 환불 가능 여부
+        "price_valid_until": price_valid_until,   # 이 가격의 유효시각
+        "fare_brand": fare_brand,            # 운임 브랜드 (판매처 구분)
+        "segments": segments,                # 구간별 [{from,to,at,flight_no}]
         "_raw": raw,
     }
+
+
+# 두 소스의 가격을 "같은 것" 으로 비교하려면 아래가 전부 일치해야 한다.
+# 하나라도 None 이면 비교 자체가 성립하지 않는다 (동일 조건 확인 불가).
+COMPARE_KEYS = ("currency", "cabin", "pax", "tax_included", "roundtrip")
+
+
+def compare_conditions(a, b):
+    """두 offer 를 같은 조건으로 비교할 수 있나.
+
+    반환 (가능여부, 모자란 항목들). 값이 다르면 불가, 값이 없어도 불가다.
+    ★ "모른다" 를 "같다" 로 취급하면 안 된다. 그게 10만원과 90만원을
+      '동일 조건 가격 일치' 라고 부르게 만드는 지름길이다.
+    """
+    missing, differ = [], []
+    for k in COMPARE_KEYS:
+        va, vb = a.get(k), b.get(k)
+        if va is None or vb is None:
+            missing.append(k)
+        elif va != vb:
+            differ.append(k)
+    return (not missing and not differ), {"missing": missing, "differ": differ}
 
 
 def day(ts):
