@@ -1,41 +1,28 @@
 {
  "date": "2026-09-07",
- "ts": "2026-09-07 18:05 KST",
+ "ts": "2026-09-08 00:37 KST",
  "status": "OK",
- "headline": "볼 것 438건 · 강력특가 17 · CJJ 3 · 신규 38 · 하락 7",
+ "headline": "볼 것 432건 · 강력특가 16 · CJJ 3 · 신규 38 · 하락 3",
  "home": "CJJ",
  "reason": null,
  "degraded": null,
  "holiday_gap": null,
  "counts": {
-  "total": 438,
-  "comparable": 438,
-  "strong": 17,
-  "deal": 29,
-  "candidate": 55,
+  "total": 433,
+  "comparable": 432,
+  "strong": 16,
+  "deal": 28,
+  "candidate": 57,
   "weekend": 0,
-  "home": 38,
+  "home": 30,
   "new": 38,
-  "down": 7,
-  "up": 27,
-  "gone": 57
+  "down": 3,
+  "up": 54,
+  "gone": 43
  },
  "source_note": "Travelpayouts 캐시 데이터 · 실시간 확정가 아님",
  "access_note": "실부담가 = 항공권 + CJJ 기준 왕복 교통비 (추정치)",
  "top": [
-  {
-   "text": "상하이 CJJ→PVG · 09-13~09-18 5박 · 198,713원 · 비교 기준가보다 24% 저렴 · 특가  🆕",
-   "tier": "deal",
-   "tier_label": "특가",
-   "confidence": "보통",
-   "sample": 13,
-   "price": 198713,
-   "access": 0,
-   "effective": 198713,
-   "weekend_trip": false,
-   "leave": 5.0,
-   "link": "https://www.aviasales.com/search/CJJ1309PVG18091"
-  },
   {
    "text": "상하이 CJJ→PVG · 09-16~09-18 2박 · 197,187원 · 비교 기준가보다 24% 저렴 · 특가",
    "tier": "deal",
@@ -48,6 +35,19 @@
    "weekend_trip": false,
    "leave": 3.0,
    "link": "https://www.aviasales.com/search/CJJ1609PVG18091"
+  },
+  {
+   "text": "상하이 CJJ→PVG · 09-13~09-18 5박 · 198,713원 · 비교 기준가보다 24% 저렴 · 특가",
+   "tier": "deal",
+   "tier_label": "특가",
+   "confidence": "보통",
+   "sample": 13,
+   "price": 198713,
+   "access": 0,
+   "effective": 198713,
+   "weekend_trip": false,
+   "leave": 5.0,
+   "link": "https://www.aviasales.com/search/CJJ1309PVG18091"
   },
   {
    "text": "다낭 CJJ→DAD · 09-27~10-06 9박 · 358,213원 · 비교 기준가보다 29% 저렴 · 특가 · 개천절",
@@ -66,19 +66,6 @@
  "weekend": [],
  "home_airport": [
   {
-   "text": "상하이 CJJ→PVG · 09-13~09-18 5박 · 198,713원 · 비교 기준가보다 24% 저렴 · 특가  🆕",
-   "tier": "deal",
-   "tier_label": "특가",
-   "confidence": "보통",
-   "sample": 13,
-   "price": 198713,
-   "access": 0,
-   "effective": 198713,
-   "weekend_trip": false,
-   "leave": 5.0,
-   "link": "https://www.aviasales.com/search/CJJ1309PVG18091"
-  },
-  {
    "text": "상하이 CJJ→PVG · 09-16~09-18 2박 · 197,187원 · 비교 기준가보다 24% 저렴 · 특가",
    "tier": "deal",
    "tier_label": "특가",
@@ -90,6 +77,19 @@
    "weekend_trip": false,
    "leave": 3.0,
    "link": "https://www.aviasales.com/search/CJJ1609PVG18091"
+  },
+  {
+   "text": "상하이 CJJ→PVG · 09-13~09-18 5박 · 198,713원 · 비교 기준가보다 24% 저렴 · 특가",
+   "tier": "deal",
+   "tier_label": "특가",
+   "confidence": "보통",
+   "sample": 13,
+   "price": 198713,
+   "access": 0,
+   "effective": 198713,
+   "weekend_trip": false,
+   "leave": 5.0,
+   "link": "https://www.aviasales.com/search/CJJ1309PVG18091"
   },
   {
    "text": "다낭 CJJ→DAD · 09-27~10-06 9박 · 358,213원 · 비교 기준가보다 29% 저렴 · 특가 · 개천절",
@@ -118,19 +118,6 @@
    "weekend_trip": false,
    "leave": 7.0,
    "link": "https://www.aviasales.com/search/ICN2910ZRH08111"
-  },
-  {
-   "text": "바젤 ICN→BSL · 10-15~10-25 10박 · 1,110,135원 (실부담 1,154,135)",
-   "tier": "unknown",
-   "tier_label": "비교 불가",
-   "confidence": "낮음",
-   "sample": 4,
-   "price": 1110135,
-   "access": 44000,
-   "effective": 1154135,
-   "weekend_trip": false,
-   "leave": 7.0,
-   "link": "https://www.aviasales.com/search/ICN1510BSL25101"
   },
   {
    "text": "취리히 ICN→ZRH · 10-16~10-26 10박 · 1,127,911원 (실부담 1,171,911) · 비교 기준가보다 13% 비쌈",
