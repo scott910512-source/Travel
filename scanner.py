@@ -1217,7 +1217,14 @@ def normalize(org, dst, city, region, dep, nights, v, flex=None, window=None):
         "access_cost": access,
         "effective_krw": int(price) + access,   # 청주 기준 실부담가 (보조 지표)
         "roundtrip_verified": roundtrip,
-        "expires_at": v.get("expires_at"),
+        # ★ Travelpayouts 의 expires_at 은 **캐시 TTL**(약 1시간)이다.
+        #   "이 운임이 이때까지 유효" 가 아니다. 실측: 430건 전부 호출
+        #   시각 + 1시간으로 찍혀 있었다. 이걸 구매 가능 여부로 쓰면
+        #   매 스캔 1시간 뒤부터 목록이 통째로 비어 버린다(실제로 그랬다).
+        #   가격의 나이를 재는 데만 쓴다.
+        "cache_expires_at": v.get("expires_at"),
+        # 진짜 운임 유효시각. 실시간 provider(Duffel)만 준다.
+        "price_valid_until": v.get("price_valid_until"),
         "link": aviasales_link(org, dst, d0, d1),
         "dep_hour": dep_hour,
         "ret_hour": parse_hour(v.get("return_at")),
@@ -1271,7 +1278,14 @@ def _oneway_offer(org, dst, city, region, d0, v):
         "stops": v.get("number_of_changes", v.get("transfers")),
         "price_krw": int(v.get("price")),
         "dep_hour": parse_hour(v.get("departure_at")),
-        "expires_at": v.get("expires_at"),
+        # ★ Travelpayouts 의 expires_at 은 **캐시 TTL**(약 1시간)이다.
+        #   "이 운임이 이때까지 유효" 가 아니다. 실측: 430건 전부 호출
+        #   시각 + 1시간으로 찍혀 있었다. 이걸 구매 가능 여부로 쓰면
+        #   매 스캔 1시간 뒤부터 목록이 통째로 비어 버린다(실제로 그랬다).
+        #   가격의 나이를 재는 데만 쓴다.
+        "cache_expires_at": v.get("expires_at"),
+        # 진짜 운임 유효시각. 실시간 provider(Duffel)만 준다.
+        "price_valid_until": v.get("price_valid_until"),
         "oneway": True,
         "link": (f"https://www.aviasales.com/search/"
                  f"{org}{d0.strftime('%d%m')}{dst}1"),
@@ -2242,7 +2256,8 @@ OFFER_FIELDS = (
     "id dep arr city region depart_date return_date nights airline airline_kr "
     "ret_local_date ret_local_offset_min home_arrive_date home_arrive_hour home_arrive_src "
     "stops stops_src stops_conflict duration_min duration_rt_min price_krw found_at via via_name via_src link dep_hour ret_hour holiday weekend red_days "
-    "source source_confidence live booking_url expires_at sources best_price "
+    "source source_confidence live booking_url cache_expires_at price_valid_until "
+    "sources best_price "
     "annual_leave annual_leave_confirmed weekend_trip night_departure roundtrip_verified "
     "baseline baseline_avg baseline_n baseline_days baseline_tier "
     "confidence confidence_score confidence_parts diff_krw "

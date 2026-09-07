@@ -198,11 +198,31 @@ chk(note and note["last_good"] == "2026-09-05 13:02 KST", "마지막 정상 시�
 S.ERRORS.clear()
 chk("meta.stale" in APP or "m.stale" in APP, "화면이 '최신 스캔 실패' 를 표시한다")
 chk("function isExpired(" in APP, "만료된 가격을 판별한다")
-chk("!isExpired(o)" in APP, "★ 만료된 가격은 후보 목록에서 제외한다")
+chk("!isExpired(o)" in APP, "★ 운임 유효시간이 지난 가격은 후보에서 제외한다")
+# ★ 캐시 TTL 을 운임 만료로 읽으면 안 된다. 그렇게 했다가 매 스캔 1시간
+#   뒤부터 438건 중 430건이 사라졌다 (실측 재현).
+_ie = APP[APP.index("function isExpired("):APP.index("function cacheStale(")]
+chk("cache_expires_at" not in _ie,
+    "isExpired 가 캐시 TTL(cache_expires_at)을 보지 않는다")
+chk("price_valid_until" in _ie,
+    "isExpired 는 provider 가 준 운임 유효시각만 본다")
+chk("function cacheStale(" in APP and "function staleHours(" in APP,
+    "캐시 만료는 따로 재서 신뢰도·표시에만 쓴다")
+chk("캐시 갱신 후" in APP, "캐시가 오래됐으면 숨기지 않고 그렇게 적는다")
 chk("가격 확인 시각 불명" in APP, "★ found_at 이 없으면 '불명' 이라고 적는다 (비워 두지 않는다)")
 chk("function bookingLink(" in APP and "동일 일정 다시 검색" in APP,
     "전용 예약 링크와 일반 검색 링크를 구분한다")
-chk("expires_at" in S.OFFER_FIELDS, "만료 시각이 화면으로 나간다")
+chk("cache_expires_at" in S.OFFER_FIELDS and "price_valid_until" in S.OFFER_FIELDS,
+    "캐시 TTL 과 운임 유효시각을 다른 이름으로 내보낸다")
+
+# ── 7. 전체 특가 정렬 ──────────────────────────────────
+print("\n[7] 전체 특가 정렬")
+chk("const LIST_SORTS" in APP, "정렬 축이 정의돼 있다")
+chk("sort: 'deal'," in APP, "기본 정렬이 할인율이다")
+chk("sortList(pool).slice(0, LIST_CAP)" in APP, "목록이 고른 정렬을 쓴다")
+chk("dealTier(o) === 'unknown' ? -Infinity" in APP,
+    "★ 판정 보류(표본 부족)는 할인율 정렬에서 위로 올리지 않는다")
+chk("data-sort" in APP, "화면에서 정렬을 바꿀 수 있다")
 
 print("\n실패 %d" % len(fail))
 sys.exit(1 if fail else 0)

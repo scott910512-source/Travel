@@ -24,6 +24,7 @@ const S = {
   origin: 'all',       // 출발지 칩 (어디서 뜨나)
   scope: 'all',        // 국내 / 해외 (어디로 가나) — 출발지와 다른 축이다
   listFilter: null,    // 전체 특가 리스트 필터 (등급·성격 축)
+  sort: 'deal',        // 전체 특가 정렬 축. 아래 LIST_SORTS 참조
   month: null,         // 출발 월 (독립 축). null = 전체.
                        // ★ 홈과 목록이 같은 값을 쓴다. 두 벌로 두면
                        //   홈에서 10월을 고르고 "전체 보기" 를 눌렀을 때
@@ -204,11 +205,12 @@ function confScore(o) {
   const base = confBase(o);
   // 가격 나이를 모르면 감점한다. 스캐너가 이미 반영하지만, 페이지를
   // 열어 둔 채 시간이 흐르면 화면 쪽이 더 정확하다.
-  const h = priceAgeHours(o);
+  const h = staleHours(o);
   let adj = 0;
-  if (o.found_at == null) adj -= 8;          // 최신성 불명
-  else if (h != null && h > 48) adj -= 8;
-  else if (h != null && h > 24) adj -= 4;
+  if (h == null) adj -= 8;                   // 최신성을 잴 방법이 없다
+  else if (h > 48) adj -= 8;
+  else if (h > 24) adj -= 4;
+  else if (h > 6) adj -= 2;                  // 캐시가 한 주기 넘게 안 갱신
   if (isExpired(o)) adj -= 25;
   return Math.max(0, Math.min(100, base + adj));
 }
@@ -481,11 +483,19 @@ function confParts(o) {
    비워 두면 "최신" 처럼 읽힌다. */
 function freshBadge(o) {
   if (isExpired(o)) {
-    return `<span class="bg up">⛔ 만료된 가격 · ${esc(ageTxt(o.found_at))}</span>`;
+    return `<span class="bg up">⛔ 운임 유효시간 지남</span>`;
   }
-  const h = priceAgeHours(o);
-  const cls = o.found_at == null ? 'warn' : (h > 48 ? 'warn' : '');
-  return `<span class="bg ${cls}">🕐 ${esc(ageTxt(o.found_at))}</span>`;
+  if (o.found_at) {
+    const h = priceAgeHours(o);
+    return `<span class="bg ${h > 48 ? 'warn' : ''}">🕐 ${esc(ageTxt(o.found_at))}</span>`;
+  }
+  // found_at 이 없다. 캐시 만료시각으로 나이를 대신 잰다.
+  const s = staleHours(o);
+  if (s == null) return `<span class="bg warn">🕐 가격 확인 시각 불명</span>`;
+  const txt = s < 1 ? '1시간 내 갱신된 캐시'
+    : s < 24 ? `캐시 갱신 후 ${Math.floor(s)}시간 경과`
+    : `캐시 갱신 후 ${Math.floor(s / 24)}일 경과`;
+  return `<span class="bg ${s > 12 ? 'warn' : ''}">🕐 ${esc(txt)}</span>`;
 }
 
 function badgesHTML(o) {
@@ -535,12 +545,8 @@ function badgesHTML(o) {
       o.best_price && o.best_price !== o.price_krw) {
     b.push(`<span class="bg">다른 곳 최저 ${won(o.best_price)}원</span>`);
   }
-  // 오래된 캐시값은 그렇다고 말한다. 이틀 넘으면 눈에 띄게.
-  const age = ageTxt(o.found_at);
-  if (age) {
-    const stale = (Date.now() - Date.parse(o.found_at)) > 48 * 3600000;
-    b.push(`<span class="bg${stale ? ' deal' : ''}">🕐 ${age}</span>`);
-  }
+  // 최신성은 freshBadge() 가 이미 위에서 한 번 붙였다. 여기서 또 붙이면
+  // "캐시 갱신 후 5시간 경과" 와 "가격 확인 시각 불명" 이 나란히 뜬다.
   if (o.baseline_tier && o.baseline_tier.indexOf('누적') !== -1) {
     b.push(`<span class="bg">${esc(o.baseline_tier.split(' · ')[1])} 기준</span>`);
   }
@@ -588,7 +594,8 @@ function deltaTxt(o) {
 /* 네 가지 시각을 구분한다. 하나로 뭉치면 "지금 확인된 가격" 처럼 보인다.
      meta.ts            스캐너가 돌아간 시각 (수집 시각)
      o.found_at         원본이 이 가격을 확인한 시각
-     o.expires_at       이 가격의 유효 만료 시각
+     o.price_valid_until  운임이 유효한 시각 (실시간 provider 만 줌)
+     o.cache_expires_at   캐시 TTL — 지나도 값이 사라진 게 아니라 갱신이 안 된 것
      Date.now()         지금 페이지를 보고 있는 시각
    ★ 같은 캐시를 다시 읽었다고 found_at 을 지금으로 갱신하지 않는다.
      스캐너는 소스가 준 값을 그대로 싣고, 안 주면 비운다. */
@@ -611,11 +618,42 @@ function ageTxt(iso) {
   return `${Math.floor(h / 24)}일 전 확인된 가격`;
 }
 
-/* 이 가격이 이미 만료됐나. 만료된 값은 '지금 살 수 있는 후보' 가 아니다. */
+/* 이 가격이 이미 만료됐나.
+
+   ★ 여기서 한 번 크게 틀렸다. Travelpayouts 의 expires_at 을 "운임 유효
+     시각" 으로 읽고 목록에서 빼 버렸다. 그런데 그 값은 **캐시 TTL**(약
+     1시간)이라, 매 스캔 1시간 뒤부터 438건 중 430건이 사라졌다.
+     6시간 주기니까 하루의 대부분을 6건만 보여주고 있었다.
+
+   구분한다.
+     price_valid_until  provider 가 "이 가격은 여기까지" 라고 말한 것.
+                        실시간 offer(Duffel)만 준다 → 지나면 후보에서 뺀다
+     cache_expires_at   캐시가 언제까지 유효한가. 지나도 그 값이 사라진
+                        게 아니라 **갱신이 안 된 것**이다 → 빼지 않고
+                        오래된 값으로 표시하고 신뢰도만 낮춘다 */
 function isExpired(o) {
-  if (!o.expires_at) return false;
-  const t = Date.parse(o.expires_at);
+  const v = o.price_valid_until;
+  if (!v) return false;
+  const t = Date.parse(v);
   return !!t && t < Date.now();
+}
+
+/* 캐시가 만료됐나 = 이 값이 마지막 갱신 이후 오래됐나. */
+function cacheStale(o) {
+  const v = o.cache_expires_at;
+  if (!v) return false;
+  const t = Date.parse(v);
+  return !!t && t < Date.now();
+}
+
+/* 가격이 얼마나 오래됐나(시간). found_at 이 없으면 캐시 만료시각으로
+   대신 잰다 — Travelpayouts 는 found_at 을 잘 안 주지만 캐시 TTL 은 준다. */
+function staleHours(o) {
+  const h = priceAgeHours(o);
+  if (h != null) return h;
+  const v = o.cache_expires_at;
+  const t = v && Date.parse(v);
+  return t ? (Date.now() - t) / 3600000 : null;
 }
 
 /* 예약 링크. 그 가격을 준 소스의 링크가 있으면 그것을 쓰고, 없으면
@@ -1124,6 +1162,26 @@ function monthsIn(pool) {
   return Object.keys(c).sort().map(k => ({ k, n: c[k] }));
 }
 
+/* 전체 특가 정렬. 기본은 할인율이다 — "전체 특가" 를 열었을 때 알고 싶은
+   건 "뭐가 제일 많이 빠졌나" 이지 "뭐가 제일 싼가" 가 아니다.
+   ★ 할인율 정렬에서도 표본이 모자란 건(판정 보류) 뒤로 보낸다. 표본
+     3건짜리 "▼61%" 를 맨 위에 올리면 근거 없는 숫자로 줄을 세우게 된다. */
+const LIST_SORTS = [
+  { k: 'deal',  l: '할인율 순',
+    f: (x, y) => (pctOf(y) - pctOf(x)) || (effective(x) - effective(y)) },
+  { k: 'price', l: '실부담가 순', f: (x, y) => effective(x) - effective(y) },
+  { k: 'date',  l: '출발일 순',
+    f: (x, y) => String(x.depart_date).localeCompare(String(y.depart_date)) },
+  { k: 'rank',  l: '추천 순', f: null },   // ranked() 를 그대로 쓴다
+];
+// 판정이 안 된 건 할인율을 숫자로 취급하지 않는다 (근거가 없다).
+const pctOf = o => (dealTier(o) === 'unknown' ? -Infinity : (o.discount_pct || 0));
+
+function sortList(pool) {
+  const s = LIST_SORTS.find(x => x.k === S.sort) || LIST_SORTS[0];
+  return s.f ? pool.slice().sort(s.f) : ranked(pool);
+}
+
 const LIST_FILTERS = [
   { k: 'all', l: '전체' }, { k: 'strong', l: '🔥 강력특가' },
   { k: 'deal', l: '🟠 특가' }, { k: 'new', l: '🆕 신규' },
@@ -1234,7 +1292,7 @@ function viewList() {
 
   const LIST_CAP = 120;
   const matched = pool.length;              // 실제로 조건에 맞는 건수
-  const list = ranked(pool).slice(0, LIST_CAP);
+  const list = sortList(pool).slice(0, LIST_CAP);
   const monthRow = months.length > 1 ? `<div class="filters"><div class="frow">
       <button class="fchip" data-month="all" aria-pressed="${!mo}">전체 기간</button>
       ${months.map(m => `<button class="fchip${m.n ? '' : ' zero'}"
@@ -1251,9 +1309,13 @@ function viewList() {
         aria-pressed="${f === x.k}">${esc(x.l)}</button>`).join('')}
     </div></div>
     ${monthRow}
+    <div class="filters"><div class="frow" role="group" aria-label="정렬">
+      ${LIST_SORTS.map(x => `<button class="fchip" data-sort="${x.k}"
+        aria-pressed="${(S.sort || 'deal') === x.k}">${esc(x.l)}</button>`).join('')}
+    </div></div>
     <p style="font-size:12px;color:var(--tx3);margin:2px 0 12px;font-weight:600">
       ${esc(activeFilterTxt(mo))} · ${matched}건 ·
-      실부담가(항공권 + ${esc(homeCity())} 기준 이동비) 순${
+      ${esc((LIST_SORTS.find(x => x.k === (S.sort || 'deal')) || LIST_SORTS[0]).l)}${
         matched > LIST_CAP ? ` · 상위 ${LIST_CAP}건 표시` : ''}</p>
     ${narrowNote()}
     ${list.length
@@ -2306,7 +2368,7 @@ function errorScreen() {
 /* ── 이벤트 ───────────────────────────────────────────── */
 document.addEventListener('click', ev => {
   const t = ev.target.closest('[data-tab],[data-origin],[data-scope],[data-open],[data-view],'
-    + '[data-list],[data-month],[data-seed],[data-back],[data-close],[data-sheet],[data-range],[data-wspan],'
+    + '[data-list],[data-month],[data-sort],[data-seed],[data-back],[data-close],[data-sheet],[data-range],[data-wspan],'
     + '[data-origin-toggle],[data-stops],[data-reset],[data-reload],[data-retry]');
   if (!t) return;
 
@@ -2339,6 +2401,8 @@ document.addEventListener('click', ev => {
   if (lf) { S.listFilter = lf; S.view = 'list'; window.scrollTo(0, 0); return render(); }
   const sd = t.getAttribute('data-seed');
   if (sd) { markSeeded(sd); setTimeout(render, 60); return; }   // 링크는 그대로 열린다
+  const so = t.getAttribute('data-sort');
+  if (so) { S.sort = so; window.scrollTo(0, 0); return render(); }
   const mf = t.getAttribute('data-month');
   if (mf) {
     S.month = (mf === 'all' ? null : mf);
