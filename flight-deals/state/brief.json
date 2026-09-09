@@ -1,30 +1,30 @@
 {
- "date": "2026-09-08",
- "ts": "2026-09-09 08:56 KST",
+ "date": "2026-09-09",
+ "ts": "2026-09-09 17:49 KST",
  "status": "OK",
- "headline": "볼 것 456건 · 강력특가 18 · CJJ 3 · 신규 5 · 하락 83",
+ "headline": "볼 것 444건 · 강력특가 16 · CJJ 3 · 신규 31 · 하락 3",
  "home": "CJJ",
  "reason": null,
  "degraded": null,
  "holiday_gap": null,
  "counts": {
-  "total": 457,
-  "comparable": 456,
-  "strong": 18,
-  "deal": 29,
-  "candidate": 67,
+  "total": 445,
+  "comparable": 444,
+  "strong": 16,
+  "deal": 31,
+  "candidate": 57,
   "weekend": 0,
-  "home": 31,
-  "new": 5,
-  "down": 83,
-  "up": 16,
-  "gone": 2
+  "home": 30,
+  "new": 31,
+  "down": 3,
+  "up": 27,
+  "gone": 43
  },
  "source_note": "Travelpayouts 캐시 데이터 · 실시간 확정가 아님",
  "access_note": "실부담가 = 항공권 + CJJ 기준 왕복 교통비 (추정치)",
  "top": [
   {
-   "text": "상하이 CJJ→PVG · 09-16~09-18 2박 · 197,187원 · 비교 기준가보다 24% 저렴 · 특가",
+   "text": "상하이 CJJ→PVG · 09-16~09-18 2박 · 197,187원 · 비교 기준가보다 30% 저렴 · 특가",
    "tier": "deal",
    "tier_label": "특가",
    "confidence": "보통",
@@ -37,7 +37,7 @@
    "link": "https://www.aviasales.com/search/CJJ1609PVG18091"
   },
   {
-   "text": "상하이 CJJ→PVG · 09-13~09-18 5박 · 198,713원 · 비교 기준가보다 24% 저렴 · 특가",
+   "text": "상하이 CJJ→PVG · 09-13~09-18 5박 · 198,713원 · 비교 기준가보다 29% 저렴 · 특가",
    "tier": "deal",
    "tier_label": "특가",
    "confidence": "보통",
@@ -66,7 +66,7 @@
  "weekend": [],
  "home_airport": [
   {
-   "text": "상하이 CJJ→PVG · 09-16~09-18 2박 · 197,187원 · 비교 기준가보다 24% 저렴 · 특가",
+   "text": "상하이 CJJ→PVG · 09-16~09-18 2박 · 197,187원 · 비교 기준가보다 30% 저렴 · 특가",
    "tier": "deal",
    "tier_label": "특가",
    "confidence": "보통",
@@ -79,7 +79,7 @@
    "link": "https://www.aviasales.com/search/CJJ1609PVG18091"
   },
   {
-   "text": "상하이 CJJ→PVG · 09-13~09-18 5박 · 198,713원 · 비교 기준가보다 24% 저렴 · 특가",
+   "text": "상하이 CJJ→PVG · 09-13~09-18 5박 · 198,713원 · 비교 기준가보다 29% 저렴 · 특가",
    "tier": "deal",
    "tier_label": "특가",
    "confidence": "보통",
