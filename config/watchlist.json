@@ -19,7 +19,12 @@
     "",
     "인근 공항 + 기차(FRA·MUC·MXP·CDG)는 뺐습니다. 스위스 도착이 아닌 항공권을",
     "스위스 화면에 같이 두면 복잡하기만 합니다. 노선은 지우지 않고 active 를",
-    "false 로 두었으니, 다시 보고 싶어지면 true 로 바꾸기만 하면 됩니다."
+    "false 로 두었으니, 다시 보고 싶어지면 true 로 바꾸기만 하면 됩니다.",
+    "",
+    "2026-09 추가: 동남아·중화권·일본 15개 노선.",
+    "에러페어는 '아무도 안 보던 노선' 에서 나오는데 도착지가 12곳뿐이라",
+    "그런 게 잡힐 자리가 없었습니다. region 은 REGION_BASE 키와 반드시",
+    "같아야 합니다 — 기준가가 거기서 나옵니다."
   ],
   "routes": [
     {
@@ -88,6 +93,141 @@
       "region": "유럽",
       "active": false,
       "_메모": "인근 공항 + 기차 기능을 뺐습니다. 다시 쓰려면 active 를 true 로."
+    },
+    {
+      "from": "ICN",
+      "to": "HAN",
+      "city": "하노이",
+      "country": "베트남",
+      "flag": "🇻🇳",
+      "region": "동남아",
+      "active": true
+    },
+    {
+      "from": "ICN",
+      "to": "SGN",
+      "city": "호치민",
+      "country": "베트남",
+      "flag": "🇻🇳",
+      "region": "동남아",
+      "active": true
+    },
+    {
+      "from": "ICN",
+      "to": "MNL",
+      "city": "마닐라",
+      "country": "필리핀",
+      "flag": "🇵🇭",
+      "region": "동남아",
+      "active": true
+    },
+    {
+      "from": "ICN",
+      "to": "CEB",
+      "city": "세부",
+      "country": "필리핀",
+      "flag": "🇵🇭",
+      "region": "동남아",
+      "active": true
+    },
+    {
+      "from": "ICN",
+      "to": "HKT",
+      "city": "푸껫",
+      "country": "태국",
+      "flag": "🇹🇭",
+      "region": "동남아",
+      "active": true
+    },
+    {
+      "from": "ICN",
+      "to": "CNX",
+      "city": "치앙마이",
+      "country": "태국",
+      "flag": "🇹🇭",
+      "region": "동남아",
+      "active": true
+    },
+    {
+      "from": "ICN",
+      "to": "SIN",
+      "city": "싱가포르",
+      "country": "싱가포르",
+      "flag": "🇸🇬",
+      "region": "동남아",
+      "active": true
+    },
+    {
+      "from": "ICN",
+      "to": "KUL",
+      "city": "쿠알라룸푸르",
+      "country": "말레이시아",
+      "flag": "🇲🇾",
+      "region": "동남아",
+      "active": true
+    },
+    {
+      "from": "ICN",
+      "to": "DPS",
+      "city": "발리",
+      "country": "인도네시아",
+      "flag": "🇮🇩",
+      "region": "인니",
+      "active": true
+    },
+    {
+      "from": "ICN",
+      "to": "HKG",
+      "city": "홍콩",
+      "country": "홍콩",
+      "flag": "🇭🇰",
+      "region": "중화권",
+      "active": true
+    },
+    {
+      "from": "ICN",
+      "to": "MFM",
+      "city": "마카오",
+      "country": "마카오",
+      "flag": "🇲🇴",
+      "region": "중화권",
+      "active": true
+    },
+    {
+      "from": "ICN",
+      "to": "KHH",
+      "city": "가오슝",
+      "country": "대만",
+      "flag": "🇹🇼",
+      "region": "중화권",
+      "active": true
+    },
+    {
+      "from": "ICN",
+      "to": "CTS",
+      "city": "삿포로",
+      "country": "일본",
+      "flag": "🇯🇵",
+      "region": "일본",
+      "active": true
+    },
+    {
+      "from": "ICN",
+      "to": "OKA",
+      "city": "오키나와",
+      "country": "일본",
+      "flag": "🇯🇵",
+      "region": "일본",
+      "active": true
+    },
+    {
+      "from": "ICN",
+      "to": "NGO",
+      "city": "나고야",
+      "country": "일본",
+      "flag": "🇯🇵",
+      "region": "일본",
+      "active": true
     }
   ]
 }
