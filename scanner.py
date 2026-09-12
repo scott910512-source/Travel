@@ -1249,10 +1249,18 @@ def normalize(org, dst, city, region, dep, nights, v, flex=None, window=None):
         "night_departure": tp["night_departure"],
         # 사용자 기준: 주말(토·일) 포함 + 연차 0~1일.
         # 빨간날이 붙으면 그만큼 일정이 길어져도 조건을 유지한다.
-        # ★ 연차가 확정되지 않았으면 주말여행이라고 단정하지 않는다.
-        #   미확인 상태의 leave 는 최소값이라 실제로는 더 들 수 있다.
-        "weekend_trip": tp["weekend"] and tp["leave"] <= 1.0
-                        and tp["leave_confirmed"],
+        #
+        # ★ leave 는 한국 도착일을 모르면 **최소값**이다. 한때 여기에
+        #   `and tp["leave_confirmed"]` 를 걸어 뒀는데, 도착 시각을 주는
+        #   소스가 v3 뿐이라 실제로는 confirmed 가 한 건도 안 나왔다.
+        #   그래서 주말여행이 늘 0건이었고 주말 화면이 통째로 죽어 있었다
+        #   (실측: 149건이 조건을 만족하는데 0건으로 나갔다).
+        #
+        #   지금은 최소값 기준으로 후보에 넣되, **확정이라고 말하지 않는다** —
+        #   화면은 annual_leave_confirmed 를 보고 "연차 최소 N일" 로 적고,
+        #   주말 화면도 구간 제목에 '최소' 를 붙인다. 거르는 일과
+        #   단정하는 일은 다르다.
+        "weekend_trip": tp["weekend"] and tp["leave"] <= 1.0,
     }
 
 

@@ -628,7 +628,7 @@ function badgesHTML(o) {
   b.push(freshBadge(o));
   const sn = stopSrcNote(o);
   if (sn) b.push(`<span class="bg ${sn.cls}">${esc(sn.txt)}</span>`);
-  if (o.weekend_trip) b.push(`<span class="bg pri">주말 · ${leaveOf(o)}</span>`);
+  if (o.weekend_trip) b.push(`<span class="bg pri">주말여행 · ${leaveOf(o)}</span>`);
   if (o.holiday) b.push(`<span class="bg pri">${esc(o.holiday)}</span>`);
   if (o.change === 'new') b.push('<span class="bg pri">🆕 신규</span>');
   // 가격 변동. 전에는 "-2,754" 만 찍었는데 단위도 기준도 없어서
@@ -1003,8 +1003,8 @@ function viewHome() {
       <div class="quick">
         <button class="qbtn" data-list="weekend"><b>주말 여행</b>
           <small>금·토 출발 + 짧은 일정만</small></button>
-        <button class="qbtn" data-list="direct"><b>${esc(homeCity())} 직항</b>
-          <small>환승 조건을 '직항만' 으로</small></button>
+        <button class="qbtn" data-list="home-direct"><b>${esc(homeCity())} 직항</b>
+          <small>출발지를 ${esc(homeCity())}로, 환승을 '직항만' 으로</small></button>
         <button class="qbtn" data-tab="swiss"><b>스위스</b>
           <small>취리히·제네바·바젤 전용 비교</small></button>
         <button class="qbtn" data-view="weekend"><b>이번 주말 · 다음 주말</b>
@@ -1689,10 +1689,15 @@ function viewWeekend() {
   // 연차 적은 순 → 점수 순
   pool.sort((a, b) => (a.annual_leave - b.annual_leave) || (dealScore(b) - dealScore(a)));
 
+  // ★ 제목에 '최소' 를 붙인다. 한국 도착일을 모르는 편이 섞여 있고,
+  //   그런 편은 연차가 하루 더 들 수 있다. 거르는 기준과 단정하는 말은
+  //   다르다 — 거를 때는 최소값을 쓰되, 말할 때는 최소라고 말한다.
+  const unsure = pool.some(o => o.annual_leave_confirmed !== true);
+  const mn = v => (unsure ? `연차 최소 ${v}일` : `연차 ${v}일`);
   const buckets = [
-    { v: 0, l: '연차 0일', d: '금요일 밤 출발 등 — 휴가를 쓰지 않고 다녀올 수 있는 일정' },
-    { v: 0.5, l: '연차 0.5일', d: '반차 한 번' },
-    { v: 1, l: '연차 1일', d: '하루만 쓰면 되는 일정' },
+    { v: 0, l: mn(0), d: '금요일 밤 출발 등 — 휴가를 쓰지 않고 다녀올 수 있는 일정' },
+    { v: 0.5, l: mn(0.5), d: '반차 한 번' },
+    { v: 1, l: mn(1), d: '하루만 쓰면 되는 일정' },
   ];
   let body = '';
   buckets.forEach(b => {
@@ -1724,6 +1729,11 @@ function viewWeekend() {
       ${spans.map(x => `<button class="fchip" data-wspan="${x.k}"
         aria-pressed="${sp.k === x.k}">${esc(x.l)}</button>`).join('')}
     </div></div>
+    ${unsure ? `<div class="note"><b>연차는 최소값입니다</b>
+      <p>소스가 귀국편의 <b>현지 출발 시각</b>만 주고 한국 도착 시각을 주지
+      않는 편이 섞여 있습니다. 그런 편은 현지에서 밤에 떠나면 다음 날 도착이라
+      <b>연차가 하루 더 들 수 있습니다.</b> 각 카드에 '연차 최소 N일' 로
+      적어 두었습니다.</p></div>` : ''}
     ${body}${footerHTML()}
   </div>`;
 }
@@ -2890,7 +2900,12 @@ document.addEventListener('click', ev => {
     else if (lf === 'new') S.f.change = 'new';
     else if (lf === 'down') S.f.change = 'down';
     else if (lf === 'weekend') S.f.weekend = true;
-    if (lf === 'direct') S.settings.stops = 'direct', saveSettings();
+    if (lf === 'direct' || lf === 'home-direct') {
+      S.settings.stops = 'direct'; saveSettings();
+    }
+    // 버튼 이름이 '청주 직항' 이면 출발지도 같이 건다. 이름과 하는 일이
+    // 다르면 조건 요약을 보고 "왜 인천이 나오지" 가 된다.
+    if (lf === 'home-direct') S.origin = (S.data && S.data.home) || 'CJJ';
     S.tab = 'find'; S.view = null; S.listCap = 60;
     push(); window.scrollTo(0, 0); return render();
   }
