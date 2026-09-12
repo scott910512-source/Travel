@@ -1,24 +1,24 @@
 {
  "date": "2026-09-12",
- "ts": "2026-09-12 17:31 KST",
+ "ts": "2026-09-12 22:27 KST",
  "status": "OK",
- "headline": "볼 것 630건 · 강력특가 15 · 주말여행 3 · CJJ 3 · 신규 28 · 하락 10",
+ "headline": "볼 것 614건 · 강력특가 15 · 주말여행 3 · CJJ 3 · 신규 9 · 하락 3",
  "home": "CJJ",
  "reason": null,
  "degraded": null,
  "holiday_gap": null,
  "counts": {
-  "total": 632,
-  "comparable": 630,
+  "total": 615,
+  "comparable": 614,
   "strong": 15,
-  "deal": 30,
+  "deal": 29,
   "candidate": 81,
-  "weekend": 151,
-  "home": 23,
-  "new": 28,
-  "down": 10,
-  "up": 99,
-  "gone": 25
+  "weekend": 146,
+  "home": 19,
+  "new": 9,
+  "down": 3,
+  "up": 4,
+  "gone": 26
  },
  "source_note": "Travelpayouts 캐시 데이터 · 실시간 확정가 아님",
  "access_note": "실부담가 = 항공권 + CJJ 기준 왕복 교통비 (추정치)",
@@ -65,19 +65,6 @@
  ],
  "weekend": [
   {
-   "text": "다낭 CJJ→DAD · 10-03~10-06 3박 · 440,709원 · 비교 기준가보다 24% 저렴 · 특가 · 주말 연차1일 · 개천절",
-   "tier": "deal",
-   "tier_label": "특가",
-   "confidence": "높음",
-   "sample": 12,
-   "price": 440709,
-   "access": 0,
-   "effective": 440709,
-   "weekend_trip": true,
-   "leave": 1.0,
-   "link": "https://www.aviasales.com/search/CJJ0310DAD06101"
-  },
-  {
    "text": "홍콩 ICN→HKG · 10-02~10-05 3박 · 235,137원 (실부담 279,137) · 비교 기준가보다 15% 저렴 · 주말 연차1일 · 개천절  🔻추적기간 최저",
    "tier": "candidate",
    "tier_label": "특가 후보",
@@ -102,6 +89,19 @@
    "weekend_trip": true,
    "leave": 1.0,
    "link": "https://www.aviasales.com/search/ICN3010HKG01111"
+  },
+  {
+   "text": "홍콩 ICN→HKG · 09-18~09-20 2박 · 259,740원 (실부담 303,740) · 비교 기준가보다 15% 저렴 · 주말 연차0일",
+   "tier": "candidate",
+   "tier_label": "특가 후보",
+   "confidence": "보통",
+   "sample": 12,
+   "price": 259740,
+   "access": 44000,
+   "effective": 303740,
+   "weekend_trip": true,
+   "leave": 0.0,
+   "link": "https://www.aviasales.com/search/ICN1809HKG20091"
   }
  ],
  "home_airport": [
@@ -132,17 +132,17 @@
    "link": "https://www.aviasales.com/search/CJJ1509CJU18091"
   },
   {
-   "text": "다낭 CJJ→DAD · 10-03~10-06 3박 · 440,709원 · 비교 기준가보다 24% 저렴 · 특가 · 주말 연차1일 · 개천절",
-   "tier": "deal",
-   "tier_label": "특가",
-   "confidence": "높음",
-   "sample": 12,
-   "price": 440709,
+   "text": "상하이 CJJ→PVG · 09-16~09-18 2박 · 197,187원",
+   "tier": "normal",
+   "tier_label": "일반",
+   "confidence": "보통",
+   "sample": 5,
+   "price": 197187,
    "access": 0,
-   "effective": 440709,
-   "weekend_trip": true,
-   "leave": 1.0,
-   "link": "https://www.aviasales.com/search/CJJ0310DAD06101"
+   "effective": 197187,
+   "weekend_trip": false,
+   "leave": 3.0,
+   "link": "https://www.aviasales.com/search/CJJ1609PVG18091"
   }
  ],
  "swiss": [],
