@@ -31,9 +31,15 @@ chk("m.n ? '' : ' zero'" in app, "0건인 달은 지우지 않고 흐리게 둔�
 
 # ── 2. 지금 걸린 조건을 건수 옆에 그대로 적는다 ────────
 chk("function activeFilterTxt(" in app, "걸린 조건을 문장으로 만든다")
-for k in ("S.origin !== 'all'", "S.scope !== 'all'", "monthLabel(mo)"):
-    chk(k in app.split("function activeFilterTxt(")[1].split("\n}")[0],
-        "activeFilterTxt 가 %s 를 본다" % k)
+# ★ 조건을 문장으로 펴는 일은 queryChips() 한 곳에서만 한다. 예전에는
+#   activeFilterTxt 가 따로 만들어서, 축을 하나 늘릴 때 한쪽만 고쳐졌다.
+chk("queryChips(q)" in app.split("function activeFilterTxt(")[1].split("\n}")[0],
+    "activeFilterTxt 는 queryChips 를 그대로 쓴다 (조건 문장이 한 곳에서 나온다)")
+qc = app[app.index("function queryChips("):app.index("function summaryHTML(")]
+for k in ("q.origin !== 'all'", "q.scope !== 'all'", "monthLabel(q.month)",
+          "q.f.tier !== 'all'", "q.f.change !== 'all'", "q.f.weekend", "q.f.cap",
+          "q.stops !== 'prefer'"):
+    chk(k in qc, "queryChips 가 %s 를 본다" % k)
 
 # ── 3. 안내 숫자는 그 버튼이 실제로 하는 일과 같아야 한다 ──
 #     예전 초안은 두 조건을 다 푼 값(37)을 적고 버튼은 출발지만 풀어서(36)
@@ -52,8 +58,18 @@ chk("g.key !== S.origin" in note, "이미 고른 출발지는 바로가기에 �
 
 # ── 4. 이유를 두 번 적지 않는다 ────────────────────────
 chk("narrowWhy" not in app, "이유를 두 곳에서 만들던 함수가 남아 있지 않다")
-chk("위 안내에서 조건을 넓혀 보세요" in app,
-    "빈 화면은 이유를 되풀이하지 않고 위 안내를 가리킨다")
+# 빈 화면은 이유를 되풀이하지 않고, 조건을 어떻게 풀면 몇 건이 나오는지
+# 실제로 다시 계산해서 보여 준다. 숫자와 버튼은 같은 함수(altOptions)에서
+# 나온다 — 예전에는 안내에 37건이라 적고 버튼은 36건을 만들었다.
+chk("function altOptions(" in app, "대안 조건을 한 곳에서 만든다")
+emp = app[app.index("function emptyHTML("):app.index("function subHeader(")]
+chk("altOptions(q)" in emp, "빈 화면이 그 함수를 그대로 쓴다")
+chk("data-alt" in emp, "대안을 누를 수 있다")
+hnd = app[app.index("const alt = t.getAttribute('data-alt');"):][:500]
+chk("altOptions(queryNow())[Number(alt)]" in hnd,
+    "누를 때도 같은 함수로 조건을 만든다 (적힌 숫자와 결과가 갈라지지 않는다)")
+chk("누르면 그때 바뀝니다" in emp,
+    "결과를 만들려고 조건을 앱이 몰래 바꾸지 않는다")
 
 # ── 5. 문단 안 강조가 줄을 끊지 않는다 ─────────────────
 chk(".note>b{display:block" in css, "안내 제목만 block 이다")
@@ -61,14 +77,19 @@ chk(".note p b{display:inline" in css,
     "문단 안 <b> 는 inline (예전에는 '36건' 이 매번 줄바꿈됐다)")
 
 # ── 6. 홈에서도 달을 고를 수 있는가 ────────────────────
-chk("function monthChipsHTML(" in app, "홈에 월 칩 줄이 있다")
-chk("${headerHTML()}${chipsHTML()}${monthChipsHTML()}" in app,
-    "홈이 월 칩을 그린다")
+# ★ 홈에서도 달을 고를 수 있어야 한다. 칩 줄을 상시 펼치는 대신 조건
+#   요약 줄에 지금 고른 달을 적고, 누르면 조건 시트에서 바꾼다.
+home = app[app.index("function viewHome()"):app.index("function viewMore()")]
+chk("summaryHTML()" in home, "홈에 조건 요약 줄이 있다")
+fs = app[app.index("function filterSheetHTML("):app.index("function chipsHTML(")]
+chk("'month', q.month || 'all'" in fs, "조건 시트에서 달을 고를 수 있다")
+chk("monthLabel(q.month)" in app[app.index("function queryChips("):],
+    "고른 달이 조건 요약에 적힌다")
 chk("S.listMonth" not in app,
     "홈과 목록이 같은 S.month 를 쓴다 (두 벌이면 '전체 보기' 에서 어긋난다)")
-chk("const inMonth = o => !S.month || monthKey(o) === S.month;" in app,
+chk("(!q.month || monthKey(o) === q.month)" in app,
     "달이 출발지·국내해외와 곱해서 걸린다")
-chk("homeOffers().filter(inMonth)" in app, "홈 pool 에 달이 걸린다")
+chk("poolOf(queryNow())" in home, "홈 pool 에 달이 걸린다 (같은 poolOf 를 쓴다)")
 hnd = app[app.index("const mf = t.getAttribute('data-month');"):][:600]
 chk("t.hasAttribute('data-month-goto')" in hnd,
     "칩은 그 자리에서 걸고, '월별로 보기' 줄만 목록으로 넘어간다")

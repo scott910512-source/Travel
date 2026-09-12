@@ -78,6 +78,11 @@ jobs:
           done
           exit $fail
 
+      # 화면 로직(조건·정렬·건수)은 브라우저 없이 node 로 돌린다.
+      # "안내에 적힌 건수와 눌렀을 때 나오는 건수가 다르다" 를 막는 시험이다.
+      - name: 화면 로직 테스트
+        run: node tests/ui_logic.mjs
+
       - name: 데이터 스키마 검증
         run: |
           python - <<'EOF'

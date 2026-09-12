@@ -17,20 +17,39 @@ const S = {
   data: null,
   err: null,
   settings: null,
-  tab: 'home',
-  view: null,          // {name:'list'|'analysis', ...} — 탭 위에 얹히는 화면
+  tab: 'home',         // home | find | swiss | more
+  view: null,          // 탭 위에 얹히는 화면 (analysis | settings | error | weekend | seed)
   detail: null,        // 열려 있는 상세 offer
   range: 30,           // 그래프 구간(일)
-  origin: 'all',       // 출발지 칩 (어디서 뜨나)
-  scope: 'all',        // 국내 / 해외 (어디로 가나) — 출발지와 다른 축이다
-  listFilter: null,    // 전체 특가 리스트 필터 (등급·성격 축)
-  sort: 'deal',        // 전체 특가 정렬 축. 아래 LIST_SORTS 참조
-  month: null,         // 출발 월 (독립 축). null = 전체.
+
+  /* ── 검색 조건 ────────────────────────────────────────
+     아래 축은 전부 '지금 뭘 찾고 있나' 다. 서로 곱해서 걸린다 —
+     예전에는 등급·신규·하락·직항·주말이 listFilter 하나를 공유해서
+     "가격 하락 + 직항" 을 동시에 걸 수 없었다.
+     ★ 교통비·공항 on/off·강력특가 기준은 여기 없다. 그건 기기 설정이라
+       '검색 조건 초기화' 로 지우면 안 된다 (§검색 조건 초기화 분리). */
+  origin: 'all',       // 출발지 (어디서 뜨나)
+  scope: 'all',        // 국내 / 해외 (어디로 가나) — 출발지와 다른 축
+  month: null,         // 출발 월. null = 전체.
                        // ★ 홈과 목록이 같은 값을 쓴다. 두 벌로 두면
                        //   홈에서 10월을 고르고 "전체 보기" 를 눌렀을 때
                        //   목록이 전체 기간으로 돌아가 버린다.
+  f: null,             // { tier, change, weekend, cap } — defaultQuery() 가 채운다
+  sort: 'deal',        // 정렬 축. 아래 LIST_SORTS 참조
+
+  pending: null,       // 조건 시트에서 임시로 고른 값. '보기' 를 눌러야 적용된다
+  sheet: null,         // 'filter' 면 조건 시트가 열려 있다
+  listCap: 60,         // '더 보기' 로 늘어난다
   weekendSpan: 'all',
+  restoreY: null,      // 상세를 닫거나 뒤로 왔을 때 되돌릴 목록 위치
 };
+
+/* 검색 조건의 기본값. '검색 조건 초기화' 가 되돌리는 지점이다. */
+const defaultF = () => ({ tier: 'all', change: 'all', weekend: false, cap: 0 });
+/* 검색 조건에 속하는 설정 키. 초기화 때 이것만 되돌리고 교통비는 건드리지 않는다. */
+const SEARCH_SETTING_KEYS = ['stops', 'minNights', 'maxNights',
+                             'longStops', 'longMinNights', 'longMaxNights'];
+S.f = defaultF();
 
 /* ── 유틸 ─────────────────────────────────────────────── */
 const $ = (sel, root) => (root || document).querySelector(sel);
@@ -50,8 +69,12 @@ const leaveTxt = (v, confirmed) => {
   // ★ confirmed 가 true 일 때만 확정으로 본다. 필드가 없는 옛 데이터도
   //   '이 값 이상' 이다 — 그때는 현지 출발일까지만 세고 있었기 때문이다.
   //   모르는 것을 유리하게 반올림하지 않는다. 다음 스캔부터 확정된다.
-  return `연차 ${n}일${confirmed === true ? '' : '+'}`;
+  //   "연차 2일+" 의 '+' 는 읽는 사람마다 다르게 읽힌다. 말로 적는다.
+  return confirmed === true ? `연차 ${n}일` : `연차 최소 ${n}일`;
 };
+/* 상세에서 한 번은 왜 '최소' 인지 적어 준다. */
+const leaveNote = o => (o.annual_leave_confirmed === true
+  ? '' : ' · 한국 도착일 확인 필요');
 const leaveOf = o => leaveTxt(o.annual_leave, o.annual_leave_confirmed);
 
 function defaultSettings(data) {
@@ -381,8 +404,10 @@ function errorConfidence(o) {
      모르는 것을 유리하게 반올림하면 안 된다.
 
    trip 은 근거리/장거리 각각의 조건 묶음이다. */
-function tripRules(long) {
-  const st = S.settings;
+/* st 를 넘기면 그 값으로 계산한다. 조건 시트가 '적용 전 예상 건수' 를
+   낼 때 실제 설정을 건드리지 않고 임시값으로 세기 위한 것이다. */
+function tripRules(long, st) {
+  st = st || S.settings;
   return long
     ? { min: st.longMinNights, max: st.longMaxNights, stops: st.longStops,
         name: '장거리(유럽·미주)' }
@@ -392,19 +417,21 @@ function tripRules(long) {
 const LONG_REGION = ['유럽', '미주'];
 const isLong = o => LONG_REGION.indexOf(o.region) !== -1;
 
-function matchesTrip(o, rules) {
-  const r = rules || tripRules(isLong(o));
+function matchesTrip(o, rules, st) {
+  const r = rules || tripRules(isLong(o), st);
   if (!(o.nights >= r.min && o.nights <= r.max)) return false;
   if (r.stops === 'direct') return o.stops === 0;
   if (r.stops === 'one') return o.stops !== null && o.stops !== undefined && o.stops <= 1;
   return true;                       // 'prefer' / 'any' — 거르지 않는다
 }
 
-function visibleOffers() {
+function visibleOffers(st) {
   // ★ 만료된 가격은 '지금 살 수 있는 후보' 가 아니다. 목록에서 뺀다.
   //   지우는 게 아니라 expiredOffers() 로 따로 볼 수 있게 남긴다.
+  //   ★ 이 판정은 모든 화면이 같이 쓴다. 스위스 탭만 따로 걸렀다가
+  //     화면마다 만료 기준이 달라지는 일을 막는다 (tests/test_expiry_parity.py).
   return S.data.offers.filter(o =>
-    originOn(o.dep) && matchesTrip(o) && !isExpired(o));
+    originOn(o.dep) && matchesTrip(o, null, st) && !isExpired(o));
 }
 function expiredOffers() {
   return S.data.offers.filter(o => isExpired(o));
@@ -416,6 +443,76 @@ function originOffers() {
 }
 function homeOffers() {
   return originOffers().filter(o => inScope(o, S.scope));
+}
+
+/* ── 검색 조건 ────────────────────────────────────────
+   축마다 변수를 따로 둔다. 하나에 몰아넣으면 "하락 + 직항" 처럼
+   서로 다른 성격의 조건을 동시에 걸 수 없다. */
+const TIER_F = [
+  { k: 'all', l: '전체' }, { k: 'candidate', l: '특가 후보 이상' },
+  { k: 'deal', l: '🟠 특가 이상' }, { k: 'strong', l: '🔥 강력 특가만' },
+];
+const CHANGE_F = [
+  { k: 'all', l: '전체' }, { k: 'new', l: '🆕 신규' }, { k: 'down', l: '📉 가격 하락' },
+];
+const CAP_F = [
+  { k: 0, l: '제한 없음' }, { k: 300000, l: '30만원 이하' },
+  { k: 500000, l: '50만원 이하' }, { k: 800000, l: '80만원 이하' },
+  { k: 1200000, l: '120만원 이하' },
+];
+/* 조건 시트용 짧은 이름. STOPS_LABEL 의 긴 이름은 칩 밖으로 넘친다. */
+const STOPS_F = [
+  { k: 'prefer', l: '직항 우대' }, { k: 'direct', l: '직항만' },
+  { k: 'one', l: '1회 이하' }, { k: 'any', l: '제한 없음' },
+];
+const TIER_AT_LEAST = {
+  strong: ['strong'],
+  deal: ['strong', 'deal'],
+  candidate: ['strong', 'deal', 'candidate'],
+};
+
+function matchesF(o, f) {
+  f = f || S.f;
+  const want = TIER_AT_LEAST[f.tier];
+  if (want && want.indexOf(dealTier(o)) === -1) return false;
+  if (f.change !== 'all' && o.change !== f.change) return false;
+  if (f.weekend && !o.weekend_trip) return false;
+  if (f.cap && effective(o) > f.cap) return false;
+  return true;
+}
+
+/* 지금 화면에 걸려 있는 조건을 하나의 값으로 묶는다. 조건 시트는 이걸
+   복사해서 만지고, '보기' 를 눌렀을 때만 되돌려 쓴다. */
+function queryNow() {
+  const st = S.settings;
+  const q = { origin: S.origin, scope: S.scope, month: S.month,
+              f: Object.assign({}, S.f) };
+  SEARCH_SETTING_KEYS.forEach(k => { q[k] = st[k]; });
+  return q;
+}
+function defaultQuery() {
+  const base = defaultSettings(S.data);
+  const q = { origin: 'all', scope: 'all', month: null, f: defaultF() };
+  SEARCH_SETTING_KEYS.forEach(k => { q[k] = base[k]; });
+  return q;
+}
+/* 조건 q 로 걸러진 목록. 적용 전 예상 건수도 같은 함수로 센다 —
+   "N건 보기" 를 눌렀더니 다른 숫자가 나오는 일을 구조적으로 막는다. */
+function poolOf(q) {
+  const st = Object.assign({}, S.settings);
+  SEARCH_SETTING_KEYS.forEach(k => { if (q[k] !== undefined) st[k] = q[k]; });
+  return visibleOffers(st).filter(o =>
+    inGroup(o.dep, q.origin) && inScope(o, q.scope) &&
+    (!q.month || monthKey(o) === q.month) && matchesF(o, q.f));
+}
+const countOf = q => poolOf(q).length;
+
+function applyQuery(q) {
+  S.origin = q.origin; S.scope = q.scope; S.month = q.month;
+  S.f = Object.assign(defaultF(), q.f);
+  SEARCH_SETTING_KEYS.forEach(k => { if (q[k] !== undefined) S.settings[k] = q[k]; });
+  S.listCap = 60;
+  saveSettings();
 }
 function ranked(list) {
   const home = (S.data && S.data.home) || 'CJJ';
@@ -496,6 +593,27 @@ function freshBadge(o) {
     : s < 24 ? `캐시 갱신 후 ${Math.floor(s)}시간 경과`
     : `캐시 갱신 후 ${Math.floor(s / 24)}일 경과`;
   return `<span class="bg ${s > 12 ? 'warn' : ''}">🕐 ${esc(txt)}</span>`;
+}
+
+/* 카드에 남기는 최소한의 배지. ★ 표본·경유지·소요시간·공급자 같은
+   보조 정보는 상세로 내렸다 — 목록에서 한 카드가 배지 열 개를 달고
+   있으면 무엇이 중요한지 알 수 없다. 다만 "이 가격은 못 믿는다" 는
+   사실만은 카드에도 남긴다. */
+function cardBadges(o) {
+  const t = dealTier(o), b = [];
+  if (t === 'unknown') {
+    b.push(`<span class="bg">${esc(o.data_note || '특가 판단 자료 부족')}</span>`);
+  } else {
+    b.push(`<span class="bg ${t}">${TIER_LABEL[t]}</span>`);
+  }
+  b.push(freshBadge(o));
+  const sn = stopSrcNote(o);
+  if (sn && sn.cls) b.push(`<span class="bg ${sn.cls}">${esc(sn.txt)}</span>`);
+  if (o.change === 'new') b.push('<span class="bg pri">🆕 신규</span>');
+  const dt = deltaTxt(o);
+  if (dt) b.push(`<span class="bg ${o.delta < 0 ? 'down' : 'up'}">${dt}</span>`);
+  if (o.holiday) b.push(`<span class="bg pri">${esc(o.holiday)}</span>`);
+  return `<div class="badges">${b.join('')}</div>`;
 }
 
 function badgesHTML(o) {
@@ -660,14 +778,15 @@ function staleHours(o) {
    일반 검색 링크를 쓰되 이름을 다르게 붙인다 — 같은 가격이 나온다고
    약속하지 않는다. */
 function bookingLink(o) {
+  // ★ 버튼 이름은 부르는 쪽이 정한다 ('판매처에서 가격 확인'). 여기서는
+  //   전용 링크인지(direct) 와 어디서 온 링크인지만 답한다 — 같은 가격이
+  //   나온다고 약속하는 이름을 붙이지 않기 위해서다.
   const src = (o.sources || []).find(s => s && s.booking_url);
   if (o.booking_url || src) {
     return { url: o.booking_url || src.booking_url,
-             label: '이 가격으로 예약 페이지 열기',
              direct: true, source: (src && src.source) || o.source };
   }
-  return { url: o.link, label: '동일 일정 다시 검색', direct: false,
-           source: null };
+  return { url: o.link, direct: false, source: null };
 }
 // 경유지. 확정과 추정을 절대 같은 얼굴로 보여주지 않는다.
 //   via_src === 'segment'  provider 가 준 실제 구간 → 그대로 적는다
@@ -703,6 +822,36 @@ function stopSrcNote(o) {
   return null;
 }
 
+/* 추천 이유 한 줄. 점수 세 개를 늘어놓는 대신, 왜 이게 위에 있는지를
+   말로 적는다. 근거가 없으면 없다고 적는다 — 지어내지 않는다. */
+function whyLine(o) {
+  const t = dealTier(o);
+  const bits = [];
+  if (t === 'unknown') bits.push('특가 판단 자료 부족');
+  else if (o.discount_pct != null && (t === 'strong' || t === 'deal' || t === 'candidate')) {
+    bits.push(`비교 기준가보다 ${o.discount_pct}% 저렴`);
+  } else if (t === 'normal') bits.push('비교 기준가와 비슷한 수준');
+  if (o.change === 'down' && o.delta) bits.push(`직전 스캔보다 ${won(Math.abs(o.delta))}원 내림`);
+  else if (o.change === 'new') bits.push('새로 들어옴');
+  if (o.stops === 0) bits.push('직항');
+  return bits.join(' · ');
+}
+
+/* 한국 도착일까지 확인된 경우에만 도착일을 쓴다. 현지 출발일을 귀국
+   완료일처럼 쓰면 연차를 하루 적게 잡는다. */
+function whenLine(o) {
+  const go = `${md(o.depart_date)}(${dow(o.depart_date)})`;
+  const back = o.home_arrive_date
+    ? `${md(o.home_arrive_date)}(${dow(o.home_arrive_date)}) 한국 도착`
+    : `${md(o.return_date)}(${dow(o.return_date)}) 현지 출발`;
+  return `${go} → ${back} · ${o.nights}박`;
+}
+
+/* 공항 이동비 줄. ★ 0원은 위치를 증명하지 않는다 — 설정에서 0으로 둔
+   것일 수도 있으므로 '집 앞' 이라고 단정하지 않는다. */
+const accLabel = dep => (accessOf(dep)
+  ? `${homeCity()} → ${depCity(dep)} 왕복 이동비` : '공항 이동비 (0원으로 설정됨)');
+
 function heroHTML(o, rank, plainLabel) {
   const acc = accessOf(o.dep);
   // 메달은 특가일 때만 붙인다. 표본이 있어도 등급이 '일반'이면
@@ -715,25 +864,14 @@ function heroHTML(o, rank, plainLabel) {
       ? `${rank === 1 ? '🥇' : '🏅'} ${esc(TIER_TEXT[t])}`
       : esc(plainLabel || '💰 현재 최저가')}</span>
     <div class="route">${esc(depCity(o.dep))} <span style="color:var(--tx3)">→</span> ${esc(o.city)}</div>
-    <div class="codes">${esc(o.dep)} → ${esc(o.arr)} · ${esc(o.airline_kr || o.airline)}</div>
-    <div class="codes" style="margin-top:3px">${esc(stopDetail(o))}</div>
-    <div class="when"><b>${md(o.depart_date)} ${dow(o.depart_date)}</b> → <b>${md(o.return_date)} ${dow(o.return_date)}</b></div>
-    <div class="meta">${o.nights}박 ${o.nights + 1}일 · ${leaveOf(o)}</div>
-    <div class="grid">
-      <div><div class="k">항공권</div><div class="v">${won(o.price_krw)}원</div></div>
-      <div><div class="k">${acc ? `${esc(homeCity())} → ${esc(depCity(o.dep))} 이동비` : '공항 이동비'}</div>
-        <div class="v">${won(acc)}원${acc ? '' : ' <span style="font-size:11px;color:var(--tx3)">집 앞</span>'}</div></div>
-      <div class="total"><div class="k">실부담가</div><div class="v">${won(effective(o))}원</div></div>
-      ${o.baseline
-        ? `<div><div class="k">비교 기준가</div><div class="v">${won(o.baseline)}원</div></div>`
-        : `<div><div class="k">비교 기준가</div>
-             <div class="v" style="font-size:12.5px;font-family:var(--sans);color:var(--tx3)">
-             표본 없음</div></div>`}
-      <div class="cmp">${cmpHTML(o)}</div>
-    </div>
-    ${scoresHTML(o)}
-    ${badgesHTML(o)}
-    <span class="cta">${esc(bookingLink(o).label)}</span>
+    <div class="big">${won(effective(o))}<span>원</span></div>
+    <div class="bigk">1인 왕복 예상 부담액 · 항공권 ${won(o.price_krw)} + 이동비 ${won(acc)}</div>
+    <div class="when">${esc(whenLine(o))}</div>
+    <div class="meta">${esc(stopTxt(o.stops))} · ${leaveOf(o)} · ${esc(o.airline_kr || o.airline)}</div>
+    ${o.home_arrive_date ? '' : '<div class="meta warn2">한국 도착일 미확인</div>'}
+    <div class="why">${esc(whyLine(o))}</div>
+    ${cardBadges(o)}
+    <span class="cta">일정·가격 보기 →</span>
   </button>`;
 }
 
@@ -744,13 +882,15 @@ function cardHTML(o, rank) {
     <div class="top">${rk}
       <div class="ttl">
         <div class="route">${esc(depCity(o.dep))} → ${esc(o.city)}</div>
-        <div class="sub">${esc(o.dep)}→${esc(o.arr)} · ${md(o.depart_date)}(${dow(o.depart_date)}) → ${md(o.return_date)}(${dow(o.return_date)}) · ${o.nights}박 · ${stopTxt(o.stops)}</div>
+        <div class="sub">${esc(whenLine(o))}</div>
+        <div class="sub">${esc(stopTxt(o.stops))} · ${leaveOf(o)}</div>
       </div>
       <div class="price"><div class="v">${won(effective(o))}</div>
-        <div class="k">실부담${acc ? ` · 이동 ${won(acc)}` : ''}</div></div>
+        <div class="k">예상 부담액${acc ? `<br>이동비 ${won(acc)} 포함` : ''}</div></div>
     </div>
-    <div class="foot">${cmpHTML(o)}</div>
-    ${badgesHTML(o)}
+    <div class="why">${esc(whyLine(o))}</div>
+    ${cardBadges(o)}
+    <span class="cta-sm">일정·가격 보기 →</span>
   </button>`;
 }
 
@@ -790,100 +930,136 @@ function monthChipsHTML() {
   </div></div>`;
 }
 
+/* 홈이 답할 질문은 하나다 — "지금 내 조건에서 뭘 먼저 보면 되지?"
+   표본 채우기·공급자 진단·검색 사용량 같은 운영 정보는 전부 더보기로
+   내렸다. 항공권을 고르는 화면에 운영 화면이 섞여 있으면, 사용자는
+   항공권보다 화면을 먼저 해석해야 한다. */
 function viewHome() {
-  // 달은 출발지·국내해외와 또 다른 축이다. 곱해서 걸린다.
-  const pool = homeOffers().filter(inMonth);
+  const pool = poolOf(queryNow());
   const ok = pool.filter(o => o.data_ok);
-  const top = ranked(ok).slice(0, 5);
+  const top = ranked(ok).slice(0, 3);
   const strong = ok.filter(o => dealTier(o) === 'strong');
-  // ★ 타일 숫자는 "누르면 열릴 목록" 과 같은 pool 에서 센다.
-  //   예전에는 meta.stats(전 노선 합계)를 적어서, 청주나 국내만 골라 놓고
-  //   타일을 누르면 숫자보다 적은 목록이 나왔다.
+  const down = pool.filter(o => o.change === 'down');
   const newN = pool.filter(o => o.change === 'new').length;
-  const downN = pool.filter(o => o.change === 'down').length;
 
-  let deals;
+  let deals, why;
   if (!pool.length) {
     // 무엇 때문에 비었는지를 적는다. "없습니다" 만 적으면 조회가 안 되는
-    // 것으로 읽힌다 — 전체 특가 화면에서 겪은 것과 같은 문제다.
+    // 것으로 읽힌다.
     deals = emptyBlock(`${activeFilterTxt(S.month)} 조건에 맞는 항공권이 없습니다`,
       narrowInfo(S.month).gain
         ? '아래 안내에서 조건을 넓혀 보세요.'
-        : (S.month ? `${monthLabel(S.month)} 출발은 어느 조건에도 없습니다. 위 "전체 기간" 을 눌러 보세요.`
-                   : '설정에서 여행 기간이나 환승 조건을 넓혀 보세요.'));
+        : (S.month ? `${monthLabel(S.month)} 출발은 어느 조건에도 없습니다. 조건에서 "전체 기간" 을 골라 보세요.`
+                   : '조건에서 여행 기간이나 환승을 넓혀 보세요.'));
+    why = '';
   } else if (!top.length) {
     deals = emptyBlock('비교 가능한 항공권이 없습니다',
-      '표본이 모자라 평균가를 만들지 못했습니다. 며칠 더 쌓이면 판정이 살아납니다.');
-  } else if (!strong.length) {
-    const c = cheapest(ok);
-    const r = (S.data.routes || {})[`${c.dep}-${c.arr}`] || {};
-    // ★ 같은 항공편을 "저가 TOP 3" 와 "그다음으로 볼 만한 것" 에 두 번 싣지
-    //   않는다. 한 화면에 같은 편이 번호만 다르게 두 번 나오면 몇 개가
-    //   있는 건지 알 수 없다. 국내처럼 건수가 적은 목록에서 특히 그렇다.
-    const rest = ok.filter(o => o.id !== c.id);
-    const shown = new Set([c.id].concat(
-      rest.slice().sort((x, y) => effective(x) - effective(y))
-          .slice(0, 3).map(o => o.id)));
-    const more = top.filter(o => !shown.has(o.id)).slice(0, 4);
-    deals = `<div class="note hot"><b>🔥 오늘 강력 특가가 없습니다</b>
-        <p>기준(비교 기준가 대비 ${S.settings.strongPct}% 이상 저렴 · 표본 10건 이상)을 넘는 항공권이 없습니다.
-        지금 가장 저렴한 항공권은 아래와 같습니다.</p></div>
-      <div style="margin-top:10px">${heroHTML(c, 1)}</div>
-      <div class="panel">
-        <div class="kv"><span class="k">현재 실부담가</span><span class="v">${won(effective(c))}원</span></div>
-        <div class="kv"><span class="k">최근 30일 최저</span><span class="v">${won(r.low30)}원</span></div>
-        <div class="kv"><span class="k">노선 평균가</span><span class="v">${won(r.avg)}원</span></div>
-        <div class="kv"><span class="k">비교 기준가</span><span class="v">${won(c.baseline)}원</span></div>
-        ${r.low30 && c.price_krw > r.low30
-          ? `<div class="kv"><span class="k">30일 최저 대비</span><span class="v is-up">+${won(c.price_krw - r.low30)}원</span></div>`
-          : ''}
-      </div>` +
-      lowList(rest, 3, '💰 저가 TOP 3', '실부담가 낮은 순 · 등급 무관') +
-      (more.length ? `<div class="sec"><div class="sec-hd"><div><h2>그다음으로 볼 만한 것</h2>
-          <p>위에 안 나온 것만</p></div></div>
-        <div class="list two">${more.map((o, i) => cardHTML(o, i + 2)).join('')}</div></div>` : '');
+      '표본이 모자라 비교 기준가를 만들지 못했습니다. 며칠 더 쌓이면 판정이 살아납니다.');
+    why = '';
   } else {
+    // ★ 강력 특가가 없어도 제목은 '오늘 추천' 그대로다. "강력 특가 없음" 을
+    //   큰 경고처럼 띄우면 앱이 고장 난 것처럼 읽힌다. 무슨 기준으로
+    //   줄을 세웠는지만 한 줄로 적는다.
+    why = strong.length
+      ? `추천순 · 오늘 강력 특가 ${strong.length}건`
+      : `오늘은 강력 특가 기준(비교 기준가보다 ${S.settings.strongPct}% 이상 저렴 · 표본 ${MIN_JUDGE_N}건 이상)을 넘는 항공권이 없어, 현재 가격이 좋은 순으로 보여드려요.`;
     deals = `<div class="top-grid">${heroHTML(top[0], 1, '🥇 오늘 1순위')}
       <div class="list">${top.slice(1).map((o, i) => cardHTML(o, i + 2)).join('')}</div></div>`;
   }
 
-  return `${headerHTML()}${chipsHTML()}${monthChipsHTML()}
+  const downLine = down.length
+    ? `<section class="sec"><div class="sec-hd"><div><h2>📉 가격 하락</h2>
+        <p>직전 스캔 대비 · 지금 조건 안에서 ${down.length}건</p></div>
+        <button class="more" data-list="down">전부 보기 →</button></div>
+      <div class="list two">${ranked(down).slice(0, 3).map(o => cardHTML(o)).join('')}</div>
+    </section>`
+    : `<section class="sec"><div class="note"><b>📉 가격 하락 0건</b>
+        <p>직전 스캔(6시간 전) 대비 내려간 항공권이 지금 조건 안에는 없습니다.
+        ${newN ? `새로 들어온 건 <b>${newN}건</b>입니다.` : ''}</p>
+        ${newN ? `<div class="frow" style="margin-top:8px">
+          <button class="fchip" data-list="new">🆕 신규 ${newN}건 보기</button></div>` : ''}
+      </div></section>`;
+
+  return `${headerHTML()}
   <div class="wrap">
+    ${summaryHTML()}
     ${staleNote()}
     <section class="sec">
       <div class="sec-hd">
-        <div><h2>🔥 오늘의 강력 특가</h2>
-          <p>${S.scope === 'all' ? '국내 + 해외' : esc(scopeLabel())}${
-            S.month ? ` · ${monthLabel(S.month)} 출발` : ''} ·
-            ${esc(homeCity())} 기준 이동비 포함 실부담가 순</p></div>
-        <button class="more" data-view="list">전체 보기 →</button>
+        <div><h2>오늘 추천</h2><p>${esc(why)}</p></div>
       </div>
       ${deals}
       ${narrowNote()}
     </section>
 
     <section class="sec">
-      <div class="sec-hd"><div><h2>오늘 변화</h2>
-        <p>직전 스캔 대비 (6시간마다)</p></div></div>
-      <div class="tiles">
-        <button class="tile new" data-list="new"><div class="k">🆕 신규 특가</div>
-          <div class="v">${newN}</div></button>
-        <button class="tile dn" data-list="down"><div class="k">📉 가격 하락</div>
-          <div class="v">${downN}</div></button>
-        <button class="tile hot" data-list="strong"><div class="k">🔥 강력 특가</div>
-          <div class="v">${strong.length}</div></button>
-        <button class="tile mon" data-list="all"><div class="k">👀 모니터링</div>
-          <div class="v">${pool.length}</div></button>
+      <button class="btn-go" data-tab="find">조건에 맞는 항공권 ${pool.length}건 보기 →</button>
+    </section>
+
+    ${downLine}
+
+    <section class="sec"><div class="sec-hd"><div><h2>빠른 조건</h2>
+      <p>지금 조건에서 무엇이 바뀌는지 적어 두었습니다</p></div></div>
+      <div class="quick">
+        <button class="qbtn" data-list="weekend"><b>주말 여행</b>
+          <small>금·토 출발 + 짧은 일정만</small></button>
+        <button class="qbtn" data-list="direct"><b>${esc(homeCity())} 직항</b>
+          <small>환승 조건을 '직항만' 으로</small></button>
+        <button class="qbtn" data-tab="swiss"><b>스위스</b>
+          <small>취리히·제네바·바젤 전용 비교</small></button>
+        <button class="qbtn" data-view="weekend"><b>이번 주말 · 다음 주말</b>
+          <small>날짜를 짚어서 보기</small></button>
       </div>
     </section>
+    ${footerHTML()}
+  </div>`;
+}
 
-    ${seedChecklist()}
-    ${monthSection(homeOffers())}
-    ${S.origin === 'CJJ' ? cjjSection(ok) : ''}
-
+/* 더보기 — 자주 쓰지 않는 설정과 운영 정보. 항공권을 고르는 화면에서
+   내려온 것들이 여기 모인다. 기능은 하나도 없애지 않았다. */
+function viewMore() {
+  const seeds = seedTargets();
+  const m = S.data.meta || {};
+  const row = (attr, val, title, sub) => `<button class="mrow" data-${attr}="${esc(val)}">
+    <span class="mt">${title}</span><span class="ms">${esc(sub)}</span>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+      stroke-linecap="round" width="16" height="16" aria-hidden="true"
+      ><path d="M9 18l6-6-6-6"/></svg></button>`;
+  return `${plainHeader('더보기', '설정 · 분석 · 데이터 상태')}
+  <div class="wrap">
     <section class="sec">
-      <button class="btn-line" data-view="analysis">상세 분석 열기 (노선별·표본·진단)</button>
+      ${row('view', 'settings', '⚙️ 설정', '공항 이동비 · 기본 여행 조건 · 특가 판정 기준')}
+      ${row('view', 'error', '⚡ 에러페어 후보', '사람이 직접 확인할 이상 저가')}
+      ${row('view', 'weekend', '🗓 주말 여행', '이번 주말 · 다음 주말 날짜로 보기')}
+      ${row('view', 'seed', `🌱 가격 자료 부족 노선${seeds.length ? ` (${seeds.length})` : ''}`,
+            '자료가 없는 노선을 직접 검색해 채우기')}
+      ${row('view', 'analysis', '📊 상세 분석', '노선별 · 표본 · 월별 · 청주 노선표')}
     </section>
+    <section class="sec"><div class="sec-hd"><div><h2>데이터 상태</h2>
+      <p>이 화면이 지금 무엇을 들고 있는가</p></div></div>
+      <div class="panel">
+        <div class="kv"><span class="k">마지막 스캔</span><span class="v">${esc(m.ts || '—')}</span></div>
+        <div class="kv"><span class="k">수집 건수</span><span class="v">${(S.data.offers || []).length}건</span></div>
+        <div class="kv"><span class="k">조건 통과</span><span class="v">${visibleOffers().length}건</span></div>
+        <div class="kv"><span class="k">만료 제외</span><span class="v">${expiredOffers().length}건</span></div>
+        <div class="kv"><span class="k">검색 사용량</span><span class="v">${m.used != null ? `${m.used} / ${m.cap}` : '—'}</span></div>
+        <div class="kv"><span class="k">화면 버전</span><span class="v">${esc(buildId())}</span></div>
+      </div>
+      ${providerLine()}
+      ${m.errors && m.errors.length
+        ? `<div class="note warn"><b>공급자 오류 ${m.errors.length}건</b>
+            <p>${m.errors.slice(0, 5).map(e => esc(String(e))).join('<br>')}</p></div>` : ''}
+    </section>
+    ${footerHTML(true)}
+  </div>`;
+}
+
+/* 가격 자료 부족 노선. 홈에 있던 '검색해서 채울 노선' 이다 — 항공권을
+   고르는 일보다 운영에 가까워서 더보기로 내렸다. */
+function viewSeed() {
+  return `${plainHeader('가격 자료 부족 노선', '검색을 한 번 돌려 캐시에 값을 남긴다', true)}
+  <div class="wrap">
+    ${seedChecklist(true)}
     ${footerHTML()}
   </div>`;
 }
@@ -1072,6 +1248,18 @@ function scanAgo(ts) {
   return ` · <span class="${min > 420 ? 'stale' : ''}">${txt}</span>`;
 }
 
+/* 오늘 스캔이면 날짜를 떼고 시각만 적는다. 헤더 한 줄이 두 줄로
+   접히면 그 아래 조건 요약이 첫 화면에서 밀린다. */
+function shortTs(ts) {
+  if (!ts) return '—';
+  const m = String(ts).match(/(\d{4})-(\d{2})-(\d{2})[ T](\d{2}:\d{2})/);
+  if (!m) return String(ts);
+  const today = new Date(Date.now() + (9 * 60 + new Date().getTimezoneOffset()) * 60000)
+    .toISOString().slice(0, 10);
+  return `${m[1]}-${m[2]}-${m[3]}` === today
+    ? `오늘 ${m[4]}` : `${+m[2]}/${+m[3]} ${m[4]}`;
+}
+
 function headerHTML() {
   const m = S.data.meta || {};
   return `<header class="hd"><div class="wrap"><div class="row">
@@ -1079,12 +1267,115 @@ function headerHTML() {
     <div class="grow"><h1>항공권 데일리 스캐너</h1>
       <div class="upd">${m.stale
         ? `<span class="stale">⚠ 최신 스캔 실패</span> · 마지막 정상 <b>${esc(m.stale.last_good)}</b>`
-        : `마지막 스캔 <b>${esc(m.ts || '—')}</b>${scanAgo(m.ts)}`}</div></div>
+        : `마지막 갱신 <b>${esc(shortTs(m.ts))}</b>${scanAgo(m.ts)}`}</div></div>
     <button class="iconbtn" data-reload aria-label="새로고침">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
         stroke-linecap="round" width="20" height="20">
         <path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v6h-6"/></svg>
     </button></div></div></header>`;
+}
+
+/* ── 조건 요약 + 조건 시트 ────────────────────────────
+   칩을 여러 줄로 상시 펼쳐 두면 화면의 절반이 조건이 된다. 지금 걸린
+   조건만 한 줄로 적고, 바꾸려면 시트를 연다. */
+const nightsTxt = q => (q.minNights === q.maxNights
+  ? `${q.minNights}박` : `${q.minNights}~${q.maxNights}박`);
+
+/* 조건을 사람이 읽는 조각으로 편다. [{k, l, off}] — off 는 그 조각만
+   떼어 내는 값이다 (칩의 × 버튼). */
+function queryChips(q) {
+  const out = [];
+  const g = GROUPS.find(x => x.key === q.origin);
+  if (q.origin !== 'all' && g) out.push({ k: 'origin', l: g.label });
+  if (q.scope !== 'all') {
+    const sc = SCOPES.find(x => x.key === q.scope);
+    out.push({ k: 'scope', l: sc ? sc.label : q.scope });
+  }
+  if (q.month) out.push({ k: 'month', l: `${monthLabel(q.month)} 출발` });
+  const t = TIER_F.find(x => x.k === q.f.tier);
+  if (q.f.tier !== 'all' && t) out.push({ k: 'tier', l: t.l });
+  const c = CHANGE_F.find(x => x.k === q.f.change);
+  if (q.f.change !== 'all' && c) out.push({ k: 'change', l: c.l });
+  if (q.f.weekend) out.push({ k: 'weekend', l: '주말여행' });
+  if (q.f.cap) {
+    const cp = CAP_F.find(x => x.k === q.f.cap);
+    out.push({ k: 'cap', l: cp ? cp.l : `${won(q.f.cap)}원 이하` });
+  }
+  if (q.stops !== 'prefer') out.push({ k: 'stops', l: STOPS_LABEL[q.stops] || q.stops });
+  return out;
+}
+
+/* 조건 요약 줄. 홈과 찾기가 같은 것을 쓴다 — 두 화면이 같은 조건을
+   다르게 적으면 "홈에서 본 건수와 목록 건수가 다르다" 가 된다. */
+function summaryHTML() {
+  const q = queryNow();
+  const chips = queryChips(q);
+  const n = countOf(q);
+  return `<div class="summary">
+    <button class="sum-main" data-sheetopen="filter">
+      <span class="sum-k">검색 조건</span>
+      <span class="sum-v">${esc(homeCity())} 기준 · ${chips.length
+        ? chips.map(c => esc(c.l)).join(' · ') : '전체'} · ${esc(nightsTxt(q))}</span>
+      <span class="sum-n">${n}건</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round" width="16" height="16"
+        aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
+    </button>
+    ${chips.length ? `<div class="frow sum-chips">
+      ${chips.map(c => `<button class="fchip off" data-chip-off="${c.k}"
+        aria-label="${esc(c.l)} 해제">${esc(c.l)} <span aria-hidden="true">×</span></button>`).join('')}
+      <button class="fchip clear" data-clear="query">검색 조건 초기화</button>
+    </div>` : ''}
+  </div>`;
+}
+
+/* 조건 시트. 여기서 고른 값은 S.pending 에만 들어간다. '보기' 를 눌러야
+   화면에 걸린다 — 취소하면 원래 조건 그대로다.
+   ★ 버튼에 적는 건수는 적용 후 실제 건수와 같은 함수(countOf)로 낸다. */
+function filterSheetHTML() {
+  const q = S.pending || queryNow();
+  const n = countOf(q);
+  const months = monthsIn(visibleOffers());
+  const row = (label, items, attr, cur, hint) => `<div class="fgrp">
+    <div class="fgrp-h">${esc(label)}${hint ? `<small>${esc(hint)}</small>` : ''}</div>
+    <div class="frow">${items.map(i => `<button class="fchip"
+      data-${attr}="${esc(String(i.k))}" aria-pressed="${String(i.k) === String(cur)}"
+      >${esc(i.l)}</button>`).join('')}</div></div>`;
+
+  return `<div class="sheet" data-sheet><div class="sheet-in has-cta" role="dialog"
+      aria-modal="true" aria-label="검색 조건">
+    <div class="sheet-hd"><h3>검색 조건</h3>
+      <button class="iconbtn" data-close aria-label="닫기">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" width="20" height="20"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button></div>
+    <div class="sheet-body"><div class="fsheet">
+      ${row('어디로', SCOPES.map(x => ({ k: x.key, l: x.label }))
+              .concat([{ k: 'all', l: '전체' }]).filter((x, i, a) =>
+                a.findIndex(y => y.k === x.k) === i), 'scope', q.scope)}
+      ${row('어디서 출발', GROUPS.map(x => ({ k: x.key, l: x.label })), 'origin', q.origin)}
+      ${row('언제', [{ k: 'all', l: '전체 기간' }]
+              .concat(months.map(m => ({ k: m.k, l: monthLabel(m.k) }))),
+            'month', q.month || 'all')}
+      ${row('숙박', [[2, 5], [2, 8], [3, 10], [1, 30]].map(([a, b]) =>
+              ({ k: `${a}-${b}`, l: `${a}~${b}박` })), 'nights',
+            `${q.minNights}-${q.maxNights}`)}
+      ${row('환승', STOPS_F, 'stops', q.stops, '설정의 기본 여행 조건과 같은 값입니다')}
+      ${row('특가 등급', TIER_F, 'tier', q.f.tier, '표본이 모자란 건은 등급을 매기지 않습니다')}
+      ${row('변화', CHANGE_F, 'change', q.f.change)}
+      ${row('예상 부담액', CAP_F, 'cap', q.f.cap, '항공권 + 설정한 공항 이동비 기준')}
+      <div class="fgrp"><div class="fgrp-h">일정</div><div class="frow">
+        <button class="fchip" data-weekend="${q.f.weekend ? '0' : '1'}"
+          aria-pressed="${!!q.f.weekend}">주말여행만</button></div></div>
+      <button class="btn-line" data-clear="query">검색 조건 초기화</button>
+      <p class="live-note">초기화는 검색 조건만 되돌립니다. 공항 이동비·강력특가
+        기준 같은 기기 설정은 그대로 둡니다.</p>
+    </div></div>
+    <div class="sheet-cta">
+      <button class="cta wide" data-apply="1">${n}건 보기</button>
+      <button class="btn-line" data-close>취소</button>
+    </div>
+  </div></div>`;
 }
 
 function chipsHTML() {
@@ -1135,13 +1426,16 @@ function providerLine() {
     `${esc(k)} ${mark(ps[k])}`).join(' · ');
 }
 
-function footerHTML() {
+/* full=true 는 더보기 화면에서만. 검색 사용량·공급자 상태·빌드 식별자는
+   운영 정보라 항공권을 고르는 화면에 늘 붙어 있을 이유가 없다. */
+function footerHTML(full) {
   const m = S.data.meta || {};
   return `<footer>
-    수집 ${m.count || 0}건 · 검색 ${m.used || 0}/${m.cap || 0}<br>
-    소스 Travelpayouts 캐시 · 실시간 확정가가 아닙니다. 예약 전 판매처에서 확인하세요.<br>
-    ${providerLine()}<br>
-    GitHub Actions 마지막 실행 ${esc(m.ts || '—')} · 화면 ${esc(buildId())}
+    소스 Travelpayouts 캐시 · 실시간 확정가가 아닙니다. 예약 전 판매처에서 확인하세요.
+    ${full ? `<br>수집 ${m.count || 0}건 · 검색 ${m.used || 0}/${m.cap || 0}<br>
+      ${providerLine()}<br>
+      GitHub Actions 마지막 실행 ${esc(m.ts || '—')} · 화면 ${esc(buildId())}`
+     : `<br><button class="lnk" data-tab="more">데이터 상태 보기</button>`}
   </footer>`;
 }
 
@@ -1167,12 +1461,12 @@ function monthsIn(pool) {
    ★ 할인율 정렬에서도 표본이 모자란 건(판정 보류) 뒤로 보낸다. 표본
      3건짜리 "▼61%" 를 맨 위에 올리면 근거 없는 숫자로 줄을 세우게 된다. */
 const LIST_SORTS = [
-  { k: 'deal',  l: '할인율 순',
+  { k: 'deal',  l: '할인율 높은순',
     f: (x, y) => (pctOf(y) - pctOf(x)) || (effective(x) - effective(y)) },
-  { k: 'price', l: '실부담가 순', f: (x, y) => effective(x) - effective(y) },
+  { k: 'price', l: '예상 부담액 낮은순', f: (x, y) => effective(x) - effective(y) },
   { k: 'date',  l: '출발일 순',
     f: (x, y) => String(x.depart_date).localeCompare(String(y.depart_date)) },
-  { k: 'rank',  l: '추천 순', f: null },   // ranked() 를 그대로 쓴다
+  { k: 'rank',  l: '추천순', f: null },   // ranked() 를 그대로 쓴다
 ];
 // 판정이 안 된 건 할인율을 숫자로 취급하지 않는다 (근거가 없다).
 const pctOf = o => (dealTier(o) === 'unknown' ? -Infinity : (o.discount_pct || 0));
@@ -1182,21 +1476,12 @@ function sortList(pool) {
   return s.f ? pool.slice().sort(s.f) : ranked(pool);
 }
 
-const LIST_FILTERS = [
-  { k: 'all', l: '전체' }, { k: 'strong', l: '🔥 강력특가' },
-  { k: 'deal', l: '🟠 특가' }, { k: 'new', l: '🆕 신규' },
-  { k: 'down', l: '📉 하락' }, { k: 'direct', l: '직항만' },
-  { k: 'weekend', l: '주말여행' },
-];
-
 /* 지금 무엇이 걸려 있는가. 칩이 두 줄이라 하나만 보고 "왜 이것밖에 없지"
    가 되기 쉽다. 건수 옆에 조건을 그대로 적는다. */
 function activeFilterTxt(mo) {
-  const g = GROUPS.find(x => x.key === S.origin);
-  const bits = [];
-  if (S.origin !== 'all' && g) bits.push(g.label);
-  if (S.scope !== 'all') bits.push(scopeLabel());
-  if (mo) bits.push(`${monthLabel(mo)} 출발`);
+  const q = queryNow();
+  if (mo !== undefined) q.month = mo || null;
+  const bits = queryChips(q).map(c => c.l);
   return bits.length ? bits.join(' · ') : '전체';
 }
 
@@ -1260,73 +1545,110 @@ function narrowNote() {
     </div></div>`;
 }
 
+/* 찾기 — 조건으로 좁혀서 후보를 비교하는 화면.
+   ★ 조건 축은 서로 곱해서 걸린다. 예전에는 등급·신규·하락·직항·주말이
+     listFilter 하나를 공유해서 "가격 하락 + 직항" 을 걸 수 없었다. */
 function viewList() {
-  const f = S.listFilter || 'all';
-  const mo = S.month || null;
-  const base = homeOffers();          // 등급 필터 걸기 전 (월 축의 기준)
-  let pool = base;
-  if (f === 'strong') pool = pool.filter(o => dealTier(o) === 'strong');
-  else if (f === 'deal') pool = pool.filter(o => ['strong', 'deal'].includes(dealTier(o)));
-  else if (f === 'new') pool = pool.filter(o => o.change === 'new');
-  else if (f === 'down') pool = pool.filter(o => o.change === 'down');
-  else if (f === 'direct') pool = pool.filter(o => o.stops === 0);
-  else if (f === 'weekend') pool = pool.filter(o => o.weekend_trip);
+  const q = queryNow();
+  const pool = poolOf(q);
+  const matched = pool.length;
+  const cap = S.listCap;
+  const list = sortList(pool).slice(0, cap);
 
-  // 달 목록은 '등급 필터 전' 기준으로 만들고, 건수만 '필터 후' 로 센다.
-  //
-  // 필터 후 기준으로 만들면 강력특가처럼 한 달에 몰린 조건에서 달이 하나만
-  // 남아 월 칩이 통째로 사라진다. 그러면 "10월엔 강력특가가 없다" 는 사실이
-  // 보이는 대신 숨겨진다. 0건인 달도 0이라고 적어 두는 편이 낫다.
-  //
-  // ★ 목록 자체는 출발지·국내해외를 걸기 *전* 에서 만든다. 예전에는 지금
-  //   pool 에 있는 달만 만들어서, 청주+해외처럼 좁은 조합에서 11월 칩이
-  //   통째로 사라졌다. 앱 전체로는 11월 해외가 38건 있는데도 화면에는
-  //   9·10·12월만 보이니 "다른 월은 조회가 안 된다" 로 읽힌다.
-  //   0이면 0이라고 적어 두는 편이 "없다" 를 정확히 말한다.
+  // 달 칩은 '달 조건을 뺀' 나머지 조건으로 센다. 그래야 "10월로 바꾸면
+  // 몇 건" 이 실제 값과 같다.
+  const woMonth = Object.assign({}, q, { month: null });
+  const inPool = poolOf(woMonth);
   const counts = {};
-  pool.forEach(o => { const k = monthKey(o); if (k) counts[k] = (counts[k] || 0) + 1; });
-  const wide = visibleOffers();
-  const months = monthsIn(wide).map(m => ({ k: m.k, n: counts[m.k] || 0,
-                                            all: m.n }));
-  if (mo) pool = pool.filter(o => monthKey(o) === mo);
+  inPool.forEach(o => { const k = monthKey(o); if (k) counts[k] = (counts[k] || 0) + 1; });
+  // ★ 목록은 조건을 걸기 *전* 에서 만든다. pool 에 있는 달만 만들면
+  //   좁은 조합에서 달 칩이 통째로 사라져 "다른 월은 조회가 안 된다" 로
+  //   읽힌다. 0이면 0이라고 적어 두는 편이 "없다" 를 정확히 말한다.
+  const months = monthsIn(visibleOffers()).map(m =>
+    ({ k: m.k, n: counts[m.k] || 0, all: m.n }));
 
-  const LIST_CAP = 120;
-  const matched = pool.length;              // 실제로 조건에 맞는 건수
-  const list = sortList(pool).slice(0, LIST_CAP);
-  const monthRow = months.length > 1 ? `<div class="filters"><div class="frow">
-      <button class="fchip" data-month="all" aria-pressed="${!mo}">전체 기간</button>
+  const monthRow = months.length > 1 ? `<div class="filters"><div class="frow"
+      role="group" aria-label="출발 월">
+      <button class="fchip" data-month="all" aria-pressed="${!q.month}">전체 기간</button>
       ${months.map(m => `<button class="fchip${m.n ? '' : ' zero'}"
-        data-month="${m.k}" aria-pressed="${mo === m.k}"
+        data-month="${m.k}" aria-pressed="${q.month === m.k}"
         title="${m.n ? '' : `지금 조건에는 없습니다. 조건을 넓히면 ${m.all}건`}"
         >${monthLabel(m.k)} <span
         style="font-family:var(--mono);opacity:.65">${m.n}</span></button>`).join('')}
     </div></div>` : '';
 
-  return `${subHeader('전체 특가')}${chipsHTML()}
+  const sortName = (LIST_SORTS.find(x => x.k === (S.sort || 'deal')) || LIST_SORTS[0]).l;
+
+  return `${plainHeader('항공권 찾기', `${esc(activeFilterTxt(q.month))} · ${matched}건`)}
   <div class="wrap">
-    <div class="filters"><div class="frow">
-      ${LIST_FILTERS.map(x => `<button class="fchip" data-list="${x.k}"
-        aria-pressed="${f === x.k}">${esc(x.l)}</button>`).join('')}
-    </div></div>
+    ${summaryHTML()}
     ${monthRow}
     <div class="filters"><div class="frow" role="group" aria-label="정렬">
       ${LIST_SORTS.map(x => `<button class="fchip" data-sort="${x.k}"
         aria-pressed="${(S.sort || 'deal') === x.k}">${esc(x.l)}</button>`).join('')}
     </div></div>
-    <p style="font-size:12px;color:var(--tx3);margin:2px 0 12px;font-weight:600">
-      ${esc(activeFilterTxt(mo))} · ${matched}건 ·
-      ${esc((LIST_SORTS.find(x => x.k === (S.sort || 'deal')) || LIST_SORTS[0]).l)}${
-        matched > LIST_CAP ? ` · 상위 ${LIST_CAP}건 표시` : ''}</p>
+    <p class="listinfo">${matched}건 · ${esc(sortName)}${
+      matched > cap ? ` · ${cap}건까지 표시` : ''}</p>
     ${narrowNote()}
     ${list.length
-      ? `<div class="list two">${list.map(o => cardHTML(o)).join('')}</div>`
-      : emptyBlock(`${activeFilterTxt(mo)} 조건에 맞는 항공권이 없습니다`,
-          narrowInfo(mo).gain
-            ? '위 안내에서 조건을 넓혀 보세요.'
-            : (mo ? `${monthLabel(mo)} 출발은 어느 출발지에도 없습니다.`
-                  : '설정에서 여행 기간이나 환승 조건을 넓혀 보세요.'))}
+      ? `<div class="list two">${list.map(o => cardHTML(o)).join('')}</div>
+         ${matched > cap ? `<button class="btn-line" data-more="1"
+           >더 보기 (남은 ${matched - cap}건)</button>` : ''}`
+      : emptyHTML(q)}
     ${footerHTML()}
   </div>`;
+}
+
+/* 0건일 때 제안할 대안. ★ 화면에 적는 건수와 눌렀을 때 실제로 걸리는
+   조건을 같은 함수에서 만든다. 예전에 안내는 37건이라 적어 놓고 버튼은
+   36건을 만들던 적이 있다 — 안내가 틀리면 안내가 없느니만 못하다. */
+function altOptions(q) {
+  const out = [];
+  const add = (label, patch) => {
+    const t = Object.assign({}, q, patch);
+    if (patch.f) t.f = Object.assign({}, q.f, patch.f);
+    const n = countOf(t);
+    if (n > 0) out.push({ label, n, patch });
+  };
+  if (q.stops === 'direct' || q.stops === 'one') add('환승 조건 해제', { stops: 'prefer' });
+  if (q.f.tier !== 'all') add('특가 등급 해제', { f: { tier: 'all' } });
+  if (q.f.change !== 'all') add('변화 조건 해제', { f: { change: 'all' } });
+  if (q.f.weekend) add('주말여행 해제', { f: { weekend: false } });
+  if (q.f.cap) add('금액 상한 해제', { f: { cap: 0 } });
+  if (q.month) add('전체 기간으로', { month: null });
+  if (q.origin !== 'all') add('전체 출발지로', { origin: 'all' });
+  if (q.scope !== 'all') add('국내+해외 전부', { scope: 'all' });
+  add('숙박 1~30박으로', { minNights: 1, maxNights: 30 });
+  return out;
+}
+
+/* 0건일 때. "항공권 없음" 만 적지 않는다 — 조건이 좁은 것, 노선 자료가
+   없는 것, 갱신이 실패한 것은 사용자가 할 일이 서로 다르다.
+   ★ 조건은 사용자가 누를 때만 바뀐다. 결과를 만들려고 앱이 몰래 넓히지
+     않는다. 바뀐 뒤에는 조건 요약 줄에 무엇이 달라졌는지 그대로 남는다. */
+function emptyHTML(q) {
+  const alts = altOptions(q);
+  const m = S.data.meta || {};
+  const failed = m.stale || (m.errors && m.errors.length);
+
+  return `<div class="note warn"><b>${esc(activeFilterTxt(q.month))} 조건에 맞는 항공권이 없습니다</b>
+    <p>${alts.length
+      ? '조건 하나를 풀면 아래만큼 나옵니다. 누르면 그때 바뀝니다.'
+      : '이 조건에서는 앱 전체에 자료가 없습니다. 노선 자체의 가격 기록이 없을 수 있습니다.'}</p>
+    ${alts.length ? `<div class="frow" style="margin-top:8px">
+      ${alts.slice(0, 4).map((a, i) => `<button class="fchip" data-alt="${i}"
+        >${esc(a.label)} ${a.n}건</button>`).join('')}
+    </div>` : ''}
+  </div>
+  ${!alts.length ? `<div class="note"><b>가격 자료가 없는 노선일 수 있습니다</b>
+    <p>이 소스는 사람들이 실제로 검색해서 캐시에 남은 값만 가집니다.
+      아무도 찾지 않는 노선은 계속 0건입니다.</p>
+    <div class="frow" style="margin-top:8px">
+      <button class="fchip" data-view="seed">🌱 가격 자료 부족 노선 보기</button>
+    </div></div>` : ''}
+  ${failed ? `<div class="note warn"><b>최근 갱신이 일부 실패했습니다</b>
+    <p>지금 보이는 값은 마지막으로 정상 수집된 자료입니다.
+      자세한 상태는 더보기 → 데이터 상태에서 볼 수 있습니다.</p></div>` : ''}`;
 }
 
 function subHeader(title) {
@@ -1396,7 +1718,7 @@ function viewWeekend() {
                 '연차는 더 들지만 주말이 걸리는 일정입니다');
   }
 
-  return `${plainHeader('주말여행', '연차를 거의 쓰지 않고 다녀올 수 있는 일정만')}
+  return `${plainHeader('주말여행', '연차를 거의 쓰지 않고 다녀올 수 있는 일정만', true)}
   <div class="wrap">
     <div class="filters"><div class="frow">
       ${spans.map(x => `<button class="fchip" data-wspan="${x.k}"
@@ -1406,8 +1728,14 @@ function viewWeekend() {
   </div>`;
 }
 
-function plainHeader(title, sub) {
+/* back=true 면 뒤로가기 버튼을 단다. 탭이 아니라 '더보기' 아래로 내려간
+   화면(설정·에러페어·주말·자료부족)은 돌아갈 곳이 있어야 한다. */
+function plainHeader(title, sub, back) {
   return `<header class="hd"><div class="wrap"><div class="row">
+    ${back ? `<button class="iconbtn" data-back aria-label="뒤로">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round" width="20" height="20">
+        <path d="M15 18l-6-6 6-6"/></svg></button>` : ''}
     <div class="grow"><h1>${esc(title)}</h1>
       <div class="upd">${esc(sub)}</div></div></div></div></header>`;
 }
@@ -1605,9 +1933,12 @@ function seedTargets() {
     ((b.age || 0) - (a.age || 0)));
 }
 
-function seedChecklist() {
+function seedChecklist(always) {
   const all = seedTargets();
-  if (!all.length) return '';
+  if (!all.length) {
+    return always ? `<div class="note"><b>지금은 자료가 부족한 노선이 없습니다</b>
+      <p>모든 노선에 비교 기준을 세울 만큼 가격 기록이 들어와 있습니다.</p></div>` : '';
+  }
   // ★ 표본이 얇다고 다 사람 손이 필요한 건 아니다. 제주·도쿄처럼 매일
   //   가격이 들어오는 노선은 며칠 두면 저절로 10건이 된다. 손이 필요한
   //   건 아무도 안 찾아서 스스로는 절대 안 차는 노선(스위스)뿐이다.
@@ -1615,7 +1946,10 @@ function seedChecklist() {
   const needsMe = x => x.state !== 'thin' || SWISS_ORDER.indexOf(x.arr) !== -1;
   const t = all.filter(needsMe);
   const grows = all.filter(x => !needsMe(x));
-  if (!t.length && !grows.length) return '';
+  if (!t.length && !grows.length) {
+    return always ? `<div class="note"><b>지금은 자료가 부족한 노선이 없습니다</b>
+      <p>모든 노선에 비교 기준을 세울 만큼 가격 기록이 들어와 있습니다.</p></div>` : '';
+  }
   const done = t.filter(x => seededToday(`${x.dep}-${x.arr}`)).length;
   return `<section class="sec">
     <div class="sec-hd"><div><h2>🌱 검색해서 채울 노선</h2>
@@ -1632,10 +1966,10 @@ function seedChecklist() {
       나옵니다.</p></div>` : ''}
     <div class="note"><b>누르는 것만으로는 부족할 수 있습니다</b>
       <p>버튼을 누르면 aviasales 검색이 열립니다. <b>항공권 목록이 실제로
-      뜰 때까지 기다렸다가</b> 닫으세요. 결과가 나오기 전에 닫으면 검색이
-      끝나지 않아 기록이 안 남을 수 있습니다.
+      뜰 때까지 기다렸다가</b> 닫으세요.
       아래 "열어봄" 표시는 <b>회원님이 눌렀다는 것만</b> 뜻합니다 —
-      실제로 기록됐는지는 다음 스캔이 알려 줍니다(그때 목록에서 사라집니다).</p></div>
+      앱이 확인할 수 있는 건 거기까지입니다. 가격이 실제로 수집됐는지는
+      다음 갱신 뒤에 알 수 있습니다.</p></div>
     <div class="panel">
       <div class="kv"><span class="k">오늘 열어본 노선</span>
         <span class="v">${done} / ${t.length}</span></div>
@@ -1675,9 +2009,9 @@ function seedChecklist() {
       손댈 필요 없습니다.</p>` : ''}
     <p style="margin:8px 2px 0;font-size:12px;color:var(--tx3);font-weight:600;line-height:1.5">
       이 앱이 대신 검색해 줄 수는 없습니다. 소스가 <b>실제 사람의 검색</b>만
-      기록하기 때문입니다. 결과는 <b>다음 스캔(6시간마다 · 01·07·13·19시)</b>
-      이후에 보입니다. 다음 스캔 뒤에도 목록에 남아 있으면 검색이 끝까지
-      안 돌았다는 뜻이니 한 번 더 눌러 주세요.</p>
+      기록하기 때문입니다. 검색 페이지를 열었더라도 가격 자료 반영 여부는
+      <b>다음 갱신(6시간마다 · 01·07·13·19시) 후에</b> 확인할 수 있으며,
+      외부 서비스 사정에 따라 반영되지 않을 수도 있습니다.</p>
   </section>`;
 }
 
@@ -1782,8 +2116,11 @@ function viewSwiss() {
   // SWISS_ORDER(ZRH/GVA/BSL) 만 본다. 스위스 도착이 아닌 항공권은 여기
   // 들어오지 않는다 — "인천 → 뮌헨" 을 스위스 항공권처럼 보여주면 거짓이다.
   const rules = tripRules(true);
+  // ★ 만료 판정은 모든 화면이 같아야 한다. 여기만 원본 offers 를 쓰면
+  //   다른 목록에서는 빠진 가격이 스위스 탭에만 남는다.
+  //   (tests/test_expiry_parity.py 가 이 줄을 지킨다.)
   const pool = S.data.offers.filter(o =>
-    SWISS_ORDER.includes(o.arr) && originOn(o.dep));
+    SWISS_ORDER.includes(o.arr) && originOn(o.dep) && !isExpired(o));
   const all = pool.filter(o => matchesTrip(o, rules));
   const outside = pool.filter(o => !matchesTrip(o, rules));
   const cond = `${rules.min}~${rules.max}박 · ${STOPS_LABEL[rules.stops] || rules.stops}`;
@@ -2023,7 +2360,7 @@ function viewError() {
         <div class="list two">${steep.map((o, i) => cardHTML(o, i + 1)).join('')}</div></section>`
     : '';
 
-  return `${plainHeader('에러페어', '오류운임 "의심" 탐지 — 확정이 아닙니다')}
+  return `${plainHeader('에러페어', '오류운임 "의심" 탐지 — 확정이 아닙니다', true)}
   <div class="wrap">
     <div class="note warn" style="margin-top:16px"><b>⚡ 의심이지 확정이 아닙니다</b>
       <p>가격 데이터에서 비정상적으로 낮은 값을 자동으로 찾아 올립니다.
@@ -2065,7 +2402,7 @@ function viewSettings() {
         aria-label="${esc(c)} 왕복 교통비">
     </div>`).join('');
 
-  return `${plainHeader('설정', '바꾸면 실부담가와 순위가 즉시 다시 계산됩니다')}
+  return `${plainHeader('설정', '바꾸면 예상 부담액과 순위가 즉시 다시 계산됩니다', true)}
   <div class="wrap">
     <div class="panel"><h4>출발지 표시</h4>${originRows}</div>
 
@@ -2104,7 +2441,7 @@ function viewSettings() {
     </div>
 
     <div class="panel"><h4>강력 특가 기준</h4>
-      <div class="set-row"><div class="lb">평균 대비<small>% 이상 저렴할 때 강력 특가</small></div>
+      <div class="set-row"><div class="lb">비교 기준가 대비<small>% 이상 저렴할 때 강력 특가 (기준가는 중앙값)</small></div>
         <input type="number" inputmode="numeric" min="5" max="80"
           value="${st.strongPct}" data-set="strongPct" aria-label="강력 특가 기준 퍼센트"></div>
       <p style="margin:6px 0 0;font-size:12px;color:var(--tx3);font-weight:600">
@@ -2143,7 +2480,11 @@ function viewSettings() {
         <span class="v">${Object.keys((S.data.meta && S.data.meta.pooled_buckets) || {}).length}개</span></div>
     </div>
 
-    <button class="btn-line" data-reset>설정 초기화</button>
+    <button class="btn-line" data-reset>검색 조건만 초기화</button>
+    <p class="live-note">출발지·국내해외·월·등급·환승·숙박 같은 <b>검색 조건</b>만
+      되돌립니다. 아래 공항 이동비는 그대로 둡니다.</p>
+    <button class="btn-line" data-reset-prefs>기기 설정 전체 초기화</button>
+    <p class="live-note">공항 이동비·특가 판정 기준까지 처음 값으로 되돌립니다.</p>
     ${footerHTML()}
   </div>`;
 }
@@ -2173,6 +2514,8 @@ function viewAnalysis() {
   <div class="wrap">
     <p style="font-size:12px;color:var(--tx3);margin:12px 0 0;font-weight:600">
       홈에서 내린 원시 분석입니다. 예약 판단이 아니라 데이터 점검용입니다.</p>
+    ${monthSection(homeOffers())}
+    ${cjjSection(homeOffers().filter(o => o.data_ok))}
     <div class="panel"><h4>노선별 (오늘 최저 / 평균 / 표본)</h4>${rows || '<p>없음</p>'}</div>
     <div class="panel"><h4>수집 진단 (원본 건수 · 탈락 사유)</h4>${diag || '<p>없음</p>'}</div>
     <div class="panel"><h4>누적 표본으로 기준선을 세운 버킷</h4>
@@ -2191,12 +2534,17 @@ function viewAnalysis() {
 }
 
 /* ── 상세 시트 ────────────────────────────────────────── */
+/* 상세는 '일정 판단 → 비용 확인 → 판매처' 순서다. 예전에는 판매처
+   버튼이 가격 위치·신뢰도·그래프 뒤에 있어서, 사러 가려면 화면을 끝까지
+   내려야 했다. 이제 하단에 고정한다.
+   그래프·표본·점수는 접어 둔다 — 필요할 때 여는 정보다. */
 function detailHTML(o) {
   const r = (S.data.routes || {})[`${o.dep}-${o.arr}`] || {};
   const acc = accessOf(o.dep);
-  const series = pickSeries(o, r);
+  const bl = bookingLink(o);
 
-  return `<div class="sheet" data-sheet><div class="sheet-in" role="dialog" aria-modal="true">
+  return `<div class="sheet" data-sheet><div class="sheet-in has-cta" role="dialog"
+      aria-modal="true" aria-label="${esc(depCity(o.dep))} → ${esc(o.city)} 상세">
     <div class="sheet-hd">
       <h3>${esc(depCity(o.dep))} → ${esc(o.city)}
         <span style="font-family:var(--mono);font-size:13px;color:var(--tx3);font-weight:700">${esc(o.dep)}→${esc(o.arr)}</span></h3>
@@ -2205,9 +2553,12 @@ function detailHTML(o) {
           stroke-linecap="round" width="20" height="20"><path d="M18 6L6 18M6 6l12 12"/></svg>
       </button></div>
 
-    <div class="panel">
-      ${badgesHTML(o)}
-      <div style="margin-top:12px">${cmpHTML(o)}</div>
+    <div class="sheet-body">
+    <div class="panel sum">
+      <div class="big">${won(effective(o))}<span>원</span></div>
+      <div class="bigk">1인 왕복 예상 부담액 · ${esc(stopTxt(o.stops))} ·
+        ${esc(o.airline_kr || o.airline)}</div>
+      <div class="fresh1">${freshBadge(o)}</div>
     </div>
 
     <div class="panel"><h4>일정</h4>
@@ -2216,69 +2567,98 @@ function detailHTML(o) {
         o.ret_hour != null ? ` ${o.ret_hour}시` : ''}</span></div>
       <div class="kv"><span class="k">한국 도착</span><span class="v">${o.home_arrive_date
         ? `${o.home_arrive_date} (${dow(o.home_arrive_date)})${o.home_arrive_hour != null ? ` ${o.home_arrive_hour}시` : ''}`
-        : '<span style="font-size:12.5px;font-family:var(--sans);color:var(--tx3)">미확인 — 소스가 도착 시각을 주지 않습니다</span>'}</span></div>
+        : '<span style="font-size:12.5px;font-family:var(--sans);color:var(--tx3)">미확인 (소스 미제공)</span>'}</span></div>
       <div class="kv"><span class="k">숙박</span><span class="v">${o.nights}박 ${o.nights + 1}일</span></div>
       <div class="kv"><span class="k">필요 연차</span><span class="v">${leaveOf(o)}${
-        o.night_departure ? ' · 야간 출발' : ''}</span></div>
+        esc(leaveNote(o))}${o.night_departure ? ' · 야간 출발' : ''}</span></div>
       ${o.annual_leave_confirmed === false ? `<p class="live-note">한국 도착일을
         모르므로 <b>최소값</b>입니다. 현지에서 밤에 떠나면 다음 날 도착이라
         연차가 하루 더 들 수 있습니다.</p>` : ''}
       ${o.night_departure ? `<p class="live-note">출발 시각만 보고 "퇴근 후
-        출발 가능" 이라고 확정하지 않습니다. 공항까지 이동 시간(청주→인천
+        출발 가능" 이라고 확정하지 않습니다. 공항까지 이동 시간(${esc(homeCity())}→인천
         약 2시간)과 수속을 더해 직접 판단하세요.</p>` : ''}
-      <div class="kv"><span class="k">항공사</span><span class="v">${esc(o.airline_kr || o.airline)}</span></div>
-      <div class="kv"><span class="k">경유</span><span class="v">${stopTxt(o.stops)}</span></div>
+      <div class="kv"><span class="k">경유</span><span class="v">${stopDetail(o)}</span></div>
+      ${o.duration_min ? `<div class="kv"><span class="k">가는 편 소요</span>
+        <span class="v">${durTxt(o.duration_min)}</span></div>`
+        : (o.duration_rt_min ? `<div class="kv"><span class="k">왕복 합 소요</span>
+        <span class="v">${durTxt(o.duration_rt_min)}</span></div>` : '')}
     </div>
 
     <div class="panel"><h4>비용</h4>
       <div class="kv"><span class="k">항공권</span><span class="v">${won(o.price_krw)}원</span></div>
-      <div class="kv"><span class="k">${acc ? `${esc(homeCity())} → ${esc(depCity(o.dep))} 왕복 이동비` : '공항 이동비 (집 앞 공항)'}</span><span class="v">${won(acc)}원</span></div>
-      <div class="kv"><span class="k" style="color:var(--hot)">실부담가</span>
+      <div class="kv"><span class="k">${esc(accLabel(o.dep))}</span><span class="v">${won(acc)}원</span></div>
+      <div class="kv"><span class="k" style="color:var(--hot)">예상 부담액</span>
         <span class="v" style="color:var(--hot);font-size:16px">${won(effective(o))}원</span></div>
+      <p class="live-note">항공권 + <b>설정한 공항 이동비</b>까지입니다.
+        숙박·현지 교통비는 들어 있지 않습니다.
+        ${o.tax_included === true ? '유류할증·세금 포함 가격입니다.'
+          : o.tax_included === false ? '유류할증·세금이 빠진 가격입니다.'
+          : '유류할증·세금 포함 여부는 소스가 알려 주지 않아 미확인입니다.'}
+        ${o.baggage ? `수하물: ${esc(String(o.baggage))}.` : '수하물 조건은 미확인입니다.'}</p>
     </div>
 
-    <div class="panel"><h4>가격 위치</h4>
-      <div class="kv"><span class="k">오늘 최저가</span><span class="v">${won(r.today_low)}원</span></div>
-      <div class="kv"><span class="k">노선 평균가</span><span class="v">${won(r.avg)}원 <span style="color:var(--tx3);font-size:11px">전 박수</span></span></div>
-      <div class="kv"><span class="k">비교 기준가</span><span class="v">${won(o.baseline)}원 <span style="color:var(--tx3);font-size:11px">이 항공편 판정에 쓴 값</span></span></div>
-      <div class="kv"><span class="k">최근 30일 최저</span><span class="v">${won(r.low30)}원${r.low30_date ? ` <span style="color:var(--tx3)">${md(r.low30_date)}</span>` : ''}</span></div>
-      <div class="kv"><span class="k">추적 기간 최저</span><span class="v">${won(r.low_all)}원${r.low_all_date ? ` <span style="color:var(--tx3)">${md(r.low_all_date)}</span>` : ''}</span></div>
-      <div class="kv"><span class="k">표본 수</span><span class="v">${o.baseline_n || 0}건${o.baseline_days ? ` · 추적 ${o.baseline_days}일` : ''} · 신뢰도 ${esc(o.confidence || '참고')}</span></div>
-      <div class="kv"><span class="k">비교 조건</span><span class="v"
-        style="font-size:12px;font-family:var(--sans)">${esc(o.baseline_tier || '—')}</span></div>
-      <p class="live-note">비교 기준가는 <b>중앙값</b>입니다(평균이 아닙니다).
-        같은 노선·같은 박수끼리 비교하고, 자료가 모자라면 박수나 출발지를
-        넓힌 기준으로 내려갑니다 — 위 '비교 조건' 에 어느 단계인지 적혀
-        있습니다. 표본 ${o.baseline_n || 0}건${o.baseline_days
-          ? ` · 관측 ${o.baseline_days}일` : ''}.</p>
+    <div class="panel"><h4>비교 근거</h4>
+      ${cmpHTML(o)}
+      <div class="kv" style="margin-top:10px"><span class="k">비교 기준가</span>
+        <span class="v">${won(o.baseline)}원</span></div>
+      <div class="kv"><span class="k">표본</span><span class="v">${o.baseline_n || 0}건${
+        o.baseline_days ? ` · 추적 ${o.baseline_days}일` : ''}</span></div>
+      <p class="live-note">비교 기준가는 같은 노선·같은 박수의 <b>중앙값</b>입니다
+        (평균이 아닙니다). 자료가 모자라면 박수나 출발지를 넓힌 기준으로
+        내려갑니다 — 아래 '자세히' 에 어느 단계인지 적혀 있습니다.</p>
     </div>
-    ${confParts(o)}
 
-    <div class="panel"><h4>가격 변화</h4>
-      ${series.pts.length > 1
-        ? chartSVG(series.pts, acc) + `<div class="legend">
-            <span class="a"><i></i>항공권</span>
-            ${acc ? '<span class="b"><i></i>실부담가</span>' : ''}
-          </div><p style="margin:8px 0 0;font-size:11.5px;color:var(--tx3);font-weight:600">
-            ${esc(series.label)}</p>`
-        : `<p style="margin:0;font-size:13px;color:var(--tx2)">
-            아직 그래프를 그릴 만큼 기록이 쌓이지 않았습니다.
-            매일 실행되면서 점이 하나씩 늘어납니다.</p>`}
-      <div class="rangebtns">
-        ${[7, 30, 90].map(n => `<button data-range="${n}"
-          aria-pressed="${S.range === n}">${n}일</button>`).join('')}
+    <details class="fold"><summary>가격 변화 그래프</summary>
+      <div class="panel" id="chartbox">${chartInner(o)}</div>
+    </details>
+
+    <details class="fold"><summary>표본 · 점수 · 데이터 출처</summary>
+      <div class="panel"><h4>가격 위치</h4>
+        <div class="kv"><span class="k">오늘 최저가</span><span class="v">${won(r.today_low)}원</span></div>
+        <div class="kv"><span class="k">노선 평균가</span><span class="v">${won(r.avg)}원 <span style="color:var(--tx3);font-size:11px">전 박수</span></span></div>
+        <div class="kv"><span class="k">최근 30일 최저</span><span class="v">${won(r.low30)}원${r.low30_date ? ` <span style="color:var(--tx3)">${md(r.low30_date)}</span>` : ''}</span></div>
+        <div class="kv"><span class="k">추적 기간 최저</span><span class="v">${won(r.low_all)}원${r.low_all_date ? ` <span style="color:var(--tx3)">${md(r.low_all_date)}</span>` : ''}</span></div>
+        <div class="kv"><span class="k">신뢰도</span><span class="v">${esc(o.confidence || '참고')}</span></div>
+        <div class="kv"><span class="k">비교 조건</span><span class="v"
+          style="font-size:12px;font-family:var(--sans)">${esc(o.baseline_tier || '—')}</span></div>
       </div>
+      ${scoresHTML(o)}
+      ${confParts(o)}
+      <div class="panel"><h4>이 값에 붙은 표시</h4>${badgesHTML(o)}</div>
+    </details>
     </div>
 
-    <a class="cta" href="${esc(bookingLink(o).url)}" target="_blank" rel="noopener"
-      >${esc(bookingLink(o).label)} →</a>
-    ${bookingLink(o).direct
-      ? `<p class="live-note">${esc(bookingLink(o).source)} 가 이 가격으로 준 링크입니다.</p>`
-      : `<p class="live-note">이 가격의 전용 예약 링크가 없어 <b>같은 일정으로
-         다시 검색</b>하는 링크입니다. 검색 결과가 위 가격과 다를 수 있습니다.</p>`}
-    <p style="margin:10px 0 0;font-size:11.5px;color:var(--tx3);text-align:center;font-weight:600">
-      캐시 기반 참고값입니다. 판매처에서 최종 가격을 확인하세요.</p>
+    <div class="sheet-cta">
+      <div class="cta-sum"><span class="k">예상 부담액</span>
+        <span class="v">${won(effective(o))}원</span></div>
+      <a class="cta wide" href="${esc(bl.url)}" target="_blank" rel="noopener"
+        >판매처에서 가격 확인 →</a>
+      <p class="cta-note">${bl.direct
+        ? `${esc(bl.source)} 가 이 가격으로 준 링크입니다. 판매처에서 최종 금액을 확인하세요.`
+        : '전용 예약 링크가 없어 <b>같은 일정으로 다시 검색</b>합니다. 검색 결과가 위 가격과 다를 수 있습니다.'}</p>
+    </div>
   </div></div>`;
+}
+
+/* 그래프 영역만 따로 뽑아 둔다. 구간 버튼은 이 조각만 갈아 끼운다. */
+function chartInner(o) {
+  const r = (S.data.routes || {})[`${o.dep}-${o.arr}`] || {};
+  const acc = accessOf(o.dep);
+  const series = pickSeries(o, r);
+  return `<h4>가격 변화</h4>
+    ${series.pts.length > 1
+      ? chartSVG(series.pts, acc) + `<div class="legend">
+          <span class="a"><i></i>항공권</span>
+          ${acc ? '<span class="b"><i></i>예상 부담액</span>' : ''}
+        </div><p style="margin:8px 0 0;font-size:11.5px;color:var(--tx3);font-weight:600">
+          ${esc(series.label)}</p>`
+      : `<p style="margin:0;font-size:13px;color:var(--tx2)">
+          아직 그래프를 그릴 만큼 기록이 쌓이지 않았습니다.
+          스캔이 돌 때마다 점이 하나씩 늘어납니다.</p>`}
+    <div class="rangebtns">
+      ${[7, 30, 90].map(n => `<button data-range="${n}"
+        aria-pressed="${S.range === n}">${n}일</button>`).join('')}
+    </div>`;
 }
 
 function pickSeries(o, r) {
@@ -2318,14 +2698,19 @@ function chartSVG(pts, acc) {
 /* ── 탭바 ─────────────────────────────────────────────── */
 const ICONS = {
   home: '<path d="M3 10.5L12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/>',
+  find: '<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/>',
+  more: '<circle cx="5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/>',
   weekend: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 11h18"/>',
   swiss: '<path d="M3 20l6.5-11 4 6 2.5-4L21 20z"/>',
   error: '<path d="M13 2L4.5 13H11l-1 9 8.5-11H12l1-9z"/>',
   settings: '<circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.6 1.6 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.6 1.6 0 00-1.8-.3 1.6 1.6 0 00-1 1.5V21a2 2 0 11-4 0v-.1A1.6 1.6 0 008 19.4a1.6 1.6 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.6 1.6 0 00.3-1.8 1.6 1.6 0 00-1.5-1H2a2 2 0 110-4h.1A1.6 1.6 0 003.6 8a1.6 1.6 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.6 1.6 0 001.8.3H8a1.6 1.6 0 001-1.5V2a2 2 0 114 0v.1a1.6 1.6 0 001 1.5 1.6 1.6 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.6 1.6 0 00-.3 1.8V8a1.6 1.6 0 001.5 1H22a2 2 0 110 4h-.1a1.6 1.6 0 00-1.5 1z"/>',
 };
+/* ★ 1차 개편: 화면(홈)·일정조건(주말)·목적지(스위스)·가격유형(에러페어)이
+   같은 단계에 섞여 있던 것을 정리했다. 주말은 '찾기' 의 빠른 조건으로,
+   에러페어·설정·진단은 '더보기' 로 내렸다. 기능은 그대로 남아 있다. */
 const TABS = [
-  { k: 'home', l: '홈' }, { k: 'weekend', l: '주말' }, { k: 'swiss', l: '스위스' },
-  { k: 'error', l: '에러페어' }, { k: 'settings', l: '설정' },
+  { k: 'home', l: '추천' }, { k: 'find', l: '찾기' }, { k: 'swiss', l: '스위스' },
+  { k: 'more', l: '더보기' },
 ];
 
 function renderTabs() {
@@ -2343,18 +2728,61 @@ function render() {
   const app = $('#app');
   if (S.err) { app.innerHTML = errorScreen(); $('#tabbar').hidden = true; return; }
   let html;
-  if (S.view === 'list') html = viewList();
-  else if (S.view === 'analysis') html = viewAnalysis();
-  else if (S.tab === 'weekend') html = viewWeekend();
+  if (S.view === 'analysis') html = viewAnalysis();
+  else if (S.view === 'settings') html = viewSettings();
+  else if (S.view === 'error') html = viewError();
+  else if (S.view === 'weekend') html = viewWeekend();
+  else if (S.view === 'seed') html = viewSeed();
+  else if (S.tab === 'find') html = viewList();
   else if (S.tab === 'swiss') html = viewSwiss();
-  else if (S.tab === 'error') html = viewError();
-  else if (S.tab === 'settings') html = viewSettings();
+  else if (S.tab === 'more') html = viewMore();
   else html = viewHome();
 
-  app.innerHTML = html + (S.detail ? detailHTML(S.detail) : '');
+  app.innerHTML = html
+    + (S.sheet === 'filter' ? filterSheetHTML() : '')
+    + (S.detail ? detailHTML(S.detail) : '');
   app.setAttribute('aria-busy', 'false');
   renderTabs();
-  document.body.style.overflow = S.detail ? 'hidden' : '';
+  const modal = !!(S.detail || S.sheet);
+  document.body.style.overflow = modal ? 'hidden' : '';
+  focusAfterRender(modal);
+  announce();
+  if (S.restoreY != null) {
+    const y = S.restoreY; S.restoreY = null;
+    requestAnimationFrame(() => window.scrollTo(0, y));
+  }
+}
+
+/* 열린 시트로 초점을 옮기고, 닫으면 열었던 카드로 돌려준다.
+   키보드로 배경 카드까지 넘어가지 않도록 시트 밖은 잠시 비활성으로 둔다. */
+let lastFocusId = null;
+function focusAfterRender(modal) {
+  const app = $('#app');
+  const sheet = app.querySelector('.sheet-in');
+  if (modal && sheet) {
+    if (!sheet.contains(document.activeElement)) {
+      const first = sheet.querySelector('[data-close],button,a[href]');
+      if (first) first.focus({ preventScroll: true });
+    }
+    return;
+  }
+  if (lastFocusId) {
+    const back = app.querySelector(`[data-open="${cssq(lastFocusId)}"]`);
+    lastFocusId = null;
+    if (back) back.focus({ preventScroll: true });
+  }
+}
+const cssq = v => String(v).replace(/["\\]/g, '\\$&');
+
+/* 화면 전체를 aria-live 로 두면 렌더할 때마다 본문을 통째로 읽는다.
+   바뀐 사실(건수)만 짧게 알린다. */
+let lastSaid = '';
+function announce() {
+  const el = $('#live');
+  if (!el) return;
+  const msg = S.said || '';
+  S.said = '';
+  if (msg && msg !== lastSaid) { lastSaid = msg; el.textContent = msg; }
 }
 
 function errorScreen() {
@@ -2366,58 +2794,132 @@ function errorScreen() {
 }
 
 /* ── 이벤트 ───────────────────────────────────────────── */
+/* ★ 위임 선택자는 반드시 이 목록에서 만든다. 손으로 문자열을 이어 붙이면
+   핸들러에는 분기가 있는데 선택자에 빠져 버튼이 죽는다. 실제로 data-scope,
+   data-longstops 가 그렇게 죽어 있었다. tests/test_click_attrs.py 가
+   "핸들러가 읽는 data-* 는 전부 여기 있어야 한다" 를 검사한다. */
+const CLICK_ATTRS = [
+  'tab', 'origin', 'scope', 'open', 'view', 'list', 'month', 'sort', 'seed',
+  'back', 'close', 'sheet', 'range', 'wspan', 'origin-toggle', 'stops',
+  'longstops', 'reset', 'reset-prefs', 'reload', 'retry',
+  'tier', 'change', 'cap', 'weekend', 'nights', 'apply', 'sheetopen',
+  'clear', 'chip-off', 'more', 'alt',
+];
+const CLICK_SEL = CLICK_ATTRS.map(a => `[data-${a}]`).join(',');
+
 document.addEventListener('click', ev => {
-  const t = ev.target.closest('[data-tab],[data-origin],[data-scope],[data-open],[data-view],'
-    + '[data-list],[data-month],[data-sort],[data-seed],[data-back],[data-close],[data-sheet],[data-range],[data-wspan],'
-    + '[data-origin-toggle],[data-stops],[data-reset],[data-reload],[data-retry]');
+  const t = ev.target.closest(CLICK_SEL);
   if (!t) return;
 
-  if (t.hasAttribute('data-sheet') && ev.target === t) { S.detail = null; return render(); }
-  if (t.hasAttribute('data-close')) { S.detail = null; return render(); }
+  // 조건 시트가 열려 있으면 조건 칩은 '임시값' 을 고친다. 화면은 아직
+  // 안 바뀐다 — '보기' 를 눌러야 적용된다.
+  const P = S.sheet === 'filter' ? (S.pending || (S.pending = queryNow())) : null;
+
+  if (t.hasAttribute('data-sheet') && ev.target === t) return closeTop();
+  if (t.hasAttribute('data-close')) return closeTop();
   if (t.hasAttribute('data-reload') || t.hasAttribute('data-retry')) return location.reload();
-  if (t.hasAttribute('data-back')) { S.view = null; return render(); }
+  if (t.hasAttribute('data-back')) return history.back();
+
+  const sop = t.getAttribute('data-sheetopen');
+  if (sop) { S.pending = queryNow(); S.sheet = sop; push(); return render(); }
+  if (t.hasAttribute('data-apply')) {
+    applyQuery(S.pending || queryNow());
+    S.pending = null; S.sheet = null;
+    S.said = `${countOf(queryNow())}건`;
+    if (S.tab === 'home') { S.tab = 'find'; S.view = null; }
+    replace(); window.scrollTo(0, 0); return render();
+  }
+  const alt = t.getAttribute('data-alt');
+  if (alt != null) {
+    const opt = altOptions(queryNow())[Number(alt)];
+    if (opt) {
+      const q = Object.assign({}, queryNow(), opt.patch);
+      if (opt.patch.f) q.f = Object.assign({}, queryNow().f, opt.patch.f);
+      applyQuery(q); S.said = `${countOf(q)}건`; replace();
+    }
+    return render();
+  }
+  const off = t.getAttribute('data-chip-off');
+  if (off) {
+    const q = P || queryNow();
+    if (off === 'origin') q.origin = 'all';
+    else if (off === 'scope') q.scope = 'all';
+    else if (off === 'month') q.month = null;
+    else if (off === 'stops') q.stops = defaultQuery().stops;
+    else q.f[off] = off === 'weekend' ? false : (off === 'cap' ? 0 : 'all');
+    if (!P) { applyQuery(q); replace(); }
+    return render();
+  }
+  if (t.getAttribute('data-clear') === 'query') {
+    const q = defaultQuery();
+    if (P) { S.pending = q; } else { applyQuery(q); replace(); }
+    return render();
+  }
 
   if (t.getAttribute('data-view') === 'settings-long') {
-    S.tab = 'settings'; S.view = null; window.scrollTo(0, 0); return render();
+    S.view = 'settings'; S.tab = 'more'; push(); window.scrollTo(0, 0); return render();
   }
   const tab = t.getAttribute('data-tab');
-  if (tab) { S.tab = tab; S.view = null; S.detail = null; window.scrollTo(0, 0); return render(); }
+  if (tab) {
+    S.tab = tab; S.view = null; S.detail = null; S.sheet = null;
+    push(); window.scrollTo(0, 0); return render();
+  }
 
   const og = t.getAttribute('data-origin');
-  if (og) { S.origin = og; return render(); }
+  if (og) { if (P) { P.origin = og; } else { S.origin = og; replace(); } return render(); }
   const sc = t.getAttribute('data-scope');
-  if (sc) { S.scope = sc; return render(); }
+  if (sc) { if (P) { P.scope = sc; } else { S.scope = sc; replace(); } return render(); }
 
   const open = t.getAttribute('data-open');
   if (open) {
     S.detail = S.data.offers.find(o => o.id === open) || null;
-    return render();
+    lastFocusId = open;
+    S.restoreY = null;
+    push(); return render();
   }
 
   const view = t.getAttribute('data-view');
-  if (view) { S.view = view; window.scrollTo(0, 0); return render(); }
+  if (view) { S.view = view; push(); window.scrollTo(0, 0); return render(); }
 
+  // 홈 타일 → 찾기 탭. 타일이 세던 축(등급/변화)을 그대로 건다.
   const lf = t.getAttribute('data-list');
-  if (lf) { S.listFilter = lf; S.view = 'list'; window.scrollTo(0, 0); return render(); }
+  if (lf) {
+    S.f = defaultF();
+    if (lf === 'strong') S.f.tier = 'strong';
+    else if (lf === 'deal') S.f.tier = 'deal';
+    else if (lf === 'new') S.f.change = 'new';
+    else if (lf === 'down') S.f.change = 'down';
+    else if (lf === 'weekend') S.f.weekend = true;
+    if (lf === 'direct') S.settings.stops = 'direct', saveSettings();
+    S.tab = 'find'; S.view = null; S.listCap = 60;
+    push(); window.scrollTo(0, 0); return render();
+  }
   const sd = t.getAttribute('data-seed');
   if (sd) { markSeeded(sd); setTimeout(render, 60); return; }   // 링크는 그대로 열린다
   const so = t.getAttribute('data-sort');
-  if (so) { S.sort = so; window.scrollTo(0, 0); return render(); }
+  if (so) { S.sort = so; S.listCap = 60; replace(); window.scrollTo(0, 0); return render(); }
+  if (t.hasAttribute('data-more')) { S.listCap += 60; return render(); }
   const mf = t.getAttribute('data-month');
   if (mf) {
-    S.month = (mf === 'all' ? null : mf);
+    const v = (mf === 'all' ? null : mf);
+    if (P) { P.month = v; return render(); }
+    S.month = v; S.listCap = 60;
     // ★ 칩은 지금 보고 있는 화면에 그대로 건다. 예전에는 월을 누르면
     //   무조건 목록으로 튀어서, 홈에서 달만 바꿔 보는 게 불가능했다.
     //   '월별로 보기' 의 줄만 그 달 목록으로 넘어간다.
-    if (t.hasAttribute('data-month-goto')) { S.view = 'list'; window.scrollTo(0, 0); }
+    if (t.hasAttribute('data-month-goto')) {
+      S.tab = 'find'; S.view = null; push(); window.scrollTo(0, 0);
+    } else { replace(); }
     return render();
   }
 
   const ws = t.getAttribute('data-wspan');
   if (ws) { S.weekendSpan = ws; return render(); }
 
+  // ★ 그래프 구간은 상세창 안의 그래프만 갈아 끼운다. render() 를 부르면
+  //   본문까지 다시 만들어져 상세 스크롤과 초점이 처음으로 돌아간다.
   const rg = t.getAttribute('data-range');
-  if (rg) { S.range = Number(rg); return render(); }
+  if (rg) { S.range = Number(rg); return paintChart(); }
 
   const ot = t.getAttribute('data-origin-toggle');
   if (ot) {
@@ -2425,17 +2927,129 @@ document.addEventListener('click', ev => {
     saveSettings(); return render();
   }
 
+  const tf = t.getAttribute('data-tier');
+  if (tf) { (P ? P.f : S.f).tier = tf; if (!P) { S.listCap = 60; replace(); } return render(); }
+  const cf = t.getAttribute('data-change');
+  if (cf) { (P ? P.f : S.f).change = cf; if (!P) { S.listCap = 60; replace(); } return render(); }
+  const cap = t.getAttribute('data-cap');
+  if (cap != null) { (P ? P.f : S.f).cap = Number(cap); if (!P) { S.listCap = 60; replace(); } return render(); }
+  const wk = t.getAttribute('data-weekend');
+  if (wk != null) { (P ? P.f : S.f).weekend = wk === '1'; if (!P) { S.listCap = 60; replace(); } return render(); }
+  const nt = t.getAttribute('data-nights');
+  if (nt) {
+    const [a, b] = nt.split('-').map(Number);
+    if (P) { P.minNights = a; P.maxNights = b; }
+    else { S.settings.minNights = a; S.settings.maxNights = b; saveSettings(); replace(); }
+    return render();
+  }
+
   const sp = t.getAttribute('data-stops');
-  if (sp) { S.settings.stops = sp; saveSettings(); return render(); }
+  if (sp) {
+    if (P) { P.stops = sp; } else { S.settings.stops = sp; saveSettings(); replace(); }
+    return render();
+  }
   const lsp = t.getAttribute('data-longstops');
   if (lsp) { S.settings.longStops = lsp; saveSettings(); return render(); }
 
+  // 검색 조건만 되돌린다. 교통비·강력특가 기준은 그대로 둔다.
   if (t.hasAttribute('data-reset')) {
+    applyQuery(defaultQuery()); replace(); return render();
+  }
+  // 기기 설정을 통째로 되돌린다 (설정 화면에서만).
+  if (t.hasAttribute('data-reset-prefs')) {
     try { localStorage.removeItem(SETTINGS_KEY); } catch (_) {}
     S.settings = defaultSettings(S.data);
     return render();
   }
 });
+
+/* 위에 얹힌 것부터 하나씩 닫는다. 뒤로가기와 같은 순서다. */
+function closeTop() {
+  if (S.detail || S.sheet) return history.back();
+  return render();
+}
+
+/* ── 뒤로가기 ─────────────────────────────────────────
+   탭·화면·상세를 메모리에만 두면 휴대폰 뒤로가기가 앱을 통째로 닫고,
+   판매처에 다녀오면 목록 맨 위로 돌아온다. 이동 단계마다 기록을 남기고
+   되돌아올 위치(스크롤)도 같이 저장한다.
+   ★ 조건 변경은 push 가 아니라 replace 다. 칩 하나 누를 때마다 기록을
+     쌓으면 뒤로가기를 스무 번 눌러야 앱을 빠져나간다. */
+function snap() {
+  return { t: S.tab, v: S.view, sheet: S.sheet, o: S.detail ? S.detail.id : null,
+           from: S.origin, to: S.scope, m: S.month, f: Object.assign({}, S.f),
+           sort: S.sort, st: S.settings.stops,
+           mn: S.settings.minNights, mx: S.settings.maxNights, y: 0 };
+}
+function encState() {
+  const p = new URLSearchParams();
+  const put = (k, v) => { if (v) p.set(k, String(v)); };
+  put('t', S.tab !== 'home' && S.tab); put('v', S.view);
+  put('o', S.detail && S.detail.id);
+  put('from', S.origin !== 'all' && S.origin); put('to', S.scope !== 'all' && S.scope);
+  put('m', S.month);
+  put('tier', S.f.tier !== 'all' && S.f.tier);
+  put('ch', S.f.change !== 'all' && S.f.change);
+  put('wk', S.f.weekend && '1'); put('cap', S.f.cap);
+  put('sort', S.sort !== 'deal' && S.sort);
+  put('st', S.settings.stops !== 'prefer' && S.settings.stops);
+  const q = p.toString();
+  return q ? '#' + q : location.pathname + location.search;
+}
+function push() {
+  try {
+    const cur = history.state || {};
+    cur.y = window.scrollY;               // 돌아왔을 때 여기로 되돌린다
+    history.replaceState(cur, '');
+    history.pushState(snap(), '', encState());
+  } catch (_) {}
+}
+function replace() { try { history.replaceState(snap(), '', encState()); } catch (_) {} }
+
+function restore(st) {
+  if (!st) st = {};
+  S.tab = st.t || 'home'; S.view = st.v || null; S.sheet = st.sheet || null;
+  S.detail = st.o ? (S.data.offers.find(o => o.id === st.o) || null) : null;
+  S.origin = st.from || 'all'; S.scope = st.to || 'all'; S.month = st.m || null;
+  S.f = Object.assign(defaultF(), st.f || {});
+  S.sort = st.sort || 'deal';
+  if (st.st) S.settings.stops = st.st;
+  if (st.mn) S.settings.minNights = st.mn;
+  if (st.mx) S.settings.maxNights = st.mx;
+  S.pending = S.sheet ? queryNow() : null;
+  S.listCap = 60;
+  // 상세를 다시 여는 경우엔 배경 스크롤을 건드리지 않는다.
+  S.restoreY = S.detail ? null : (st.y || 0);
+}
+/* 공유된 링크(해시)로 처음 들어온 경우. history.state 가 없다. */
+function decState() {
+  const h = (location.hash || '').replace(/^#/, '');
+  if (!h) return null;
+  const p = new URLSearchParams(h);
+  const f = defaultF();
+  if (p.get('tier')) f.tier = p.get('tier');
+  if (p.get('ch')) f.change = p.get('ch');
+  if (p.get('wk')) f.weekend = true;
+  if (p.get('cap')) f.cap = Number(p.get('cap')) || 0;
+  return { t: p.get('t'), v: p.get('v'), o: p.get('o'),
+           from: p.get('from'), to: p.get('to'), m: p.get('m'),
+           f, sort: p.get('sort'), st: p.get('st') };
+}
+window.addEventListener('popstate', ev => {
+  if (!S.data) return;
+  restore(ev.state || decState());
+  render();
+});
+
+/* 그래프 구간만 갈아 끼운다. render() 를 부르면 상세 스크롤이 처음으로
+   돌아가고 초점도 날아간다. */
+function paintChart() {
+  const box = document.getElementById('chartbox');
+  if (!box || !S.detail) return render();
+  box.innerHTML = chartInner(S.detail);
+  const btn = box.querySelector(`[data-range="${S.range}"]`);
+  if (btn) btn.focus({ preventScroll: true });
+}
 
 document.addEventListener('change', ev => {
   const el = ev.target;
@@ -2462,7 +3076,21 @@ document.addEventListener('change', ev => {
 });
 
 document.addEventListener('keydown', ev => {
-  if (ev.key === 'Escape' && S.detail) { S.detail = null; render(); }
+  if (ev.key === 'Escape' && (S.detail || S.sheet)) { ev.preventDefault(); return closeTop(); }
+  if (ev.key !== 'Tab') return;
+  // 시트가 열려 있으면 초점이 뒤 본문으로 넘어가지 않게 가둔다.
+  const sheet = document.querySelector('.sheet-in');
+  if (!sheet) return;
+  const f = [].slice.call(sheet.querySelectorAll(
+    'button,a[href],input,select,[tabindex]:not([tabindex="-1"])'))
+    .filter(el => !el.disabled && el.offsetParent !== null);
+  if (!f.length) return;
+  const first = f[0], last = f[f.length - 1];
+  if (!sheet.contains(document.activeElement)) {
+    ev.preventDefault(); return first.focus();
+  }
+  if (ev.shiftKey && document.activeElement === first) { ev.preventDefault(); last.focus(); }
+  else if (!ev.shiftKey && document.activeElement === last) { ev.preventDefault(); first.focus(); }
 });
 
 /* ── 부팅 ─────────────────────────────────────────────── */
@@ -2471,6 +3099,10 @@ fetch('deals.json', { cache: 'no-cache' })
   .then(d => {
     S.data = d;
     S.settings = loadSettings(d);
+    // 공유된 링크로 들어왔으면 그 조건으로 연다. 없으면 기본 화면.
+    const st = decState();
+    if (st) restore(st);
+    replace();
     render();
   })
   .catch(e => {

@@ -210,8 +210,10 @@ chk("function cacheStale(" in APP and "function staleHours(" in APP,
     "캐시 만료는 따로 재서 신뢰도·표시에만 쓴다")
 chk("캐시 갱신 후" in APP, "캐시가 오래됐으면 숨기지 않고 그렇게 적는다")
 chk("가격 확인 시각 불명" in APP, "★ found_at 이 없으면 '불명' 이라고 적는다 (비워 두지 않는다)")
-chk("function bookingLink(" in APP and "동일 일정 다시 검색" in APP,
+chk("function bookingLink(" in APP and "direct: true" in APP and "direct: false" in APP,
     "전용 예약 링크와 일반 검색 링크를 구분한다")
+chk("같은 일정으로 다시 검색" in APP and "검색 결과가 위 가격과 다를 수 있습니다" in APP,
+    "전용 링크가 없으면 같은 가격을 약속하지 않는다")
 chk("cache_expires_at" in S.OFFER_FIELDS and "price_valid_until" in S.OFFER_FIELDS,
     "캐시 TTL 과 운임 유효시각을 다른 이름으로 내보낸다")
 
@@ -219,7 +221,8 @@ chk("cache_expires_at" in S.OFFER_FIELDS and "price_valid_until" in S.OFFER_FIEL
 print("\n[7] 전체 특가 정렬")
 chk("const LIST_SORTS" in APP, "정렬 축이 정의돼 있다")
 chk("sort: 'deal'," in APP, "기본 정렬이 할인율이다")
-chk("sortList(pool).slice(0, LIST_CAP)" in APP, "목록이 고른 정렬을 쓴다")
+chk("sortList(pool).slice(0, cap)" in APP, "목록이 고른 정렬을 쓴다")
+chk("data-more" in APP, "잘린 뒤의 후보도 '더 보기' 로 볼 수 있다")
 chk("dealTier(o) === 'unknown' ? -Infinity" in APP,
     "★ 판정 보류(표본 부족)는 할인율 정렬에서 위로 올리지 않는다")
 chk("data-sort" in APP, "화면에서 정렬을 바꿀 수 있다")

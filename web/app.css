@@ -24,7 +24,7 @@
 html,body{margin:0;padding:0;overflow-x:hidden}
 body{
   background:var(--bg); color:var(--tx);
-  font-family:var(--sans); font-size:15px; line-height:1.5;
+  font-family:var(--sans); font-size:15px; line-height:1.55;
   -webkit-text-size-adjust:100%; overscroll-behavior-y:none;
   padding-bottom:calc(var(--tab) + env(safe-area-inset-bottom) + 20px);
 }
@@ -46,7 +46,7 @@ a{color:inherit}
 }
 .hd .row{display:flex;align-items:center;gap:12px;padding-bottom:12px}
 .hd h1{margin:0;font-size:17px;font-weight:800;letter-spacing:-.03em}
-.hd .upd{font-size:11.5px;color:var(--tx3);margin-top:2px}
+.hd .upd{font-size:12.5px;color:var(--tx2);margin-top:2px}
 .hd .upd b{color:var(--tx2);font-family:var(--mono);font-weight:600}
 .hd .grow{flex:1;min-width:0}
 .hd .mark{width:34px;height:34px;flex:0 0 34px;border-radius:10px;display:block}
@@ -65,7 +65,7 @@ a{color:inherit}
 }
 .chips::-webkit-scrollbar{display:none}
 .chip{
-  flex:0 0 auto;min-height:38px;padding:8px 14px;border-radius:999px;
+  flex:0 0 auto;min-height:44px;padding:10px 14px;border-radius:999px;
   border:1px solid var(--line);background:var(--card);color:var(--tx2);
   font-size:13.5px;font-weight:700;cursor:pointer;white-space:nowrap;
 }
@@ -111,10 +111,11 @@ a{color:inherit}
 .sec{margin:18px 0 0}
 .sec-hd{display:flex;align-items:flex-end;gap:8px;margin-bottom:10px}
 .sec-hd h2{margin:0;font-size:16px;font-weight:800;letter-spacing:-.03em}
-.sec-hd p{margin:2px 0 0;font-size:11.5px;color:var(--tx3);font-weight:500}
+.sec-hd p{margin:3px 0 0;font-size:12.5px;color:var(--tx2);font-weight:500;line-height:1.5}
 .sec-hd .more{
-  margin-left:auto;font-size:12.5px;font-weight:700;color:var(--pri);
-  background:none;border:0;cursor:pointer;padding:8px 2px;min-height:36px;
+  margin-left:auto;font-size:13px;font-weight:700;color:var(--pri);
+  background:none;border:0;cursor:pointer;padding:10px 4px;min-height:44px;
+  white-space:nowrap;
 }
 
 /* ── Hero 카드 (TOP 1) ──────────────────────────────── */
@@ -160,7 +161,7 @@ a{color:inherit}
 /* ── 배지 ───────────────────────────────────────────── */
 .badges{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
 .bg{
-  display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:800;
+  display:inline-flex;align-items:center;gap:4px;font-size:12.5px;font-weight:800;
   padding:5px 9px;border-radius:8px;border:1px solid var(--line);
   background:var(--card2);color:var(--tx2);white-space:nowrap;
 }
@@ -190,11 +191,14 @@ a{color:inherit}
 .cd .ttl{flex:1;min-width:0}
 .cd .route{font-size:15px;font-weight:800;letter-spacing:-.03em;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.cd .sub{font-size:12px;color:var(--tx3);font-weight:600;margin-top:2px;
-  font-family:var(--mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* ★ 일정 줄은 말줄임하지 않는다. 카드에서 가장 중요한 정보 중 하나라
+   "09/18(금) …" 로 잘리면 언제 돌아오는지 알 수 없다. 줄바꿈시킨다. */
+.cd .sub{font-size:13px;color:var(--tx2);font-weight:600;margin-top:3px;
+  line-height:1.45;word-break:keep-all}
 .cd .price{flex:0 0 auto;text-align:right}
 .cd .price .v{font-family:var(--mono);font-size:19px;font-weight:800;letter-spacing:-.03em}
-.cd .price .k{font-size:10.5px;color:var(--tx3);font-weight:600;margin-top:1px}
+.cd .price .k{font-size:12px;color:var(--tx3);font-weight:600;margin-top:2px;
+  line-height:1.35}
 .cd .foot{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px}
 
 /* ── 오늘 변화 타일 ─────────────────────────────────── */
@@ -223,12 +227,13 @@ a{color:inherit}
 .mrow.on{background:var(--pri-soft);border-radius:10px}
 .note.warn{border-left-color:var(--warn)}
 .note.hot{border-left-color:var(--hot)}
-.note p{margin:4px 0 0;color:var(--tx2);font-size:12.5px}
-.kv{display:flex;justify-content:space-between;gap:12px;padding:9px 0;
-  border-top:1px solid var(--line2);font-size:13px}
+.note p{margin:5px 0 0;color:var(--tx2);font-size:13.5px;line-height:1.6}
+.kv{display:flex;justify-content:space-between;gap:12px;padding:10px 0;
+  border-top:1px solid var(--line2);font-size:13.5px}
 .kv:first-of-type{border-top:0}
 .kv .k{color:var(--tx3);font-weight:600;flex:0 0 auto}
-.kv .v{font-family:var(--mono);text-align:right;font-weight:700}
+.kv .v{font-family:var(--mono);text-align:right;font-weight:700;
+  min-width:0;word-break:break-word}
 
 /* ── 필터 바 ────────────────────────────────────────── */
 .filters{
@@ -238,9 +243,9 @@ a{color:inherit}
 .frow{display:flex;gap:7px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
 .frow::-webkit-scrollbar{display:none}
 .fchip{
-  flex:0 0 auto;min-height:36px;padding:7px 12px;border-radius:999px;
+  flex:0 0 auto;min-height:44px;padding:10px 14px;border-radius:999px;
   border:1px solid var(--line);background:var(--card);color:var(--tx2);
-  font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap;
+  font-size:13.5px;font-weight:700;cursor:pointer;white-space:nowrap;
 }
 .fchip[aria-pressed="true"]{background:var(--pri);border-color:var(--pri);color:#fff}
 .fchip select{border:0;background:none;font:inherit;color:inherit;outline:none}
@@ -280,7 +285,7 @@ a{color:inherit}
 .legend .a i{background:var(--pri)} .legend .b i{background:var(--hot)}
 .rangebtns{display:flex;gap:6px;margin-top:10px}
 .rangebtns button{
-  flex:1;min-height:36px;border:1px solid var(--line);background:var(--card);
+  flex:1;min-height:44px;border:1px solid var(--line);background:var(--card);
   border-radius:9px;font-size:12.5px;font-weight:700;color:var(--tx2);cursor:pointer;
 }
 .rangebtns button[aria-pressed="true"]{background:var(--pri);border-color:var(--pri);color:#fff}
@@ -320,6 +325,115 @@ a{color:inherit}
   cursor:pointer;margin-top:12px;
 }
 
+/* ── 조건 요약 줄 ───────────────────────────────────
+   칩을 상시 펼쳐 두지 않는다. 지금 걸린 조건만 한 줄로 적고,
+   누르면 조건 시트가 열린다. */
+.summary{margin:14px 0 0}
+.sum-main{
+  display:flex;align-items:center;gap:10px;width:100%;min-height:56px;
+  padding:11px 14px;border:1px solid var(--line);background:var(--card);
+  border-radius:var(--r);cursor:pointer;text-align:left;
+}
+.sum-main:active{background:var(--card2)}
+.sum-k{font-size:12px;font-weight:800;color:var(--tx3);flex:0 0 auto}
+.sum-v{flex:1;min-width:0;font-size:13.5px;font-weight:700;color:var(--tx);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sum-n{flex:0 0 auto;font-family:var(--mono);font-size:13.5px;font-weight:800;
+  color:var(--pri)}
+.sum-main svg{flex:0 0 auto;color:var(--tx3)}
+.sum-chips{margin-top:8px}
+.fchip.off{background:var(--pri-soft);border-color:var(--pri-line);color:var(--pri)}
+.fchip.clear{color:var(--tx3)}
+
+/* ── 조건 시트 ──────────────────────────────────────── */
+.fsheet{padding-bottom:16px}
+.fgrp{margin-top:16px}
+.fgrp-h{font-size:13px;font-weight:800;margin-bottom:8px}
+.fgrp-h small{display:block;font-size:12px;font-weight:600;color:var(--tx3);
+  margin-top:2px}
+.fgrp .frow{flex-wrap:wrap;overflow:visible}
+
+/* ── 시트 하단 고정 영역 ────────────────────────────
+   판매처 버튼을 찾으려고 화면을 끝까지 내리지 않아도 되게 한다. */
+.sheet-in.has-cta{display:flex;flex-direction:column;padding-bottom:0}
+.sheet-body{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  padding-bottom:12px}
+.sheet-cta{
+  position:sticky;bottom:0;background:var(--bg);z-index:3;
+  border-top:1px solid var(--line);
+  padding:12px 0 calc(14px + env(safe-area-inset-bottom));
+}
+.cta-sum{display:flex;justify-content:space-between;align-items:baseline;
+  margin-bottom:8px}
+.cta-sum .k{font-size:12.5px;font-weight:700;color:var(--tx3)}
+.cta-sum .v{font-family:var(--mono);font-size:19px;font-weight:800;color:var(--hot);
+  letter-spacing:-.03em}
+.cta.wide{margin-top:0}
+.cta-note{margin:8px 0 0;font-size:12px;color:var(--tx3);font-weight:600;
+  line-height:1.55;text-align:center}
+.sheet-cta .btn-line{margin-top:8px;min-height:44px}
+
+/* ── 접는 영역 ──────────────────────────────────────── */
+details.fold{margin-top:12px}
+details.fold>summary{
+  list-style:none;cursor:pointer;min-height:48px;display:flex;align-items:center;
+  gap:8px;padding:0 14px;background:var(--card);border:1px solid var(--line);
+  border-radius:var(--r);font-size:13.5px;font-weight:800;color:var(--tx2);
+}
+details.fold>summary::-webkit-details-marker{display:none}
+details.fold>summary::after{content:"▾";margin-left:auto;color:var(--tx3)}
+details.fold[open]>summary::after{content:"▴"}
+details.fold[open]>summary{border-radius:var(--r) var(--r) 0 0;border-bottom:0}
+details.fold[open] .panel{margin-top:0;border-radius:0 0 var(--r) var(--r)}
+details.fold[open] .panel+.panel{border-radius:0;border-top:0}
+
+/* ── 큰 금액 ────────────────────────────────────────── */
+.big{font-family:var(--mono);font-weight:800;letter-spacing:-.04em;
+  color:var(--hot);font-size:clamp(26px,8vw,36px);line-height:1.1;
+  margin-top:10px;white-space:nowrap}
+.big span{font-size:.52em;margin-left:2px}
+.bigk{font-size:12.5px;color:var(--tx2);font-weight:600;margin-top:3px;
+  line-height:1.5}
+.panel.sum{text-align:center}
+.panel.sum .big{margin-top:0}
+.fresh1{margin-top:10px;display:flex;justify-content:center}
+
+/* ── 추천 이유 한 줄 ────────────────────────────────── */
+.why{margin-top:9px;font-size:13px;font-weight:700;color:var(--tx2);
+  line-height:1.5}
+.meta.warn2{color:var(--warn);font-weight:700}
+.cta-sm{display:block;margin-top:10px;font-size:13px;font-weight:800;
+  color:var(--pri)}
+
+/* ── 홈: 전체 보기 / 빠른 조건 ─────────────────────── */
+.btn-go{
+  width:100%;min-height:52px;border:1px solid var(--pri-line);
+  background:var(--pri-soft);color:var(--pri);border-radius:var(--r);
+  font-size:14.5px;font-weight:800;cursor:pointer;
+}
+.quick{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.qbtn{
+  display:block;text-align:left;background:var(--card);border:1px solid var(--line);
+  border-radius:var(--r);padding:13px 14px;min-height:66px;cursor:pointer;
+}
+.qbtn b{display:block;font-size:14px;font-weight:800}
+.qbtn small{display:block;font-size:12px;color:var(--tx3);font-weight:600;
+  margin-top:3px;line-height:1.45}
+
+/* ── 더보기 목록 ────────────────────────────────────── */
+.mrow{
+  display:flex;align-items:center;gap:10px;width:100%;min-height:60px;
+  padding:12px 14px;background:var(--card);border:1px solid var(--line);
+  border-radius:var(--r);cursor:pointer;text-align:left;margin-top:10px;
+}
+.mrow:first-child{margin-top:0}
+.mrow .mt{font-size:14.5px;font-weight:800;flex:0 0 auto}
+.mrow .ms{font-size:12px;color:var(--tx3);font-weight:600;flex:1;min-width:0;
+  text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mrow svg{flex:0 0 auto;color:var(--tx3)}
+
+.listinfo{font-size:13px;color:var(--tx2);margin:2px 0 12px;font-weight:700}
+
 /* ── 하단 탭 ────────────────────────────────────────── */
 .tabbar{
   position:fixed;left:0;right:0;bottom:0;z-index:50;display:flex;
@@ -334,13 +448,17 @@ a{color:inherit}
 .tabbar button svg{width:22px;height:22px;stroke-width:2}
 .tabbar button[aria-selected="true"]{color:var(--pri)}
 
-footer{padding:22px var(--pad) 30px;color:var(--tx3);font-size:11px;
+footer{padding:22px var(--pad) 30px;color:var(--tx3);font-size:11.5px;
   line-height:1.7;text-align:center}
+.lnk{background:none;border:0;color:var(--tx2);font-size:11.5px;font-weight:700;
+  text-decoration:underline;cursor:pointer;padding:8px 6px;min-height:36px}
 
 /* ── 데스크톱: 사이드바 없이 폭만 넓힌다 ────────────── */
 @media(min-width:900px){
   :root{--pad:24px}
   body{padding-bottom:0}
+  /* ★ nav 가 main 앞에 있어야 이 sticky 가 화면 위에 붙는다.
+     예전에는 main 뒤에 있어서 긴 본문을 다 지나야 메뉴가 나왔다. */
   .tabbar{
     position:sticky;top:0;bottom:auto;border-top:0;border-bottom:1px solid var(--line);
     justify-content:center;gap:6px;padding:10px var(--pad);
@@ -358,6 +476,10 @@ footer{padding:22px var(--pad) 30px;color:var(--tx3);font-size:11px;
   .list.two{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
   .sheet{align-items:center}
   .sheet-in{border-radius:18px;max-height:86vh;padding-bottom:24px}
+  .sheet-in.has-cta{padding-bottom:0}
+  .sheet-cta{padding-bottom:18px}
+  .quick{grid-template-columns:repeat(4,1fr)}
+  .fgrp .frow{flex-wrap:wrap}
 }
 @media(min-width:1200px){
   .list.two{grid-template-columns:repeat(3,1fr)}
