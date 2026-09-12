@@ -1,24 +1,24 @@
 {
  "date": "2026-09-12",
- "ts": "2026-09-13 03:14 KST",
+ "ts": "2026-09-13 08:53 KST",
  "status": "OK",
- "headline": "볼 것 635건 · 강력특가 15 · 주말여행 3 · CJJ 3 · 신규 36 · 하락 3",
+ "headline": "볼 것 634건 · 강력특가 14 · 주말여행 3 · CJJ 3 · 신규 6",
  "home": "CJJ",
  "reason": null,
  "degraded": null,
  "holiday_gap": null,
  "counts": {
-  "total": 636,
-  "comparable": 635,
-  "strong": 15,
-  "deal": 27,
-  "candidate": 87,
-  "weekend": 154,
-  "home": 20,
-  "new": 36,
-  "down": 3,
+  "total": 635,
+  "comparable": 634,
+  "strong": 14,
+  "deal": 30,
+  "candidate": 83,
+  "weekend": 153,
+  "home": 23,
+  "new": 6,
+  "down": 0,
   "up": 8,
-  "gone": 15
+  "gone": 7
  },
  "source_note": "Travelpayouts 캐시 데이터 · 실시간 확정가 아님",
  "access_note": "실부담가 = 항공권 + CJJ 기준 왕복 교통비 (추정치)",
@@ -37,6 +37,19 @@
    "link": "https://www.aviasales.com/search/CJJ1909CJU23091"
   },
   {
+   "text": "나고야 CJJ→NGO · 09-20~09-23 3박 · 198,416원 · 비교 기준가보다 51% 저렴 · 특가  🆕  🔻추적기간 최저",
+   "tier": "deal",
+   "tier_label": "특가",
+   "confidence": "보통",
+   "sample": 7,
+   "price": 198416,
+   "access": 0,
+   "effective": 198416,
+   "weekend_trip": false,
+   "leave": 3.0,
+   "link": "https://www.aviasales.com/search/CJJ2009NGO23091"
+  },
+  {
    "text": "다낭 PUS→DAD · 10-26~10-31 5박 · 205,260원 (실부담 261,260) · 비교 기준가보다 26% 저렴 · 특가  🔻추적기간 최저",
    "tier": "deal",
    "tier_label": "특가",
@@ -48,28 +61,15 @@
    "weekend_trip": false,
    "leave": 5.0,
    "link": "https://www.aviasales.com/search/PUS2610DAD31101"
-  },
-  {
-   "text": "오키나와 ICN→OKA · 09-15~09-18 3박 · 292,116원 (실부담 336,116) · 비교 기준가보다 36% 저렴 · 강력 특가  🔻추적기간 최저",
-   "tier": "strong",
-   "tier_label": "강력 특가",
-   "confidence": "보통",
-   "sample": 15,
-   "price": 292116,
-   "access": 44000,
-   "effective": 336116,
-   "weekend_trip": false,
-   "leave": 4.0,
-   "link": "https://www.aviasales.com/search/ICN1509OKA18091"
   }
  ],
  "weekend": [
   {
-   "text": "홍콩 ICN→HKG · 10-02~10-05 3박 · 235,137원 (실부담 279,137) · 비교 기준가보다 15% 저렴 · 주말 연차1일 · 개천절  🔻추적기간 최저",
+   "text": "홍콩 ICN→HKG · 10-02~10-05 3박 · 235,137원 (실부담 279,137) · 비교 기준가보다 17% 저렴 · 주말 연차1일 · 개천절  🔻추적기간 최저",
    "tier": "candidate",
    "tier_label": "특가 후보",
    "confidence": "보통",
-   "sample": 12,
+   "sample": 11,
    "price": 235137,
    "access": 44000,
    "effective": 279137,
@@ -119,6 +119,19 @@
    "link": "https://www.aviasales.com/search/CJJ1909CJU23091"
   },
   {
+   "text": "나고야 CJJ→NGO · 09-20~09-23 3박 · 198,416원 · 비교 기준가보다 51% 저렴 · 특가  🆕  🔻추적기간 최저",
+   "tier": "deal",
+   "tier_label": "특가",
+   "confidence": "보통",
+   "sample": 7,
+   "price": 198416,
+   "access": 0,
+   "effective": 198416,
+   "weekend_trip": false,
+   "leave": 3.0,
+   "link": "https://www.aviasales.com/search/CJJ2009NGO23091"
+  },
+  {
    "text": "제주 CJJ→CJU · 09-15~09-18 3박 · 59,860원 · 비교 기준가보다 24% 저렴 · 특가",
    "tier": "deal",
    "tier_label": "특가",
@@ -130,19 +143,6 @@
    "weekend_trip": false,
    "leave": 3.5,
    "link": "https://www.aviasales.com/search/CJJ1509CJU18091"
-  },
-  {
-   "text": "상하이 CJJ→PVG · 09-16~09-18 2박 · 197,187원",
-   "tier": "normal",
-   "tier_label": "일반",
-   "confidence": "보통",
-   "sample": 5,
-   "price": 197187,
-   "access": 0,
-   "effective": 197187,
-   "weekend_trip": false,
-   "leave": 3.0,
-   "link": "https://www.aviasales.com/search/CJJ1609PVG18091"
   }
  ],
  "swiss": [],
