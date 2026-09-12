@@ -64,6 +64,7 @@ t('조건 시트의 예상 건수 = 적용 후 실제 건수 (모든 축 조합)
     { f: { tier: 'strong' } }, { f: { tier: 'deal' } }, { f: { change: 'down' } },
     { f: { change: 'new' } }, { f: { weekend: true } }, { f: { cap: 500000 } },
     { stops: 'direct' }, { stops: 'one' }, { minNights: 2, maxNights: 5 },
+    { f: { q: '일본' } }, { f: { q: 'FUK' } },
   ];
   let checked = 0;
   for (const a of axes) for (const b of axes) {
@@ -120,6 +121,28 @@ t('0건 대안 버튼의 숫자 = 적용 후 건수', () => {
     S.settings.stops = 'direct'; S.month = '2026-12';
   }
   console.log(`     대안 ${alts.length}개 모두 일치`);
+});
+
+/* ── 3.5 도착지 글자 검색 ── */
+t('도착지 검색은 도시·공항코드·지역 아무거나 받는다', () => {
+  reset();
+  const by = k => {
+    const q = Object.assign({}, ctx.queryNow(), { f: Object.assign(ctx.defaultF(), { q: k }) });
+    return ctx.poolOf(q);
+  };
+  const jp = by('일본'), fuk = by('후쿠오카'), code = by('FUK');
+  if (!jp.length || !fuk.length) throw new Error('검색이 아무것도 못 찾는다');
+  if (fuk.length !== code.length) throw new Error(`도시 ${fuk.length} ≠ 코드 ${code.length}`);
+  for (const o of fuk) if (o.arr !== 'FUK') throw new Error('다른 도시가 섞임: ' + o.arr);
+  for (const o of jp) if (o.region !== '일본') throw new Error('다른 지역이 섞임: ' + o.region);
+  if (!(fuk.length < jp.length)) throw new Error('도시가 지역보다 넓다');
+  console.log(`     일본 ${jp.length} / 후쿠오카 ${fuk.length} / FUK ${code.length}`);
+});
+t('검색어가 없으면 아무것도 거르지 않는다', () => {
+  reset();
+  const all = ctx.countOf(ctx.queryNow());
+  const q = Object.assign({}, ctx.queryNow(), { f: Object.assign(ctx.defaultF(), { q: '   ' }) });
+  eq(ctx.countOf(q), all, '공백만 있는 검색어');
 });
 
 /* ── 4. 정렬 ── */

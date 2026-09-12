@@ -45,7 +45,7 @@ const S = {
 };
 
 /* 검색 조건의 기본값. '검색 조건 초기화' 가 되돌리는 지점이다. */
-const defaultF = () => ({ tier: 'all', change: 'all', weekend: false, cap: 0 });
+const defaultF = () => ({ tier: 'all', change: 'all', weekend: false, cap: 0, q: '' });
 /* 검색 조건에 속하는 설정 키. 초기화 때 이것만 되돌리고 교통비는 건드리지 않는다. */
 const SEARCH_SETTING_KEYS = ['stops', 'minNights', 'maxNights',
                              'longStops', 'longMinNights', 'longMaxNights'];
@@ -471,8 +471,16 @@ const TIER_AT_LEAST = {
   candidate: ['strong', 'deal', 'candidate'],
 };
 
+/* 도착지 글자 검색. 도시·공항코드·지역 아무거나 받는다 — "일본" 으로도
+   "후쿠오카" 로도 "FUK" 으로도 찾을 수 있어야 한다. */
+const destText = o => `${o.city || ''} ${o.arr || ''} ${o.region || ''}`.toLowerCase();
+
 function matchesF(o, f) {
   f = f || S.f;
+  if (f.q) {
+    const q = String(f.q).trim().toLowerCase();
+    if (q && destText(o).indexOf(q) === -1) return false;
+  }
   const want = TIER_AT_LEAST[f.tier];
   if (want && want.indexOf(dealTier(o)) === -1) return false;
   if (f.change !== 'all' && o.change !== f.change) return false;
@@ -1291,6 +1299,7 @@ function queryChips(q) {
     const sc = SCOPES.find(x => x.key === q.scope);
     out.push({ k: 'scope', l: sc ? sc.label : q.scope });
   }
+  if (q.f.q) out.push({ k: 'q', l: `"${q.f.q}"` });
   if (q.month) out.push({ k: 'month', l: `${monthLabel(q.month)} 출발` });
   const t = TIER_F.find(x => x.k === q.f.tier);
   if (q.f.tier !== 'all' && t) out.push({ k: 'tier', l: t.l });
@@ -1350,6 +1359,11 @@ function filterSheetHTML() {
           stroke-linecap="round" width="20" height="20"><path d="M18 6L6 18M6 6l12 12"/></svg>
       </button></div>
     <div class="sheet-body"><div class="fsheet">
+      <div class="fgrp"><div class="fgrp-h">도착지 찾기
+        <small>도시·국가·공항코드 아무거나 (예: 일본, 후쿠오카, FUK)</small></div>
+        <input class="fq" type="search" data-q="1" value="${esc(q.f.q || '')}"
+          placeholder="비워 두면 전체" autocomplete="off"
+          enterkeyhint="search" aria-label="도착지 찾기"></div>
       ${row('어디로', SCOPES.map(x => ({ k: x.key, l: x.label }))
               .concat([{ k: 'all', l: '전체' }]).filter((x, i, a) =>
                 a.findIndex(y => y.k === x.k) === i), 'scope', q.scope)}
@@ -2856,6 +2870,7 @@ document.addEventListener('click', ev => {
     else if (off === 'scope') q.scope = 'all';
     else if (off === 'month') q.month = null;
     else if (off === 'stops') q.stops = defaultQuery().stops;
+    else if (off === 'q') q.f.q = '';
     else q.f[off] = off === 'weekend' ? false : (off === 'cap' ? 0 : 'all');
     if (!P) { applyQuery(q); replace(); }
     return render();
@@ -3005,7 +3020,7 @@ function encState() {
   put('m', S.month);
   put('tier', S.f.tier !== 'all' && S.f.tier);
   put('ch', S.f.change !== 'all' && S.f.change);
-  put('wk', S.f.weekend && '1'); put('cap', S.f.cap);
+  put('wk', S.f.weekend && '1'); put('cap', S.f.cap); put('q', S.f.q);
   put('sort', S.sort !== 'deal' && S.sort);
   put('st', S.settings.stops !== 'prefer' && S.settings.stops);
   const q = p.toString();
@@ -3046,6 +3061,7 @@ function decState() {
   if (p.get('ch')) f.change = p.get('ch');
   if (p.get('wk')) f.weekend = true;
   if (p.get('cap')) f.cap = Number(p.get('cap')) || 0;
+  if (p.get('q')) f.q = p.get('q');
   return { t: p.get('t'), v: p.get('v'), o: p.get('o'),
            from: p.get('from'), to: p.get('to'), m: p.get('m'),
            f, sort: p.get('sort'), st: p.get('st') };
@@ -3068,6 +3084,13 @@ function paintChart() {
 
 document.addEventListener('change', ev => {
   const el = ev.target;
+  // ★ input 마다 render() 를 부르면 입력칸이 통째로 새로 만들어져 한 글자
+  //   치고 초점을 잃는다. change(엔터·포커스 아웃)에서만 받는다.
+  if (el.getAttribute && el.getAttribute('data-q')) {
+    const v = String(el.value || '').slice(0, 40);
+    if (S.pending) { S.pending.f.q = v; } else { S.f.q = v; replace(); }
+    return render();
+  }
   const cost = el.getAttribute && el.getAttribute('data-cost');
   if (cost) {
     S.settings.access[cost] = Math.max(0, Number(el.value) || 0);
