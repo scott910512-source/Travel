@@ -1,5 +1,6 @@
 __pycache__/
 *.pyc
+node_modules/
 tp_config.json
 .travelpayouts.json
 public/

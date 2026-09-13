@@ -1,0 +1,11 @@
+{
+  "name": "cheongju-flight-scanner",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "test": "node tests/ui_logic.mjs && node tests/worker_ux.mjs && node tests/dom_ux.mjs"
+  },
+  "devDependencies": {
+    "jsdom": "26.1.0"
+  }
+}
