@@ -439,6 +439,8 @@ details.fold[open] .panel+.panel{border-radius:0;border-top:0}
   text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .mrow svg{flex:0 0 auto;color:var(--tx3)}
 
+.cd.biz{cursor:default}
+.cd.biz .cta-sm{display:inline-block;text-decoration:none;min-height:44px;line-height:44px}
 .listinfo{font-size:13px;color:var(--tx2);margin:2px 0 12px;font-weight:700}
 
 /* ── 하단 탭 ────────────────────────────────────────── */

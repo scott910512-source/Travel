@@ -1038,6 +1038,7 @@ function viewHome() {
    내려온 것들이 여기 모인다. 기능은 하나도 없애지 않았다. */
 function viewMore() {
   const seeds = seedTargets();
+  const bizN = ((S.data.business || {}).offers || []).length;
   const m = S.data.meta || {};
   const row = (attr, val, title, sub) => `<button class="mrow" data-${attr}="${esc(val)}">
     <span class="mt">${title}</span><span class="ms">${esc(sub)}</span>
@@ -1053,6 +1054,8 @@ function viewMore() {
       ${row('view', 'weekend', '🗓 주말 여행', '이번 주말 · 다음 주말 날짜로 보기')}
       ${row('view', 'seed', `🌱 가격 자료 부족 노선${seeds.length ? ` (${seeds.length})` : ''}`,
             '자료가 없는 노선을 직접 검색해 채우기')}
+      ${row('view', 'business', `💺 비즈니스석 참고${bizN ? ` (${bizN})` : ''}`,
+            '편도 캐시값 · 판정 없음 · 장거리 8개 노선')}
       ${row('view', 'analysis', '📊 상세 분석', '노선별 · 표본 · 월별 · 청주 노선표')}
     </section>
     <section class="sec"><div class="sec-hd"><div><h2>데이터 상태</h2>
@@ -1080,6 +1083,75 @@ function viewSeed() {
   return `${plainHeader('가격 자료 부족 노선', '검색을 한 번 돌려 캐시에 값을 남긴다', true)}
   <div class="wrap">
     ${seedChecklist(true)}
+    ${footerHTML()}
+  </div>`;
+}
+
+/* ── 비즈니스석 참고 ─────────────────────────────────
+   '특가' 화면이 아니다. 소스가 주는 게 편도 캐시값 몇 개뿐이라(실측:
+   노선당 한 달 0~5행, 항공사·경유 없음) 등급·할인율·예상 부담액·연차를
+   붙일 근거가 없다. 그래서 이 화면은 값과 날짜와 링크만 보여 주고,
+   무엇을 모르는지를 카드마다 적는다. */
+function viewBusiness() {
+  const B = S.data.business || {};
+  const all = (B.offers || []).slice();
+  const stat = B.stat || {};
+  const dests = [];
+  all.forEach(o => { if (dests.indexOf(o.arr) === -1) dests.push(o.arr); });
+  const cityOf = code => ((all.find(o => o.arr === code) || {}).city || code);
+  const minOf = code => Math.min.apply(null, all.filter(o => o.arr === code).map(o => o.price_krw));
+  dests.sort((a, b) => minOf(a) - minOf(b));
+  const cur = S.bizDest && dests.indexOf(S.bizDest) !== -1 ? S.bizDest : null;
+  const pool = (cur ? all.filter(o => o.arr === cur) : all)
+    .sort((a, b) => a.price_krw - b.price_krw || String(a.depart_date).localeCompare(String(b.depart_date)));
+
+  const chips = dests.length > 1 ? `<div class="filters"><div class="frow" role="group" aria-label="도착지">
+      <button class="fchip" data-biz="all" aria-pressed="${!cur}">전체 ${all.length}</button>
+      ${dests.map(d => `<button class="fchip" data-biz="${esc(d)}" aria-pressed="${cur === d}"
+        >${esc(cityOf(d))} <span style="font-family:var(--mono);opacity:.65">${all.filter(o => o.arr === d).length}</span></button>`).join('')}
+    </div></div>` : '';
+
+  const card = o => `<div class="cd biz">
+    <div class="top"><div class="ttl">
+        <div class="route">${esc(depCity(o.dep))} → ${esc(o.city)}</div>
+        <div class="sub">${md(o.depart_date)}(${dow(o.depart_date)}) 출발 · <b>편도</b>${
+          o.return_date ? ` · 귀국 ${md(o.return_date)}` : ''}</div>
+        <div class="sub">${o.airline ? esc(o.airline) : '항공사 미상'} · ${
+          o.stops == null ? '경유 미상' : stopTxt(o.stops)}</div>
+      </div>
+      <div class="price"><div class="v">${won(o.price_krw)}</div>
+        <div class="k">편도 항공권<br>이동비 미포함</div></div>
+    </div>
+    <div class="badges">
+      <span class="bg">비즈니스 · 캐시값</span>
+      <span class="bg">${esc(ageTxt(o.found_at))}</span>
+      <span class="bg">특가 판정 없음</span>
+    </div>
+    <a class="cta-sm" href="${esc(o.link)}" target="_blank" rel="noopener"
+      >판매처에서 검색 → (좌석 등급을 비즈니스로 바꿔 확인)</a>
+  </div>`;
+
+  const targets = (B.targets || []).map(t => `${t.city}`).join(' · ');
+  const empty = !all.length;
+  return `${plainHeader('비즈니스석 참고', '편도 캐시값 · 특가 판정 없음', true)}
+  <div class="wrap">
+    <div class="note warn"><b>이 화면의 숫자는 참고값입니다</b>
+      <p>소스가 비즈니스석에 대해 주는 것은 <b>편도 캐시값</b>뿐입니다
+      (항공사·편명·경유·귀국편 없음). 그래서 이 앱의 예상 부담액·연차·특가
+      등급을 붙이지 않았습니다. 왕복 요금이 편도의 두 배라고 가정하지도
+      않습니다.</p></div>
+    ${B.stale ? `<div class="note warn"><b>최근 갱신 실패 — 마지막 정상값</b>
+      <p>${esc(B.stale.reason || '')}${B.stale.last_good ? ` · 마지막 정상 ${esc(B.stale.last_good)}` : ''}</p></div>` : ''}
+    ${empty
+      ? `<div class="note"><b>지금은 비즈니스석 캐시값이 없습니다</b>
+          <p>훑는 노선: ${esc(targets)}. 이 소스는 사람들이 실제로 검색해서 남은 값만
+          가지며, 비즈니스석은 검색량이 적어 비어 있는 날이 많습니다.
+          ${stat.calls != null ? `이번 갱신 호출 ${stat.calls}회 · 응답 ${stat.rows || 0}행.` : ''}</p></div>`
+      : `${chips}
+        <p class="listinfo">${cur ? esc(cityOf(cur)) : '전체'} · ${pool.length}건 · 편도 가격 낮은순</p>
+        <div class="list two">${pool.map(card).join('')}</div>`}
+    <p class="live-note" style="margin-top:14px">훑는 노선: ${esc(targets)} · 향후 ${B.months || 3}개월 ·
+      갱신 ${esc(B.ts || '—')}${stat.stopped ? ` · 중단: ${esc(String(stat.stopped))}` : ''}</p>
     ${footerHTML()}
   </div>`;
 }
@@ -2811,6 +2883,7 @@ function render() {
   else if (S.view === 'error') html = viewError();
   else if (S.view === 'weekend') html = viewWeekend();
   else if (S.view === 'seed') html = viewSeed();
+  else if (S.view === 'business') html = viewBusiness();
   else if (S.tab === 'find') html = viewList();
   else if (S.tab === 'swiss') html = viewSwiss();
   else if (S.tab === 'more') html = viewMore();
@@ -2908,7 +2981,7 @@ const CLICK_ATTRS = [
   'back', 'close', 'sheet', 'range', 'wspan', 'origin-toggle', 'stops',
   'longstops', 'reset', 'reset-prefs', 'reload', 'retry',
   'tier', 'change', 'cap', 'weekend', 'nights', 'apply', 'sheetopen',
-  'clear', 'chip-off', 'more', 'alt', 'compare', 'compare-clear', 'longnights', 'leave',
+  'clear', 'chip-off', 'more', 'alt', 'biz', 'compare', 'compare-clear', 'longnights', 'leave',
 ];
 const CLICK_SEL = CLICK_ATTRS.map(a => `[data-${a}]`).join(',');
 
@@ -2940,6 +3013,8 @@ document.addEventListener('click', ev => {
   const sop = t.getAttribute('data-sheetopen');
   if (sop) { S.pending = queryNow(); S.sheet = sop; push(); return render(); }
   if (t.hasAttribute('data-apply')) return applyPendingSearch();
+  const bz = t.getAttribute('data-biz');
+  if (bz) { S.bizDest = bz === 'all' ? null : bz; return render(); }
   const alt = t.getAttribute('data-alt');
   if (alt != null) {
     const opt = altOptions(queryNow())[Number(alt)];

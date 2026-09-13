@@ -2284,6 +2284,128 @@ OFFER_FIELDS = (
 CITY_FOLD = {"ICN": "SEL", "GMP": "SEL"}
 
 
+# ══════════════════════════════════════════════════════════
+# 비즈니스석 참고 (편도 · 판정 없음)
+# ══════════════════════════════════════════════════════════
+# 실측(2026-09-13, tools/probe_cabin.py): 좌석 등급을 요청 파라미터로
+# 받는 곳은 /v2/prices/month-matrix 뿐이다(/v2/prices/latest 는 400).
+# 그마저 한 달에 노선당 0~5행이고 전부 return_date 가 비어 있다(편도
+# 캐시). 항공사·편명·경유도 없다.
+#
+# 그래서 이건 '특가' 가 아니라 '참고' 다.
+#   - offers 에 절대 섞지 않는다. 기준선·중앙값·순위가 전부 offers 를 본다.
+#   - 등급·할인율·예상 부담액·연차를 붙이지 않는다. 근거가 없다.
+#   - 편도값을 왕복처럼 보이게 하지 않는다. 화면이 '편도' 를 박는다.
+#   - 이코노미 스캔이 다 끝난 뒤 남은 예산으로만 돈다. 순서가 곧 우선순위라,
+#     예산이 모자라면 이쪽이 먼저 잘린다.
+BIZ_TARGETS = [("ICN", "ZRH", "취리히", "유럽"), ("ICN", "CDG", "파리", "유럽"),
+               ("ICN", "LAX", "로스앤젤레스", "미주"), ("ICN", "SIN", "싱가포르", "동남아"),
+               ("ICN", "BKK", "방콕", "동남아"), ("ICN", "NRT", "도쿄", "일본"),
+               ("ICN", "HKG", "홍콩", "중화권"), ("ICN", "DPS", "발리", "인니")]
+BIZ_MONTHS = 3            # 노선당 호출 수 = 이 값
+BIZ_MAX_CALLS = 30        # 8노선 × 3달 = 24. 여유 6.
+BUSINESS = []
+BIZSTAT = {"calls": 0, "rows": 0, "kept": 0, "errors": [], "stopped": None}
+
+
+def aviasales_oneway_link(org, dst, d0):
+    # 편도 검색 URL. 좌석 등급까지 URL 로 고정하는 형식은 확인하지 못했다 —
+    # 화면이 "검색 후 좌석 등급을 비즈니스로 바꾸라" 고 적는다.
+    return f"https://www.aviasales.com/search/{org}{d0.strftime('%d%m')}{dst}1"
+
+
+def business_row(org, dst, city, region, r):
+    """month-matrix 한 행 → 참고용 레코드. 못 믿을 값은 None 으로 둔다."""
+    if str(r.get("trip_class")) != "1":
+        return None                       # 요청과 다른 등급이 오면 버린다
+    dep = r.get("depart_date")
+    try:
+        d0 = date.fromisoformat(str(dep))
+        val = int(r.get("value") or 0)
+    except (TypeError, ValueError):
+        return None
+    if val <= 0 or d0 < date.today():
+        return None
+    ret = r.get("return_date") or None
+    return {
+        "id": f"{org}-{dst}-{dep}-{ret or 'OW'}-BUSINESS",
+        "dep": org, "arr": dst, "city": city, "region": region,
+        "depart_date": dep, "return_date": ret,
+        "one_way": ret is None,
+        "price_krw": val, "trip_class": 1, "cabin": "business",
+        "airline": r.get("airline") or None,      # matrix 는 보통 안 준다
+        "stops": r.get("number_of_changes"),      # 없으면 None — 지어내지 않는다
+        "found_at": r.get("found_at"),
+        "api_origin": r.get("origin"), "api_destination": r.get("destination"),
+        "link": aviasales_oneway_link(org, dst, d0),
+    }
+
+
+def fetch_business(window=None, call_fn=None):
+    """BIZ_TARGETS 를 month-matrix trip_class=1 로 훑어 BUSINESS 를 채운다.
+
+    call_fn 은 테스트용 주입. 예산·서킷은 본 스캔과 공유한다 — 이쪽이
+    본 스캔을 굶기지 않도록 반드시 본 스캔 '뒤' 에 불러야 한다.
+    """
+    call_fn = call_fn or call
+    seen = {}
+    for org, dst, city, region in BIZ_TARGETS:
+        for m in [x + "-01" for x in _months(window, BIZ_MONTHS)]:
+            if CIRCUIT.tripped:
+                BIZSTAT["stopped"] = "circuit"; break
+            if BIZSTAT["calls"] >= BIZ_MAX_CALLS:
+                BIZSTAT["stopped"] = "cap"; break
+            BIZSTAT["calls"] += 1
+            ok, data, err = call_fn("/v2/prices/month-matrix", {
+                "origin": org, "destination": dst, "month": m,
+                "trip_class": 1, "currency": CURRENCY,
+                "show_to_affiliates": "false"})
+            time.sleep(REQ_SLEEP)
+            if not ok:
+                BIZSTAT["errors"].append(f"{org}-{dst} {m[:7]}: {err}")
+                if err in ("BUDGET_EXCEEDED", "CIRCUIT_OPEN"):
+                    BIZSTAT["stopped"] = err; break
+                continue
+            rows = _rows(data, f"{org}-{dst} biz {m[:7]}")
+            BIZSTAT["rows"] += len(rows)
+            for r in rows:
+                b = business_row(org, dst, city, region, r)
+                if not b:
+                    continue
+                # 같은 편(도시코드 접힘 포함)은 싼 쪽 하나만
+                k = (b["api_origin"] or org, b["api_destination"] or dst,
+                     b["depart_date"], b["return_date"])
+                if k not in seen or b["price_krw"] < seen[k]["price_krw"]:
+                    seen[k] = b
+        if BIZSTAT["stopped"]:
+            break
+    BUSINESS[:] = sorted(seen.values(), key=lambda b: (b["arr"], b["price_krw"]))
+    BIZSTAT["kept"] = len(BUSINESS)
+    return BUSINESS
+
+
+def business_block(prev_path):
+    """deals.json 에 실을 블록. 수집이 통째로 실패했으면 지난 값을 남기되
+    stale 로 표시한다 — 빈 화면과 '갱신 실패' 는 다른 말이다."""
+    block = {"targets": [{"dep": o, "arr": d, "city": c, "region": r}
+                         for o, d, c, r in BIZ_TARGETS],
+             "months": BIZ_MONTHS, "stat": BIZSTAT,
+             "offers": BUSINESS, "stale": None}
+    if not BUSINESS and BIZSTAT["errors"]:
+        try:
+            with open(prev_path, encoding="utf-8") as f:
+                old = (json.load(f).get("business") or {})
+            if old.get("offers"):
+                block["offers"] = old["offers"]
+                block["stale"] = {"reason": BIZSTAT["errors"][0],
+                                  "last_good": old.get("ts")}
+        except Exception:
+            pass
+    block["ts"] = (block["stale"] or {}).get("last_good") or \
+        datetime.now(KST).strftime("%Y-%m-%d %H:%M KST")
+    return block
+
+
 def _dedup_oneway(rows):
     """같은 편이 여러 엔드포인트·여러 출발지코드로 들어온다.
 
@@ -2336,6 +2458,8 @@ def write_deals(offers, routes, meta, stats, gone, cjj_status=None,
         # 편도는 별도 배열이다. offers 와 절대 합치지 말 것 —
         # 기준선·평균가·순위가 전부 offers 를 보고 계산된다.
         "oneway": _dedup_oneway(ONEWAY),
+        # 비즈니스석 참고. offers 와 절대 합치지 말 것 (위 oneway 와 같은 이유).
+        "business": business_block(os.path.join(ROOT, "state", "deals.json")),
         "gone": [{k: g.get(k) for k in
                   ("id", "dep", "arr", "city", "depart_date", "return_date",
                    "nights", "price_krw", "last_seen")} for g in gone[:40]],
@@ -2550,6 +2674,12 @@ def main():
         o["route_avg"] = r.get("avg")
     for o in offers:
         o["deal_score"] = deal_score(o, ACCESS_COST.get(o["dep"], 0))
+
+    # ★ 본 스캔이 끝난 뒤에만. 순서가 곧 우선순위다 — 예산이 쪼들리면
+    #   비즈니스석 참고가 먼저 잘려야지, 이코노미 노선이 잘리면 안 된다.
+    fetch_business((WINDOW_MIN, WINDOW_MAX))
+    print(f"   비즈니스석 참고: 호출 {BIZSTAT['calls']} · 행 {BIZSTAT['rows']} · "
+          f"채택 {BIZSTAT['kept']}" + (f" · 중단 {BIZSTAT['stopped']}" if BIZSTAT['stopped'] else ""))
 
     meta = {"date": str(date.today()),
             "ts": datetime.now(KST).strftime("%Y-%m-%d %H:%M KST"),

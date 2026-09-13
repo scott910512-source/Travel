@@ -62,6 +62,13 @@ chk(n["total"] <= S.SEARCH_BUDGET, f"예산 {S.SEARCH_BUDGET} 이내 ({n['total'
 # 정확히 소진되면 목록 뒤쪽(새 탐색 노선)이 조용히 잘린다. 여유를 남긴다.
 chk(n["total"] <= S.SEARCH_BUDGET * 0.92,
     f"최악의 경우에도 여유가 남는다 ({n['total']}/{S.SEARCH_BUDGET})")
+# 비즈니스석 참고는 본 스캔 뒤에 남은 예산으로 돈다. 최악의 이코노미
+# 사용량 뒤에 상한(BIZ_MAX_CALLS)이 통째로 들어가야 "이코노미가 잘리는
+# 일" 이 구조적으로 없다.
+chk(n["total"] + S.BIZ_MAX_CALLS <= S.SEARCH_BUDGET,
+    f"이코노미 최악 {n['total']} + 비즈니스 상한 {S.BIZ_MAX_CALLS} ≤ 예산 {S.SEARCH_BUDGET}")
+chk(len(S.BIZ_TARGETS) * S.BIZ_MONTHS <= S.BIZ_MAX_CALLS,
+    f"비즈니스 노선 {len(S.BIZ_TARGETS)}×{S.BIZ_MONTHS}달 이 상한 {S.BIZ_MAX_CALLS} 안이다")
 chk(all(v <= S.DEEP_BUDGET[k] for k, v in S.DEEP_SPENT.items()),
     f"3차 호출 상한 지킴 {S.DEEP_SPENT}")
 chk(len(sw_v3) == 6, "스위스 6개 노선 전부 왕복 소스(v3)를 받는다")
