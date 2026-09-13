@@ -1,24 +1,24 @@
 {
  "date": "2026-09-13",
- "ts": "2026-09-13 18:19 KST",
+ "ts": "2026-09-13 23:13 KST",
  "status": "OK",
- "headline": "볼 것 652건 · 강력특가 14 · 주말여행 3 · CJJ 3 · 신규 13 · 하락 3",
+ "headline": "볼 것 657건 · 강력특가 14 · 주말여행 3 · CJJ 3 · 신규 34 · 하락 3",
  "home": "CJJ",
  "reason": null,
  "degraded": null,
  "holiday_gap": null,
  "counts": {
-  "total": 653,
-  "comparable": 652,
+  "total": 659,
+  "comparable": 657,
   "strong": 14,
-  "deal": 29,
-  "candidate": 80,
-  "weekend": 164,
-  "home": 23,
-  "new": 13,
+  "deal": 32,
+  "candidate": 76,
+  "weekend": 171,
+  "home": 21,
+  "new": 34,
   "down": 3,
-  "up": 2,
-  "gone": 3
+  "up": 85,
+  "gone": 28
  },
  "source_note": "Travelpayouts 캐시 데이터 · 실시간 확정가 아님",
  "access_note": "실부담가 = 항공권 + CJJ 기준 왕복 교통비 (추정치)",
@@ -145,6 +145,20 @@
    "link": "https://www.aviasales.com/search/CJJ1809NGO21091"
   }
  ],
- "swiss": [],
+ "swiss": [
+  {
+   "text": "바젤 ICN→BSL · 10-22~10-31 9박 · 1,088,185원 (실부담 1,132,185)  🆕",
+   "tier": "unknown",
+   "tier_label": "비교 불가",
+   "confidence": "참고",
+   "sample": 0,
+   "price": 1088185,
+   "access": 44000,
+   "effective": 1132185,
+   "weekend_trip": false,
+   "leave": 6.5,
+   "link": "https://www.aviasales.com/search/ICN2210BSL31101"
+  }
+ ],
  "dashboard": "index.html"
 }
