@@ -1,24 +1,24 @@
 {
- "date": "2026-09-12",
- "ts": "2026-09-13 08:53 KST",
+ "date": "2026-09-13",
+ "ts": "2026-09-13 16:43 KST",
  "status": "OK",
- "headline": "볼 것 634건 · 강력특가 14 · 주말여행 3 · CJJ 3 · 신규 6",
+ "headline": "볼 것 642건 · 강력특가 14 · 주말여행 3 · CJJ 3 · 신규 36 · 하락 14",
  "home": "CJJ",
  "reason": null,
  "degraded": null,
  "holiday_gap": null,
  "counts": {
-  "total": 635,
-  "comparable": 634,
+  "total": 643,
+  "comparable": 642,
   "strong": 14,
-  "deal": 30,
-  "candidate": 83,
-  "weekend": 153,
+  "deal": 27,
+  "candidate": 79,
+  "weekend": 163,
   "home": 23,
-  "new": 6,
-  "down": 0,
-  "up": 8,
-  "gone": 7
+  "new": 36,
+  "down": 14,
+  "up": 23,
+  "gone": 28
  },
  "source_note": "Travelpayouts 캐시 데이터 · 실시간 확정가 아님",
  "access_note": "실부담가 = 항공권 + CJJ 기준 왕복 교통비 (추정치)",
@@ -37,11 +37,11 @@
    "link": "https://www.aviasales.com/search/CJJ1909CJU23091"
   },
   {
-   "text": "나고야 CJJ→NGO · 09-20~09-23 3박 · 198,416원 · 비교 기준가보다 51% 저렴 · 특가  🆕  🔻추적기간 최저",
+   "text": "나고야 CJJ→NGO · 09-20~09-23 3박 · 198,416원 · 비교 기준가보다 51% 저렴 · 특가  🔻추적기간 최저",
    "tier": "deal",
    "tier_label": "특가",
    "confidence": "보통",
-   "sample": 7,
+   "sample": 9,
    "price": 198416,
    "access": 0,
    "effective": 198416,
@@ -54,7 +54,7 @@
    "tier": "deal",
    "tier_label": "특가",
    "confidence": "높음",
-   "sample": 14,
+   "sample": 15,
    "price": 205260,
    "access": 56000,
    "effective": 261260,
@@ -65,11 +65,11 @@
  ],
  "weekend": [
   {
-   "text": "홍콩 ICN→HKG · 10-02~10-05 3박 · 235,137원 (실부담 279,137) · 비교 기준가보다 17% 저렴 · 주말 연차1일 · 개천절  🔻추적기간 최저",
+   "text": "홍콩 ICN→HKG · 10-02~10-05 3박 · 235,137원 (실부담 279,137) · 비교 기준가보다 16% 저렴 · 주말 연차1일 · 개천절  🔻추적기간 최저",
    "tier": "candidate",
    "tier_label": "특가 후보",
    "confidence": "보통",
-   "sample": 11,
+   "sample": 12,
    "price": 235137,
    "access": 44000,
    "effective": 279137,
@@ -78,7 +78,7 @@
    "link": "https://www.aviasales.com/search/ICN0210HKG05101"
   },
   {
-   "text": "홍콩 ICN→HKG · 10-30~11-01 2박 · 258,918원 (실부담 302,918) · 비교 기준가보다 15% 저렴 · 주말 연차1일",
+   "text": "홍콩 ICN→HKG · 10-30~11-01 2박 · 258,918원 (실부담 302,918) · 비교 기준가보다 17% 저렴 · 주말 연차1일",
    "tier": "candidate",
    "tier_label": "특가 후보",
    "confidence": "보통",
@@ -91,7 +91,7 @@
    "link": "https://www.aviasales.com/search/ICN3010HKG01111"
   },
   {
-   "text": "홍콩 ICN→HKG · 09-18~09-20 2박 · 259,740원 (실부담 303,740) · 비교 기준가보다 15% 저렴 · 주말 연차0일",
+   "text": "홍콩 ICN→HKG · 09-18~09-20 2박 · 259,740원 (실부담 303,740) · 비교 기준가보다 17% 저렴 · 주말 연차0일",
    "tier": "candidate",
    "tier_label": "특가 후보",
    "confidence": "보통",
@@ -119,11 +119,11 @@
    "link": "https://www.aviasales.com/search/CJJ1909CJU23091"
   },
   {
-   "text": "나고야 CJJ→NGO · 09-20~09-23 3박 · 198,416원 · 비교 기준가보다 51% 저렴 · 특가  🆕  🔻추적기간 최저",
+   "text": "나고야 CJJ→NGO · 09-20~09-23 3박 · 198,416원 · 비교 기준가보다 51% 저렴 · 특가  🔻추적기간 최저",
    "tier": "deal",
    "tier_label": "특가",
    "confidence": "보통",
-   "sample": 7,
+   "sample": 9,
    "price": 198416,
    "access": 0,
    "effective": 198416,
@@ -132,17 +132,17 @@
    "link": "https://www.aviasales.com/search/CJJ2009NGO23091"
   },
   {
-   "text": "제주 CJJ→CJU · 09-15~09-18 3박 · 59,860원 · 비교 기준가보다 24% 저렴 · 특가",
+   "text": "나고야 CJJ→NGO · 09-18~09-21 3박 · 240,835원 · 비교 기준가보다 40% 저렴 · 특가",
    "tier": "deal",
    "tier_label": "특가",
-   "confidence": "높음",
-   "sample": 11,
-   "price": 59860,
+   "confidence": "보통",
+   "sample": 9,
+   "price": 240835,
    "access": 0,
-   "effective": 59860,
+   "effective": 240835,
    "weekend_trip": false,
-   "leave": 3.5,
-   "link": "https://www.aviasales.com/search/CJJ1509CJU18091"
+   "leave": 2.0,
+   "link": "https://www.aviasales.com/search/CJJ1809NGO21091"
   }
  ],
  "swiss": [],
