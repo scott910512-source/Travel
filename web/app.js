@@ -1608,16 +1608,12 @@ function activeFilterTxt(mo) {
      두 조건을 다 푼 값(37)을 적어 놓고 버튼은 출발지만 풀어서(36) 눌러
      보면 숫자가 달랐다. 안내가 틀리면 안내가 없느니만 못하다. */
 function narrowInfo(mo) {
-  const inMonth = o => !mo || monthKey(o) === mo;
-  const wide = visibleOffers().filter(inMonth);
-  const now = wide.filter(o => inGroup(o.dep, S.origin) && inScope(o, S.scope)).length;
-
-  // 출발지만 푼 경우 (국내/해외는 그대로) — '전체 비교로 보기' 가 하는 일
-  const byOrigin = S.origin === 'all' ? now
-    : wide.filter(o => inScope(o, S.scope)).length;
-  // 국내/해외만 푼 경우 (출발지는 그대로)
-  const byScope = S.scope === 'all' ? now
-    : wide.filter(o => inGroup(o.dep, S.origin)).length;
+  const q = queryNow();
+  if (mo !== undefined) q.month = mo || null;
+  const now = countOf(q);
+  // 목적지·예산·연차·특가 조건까지 모두 유지하고 지정한 축만 바꾼다.
+  const byOrigin = countOf(Object.assign({}, q, { origin: 'all' }));
+  const byScope = countOf(Object.assign({}, q, { scope: 'all' }));
 
   return { now, byOrigin, byScope,
            gain: Math.max(byOrigin, byScope) > now };
@@ -1628,7 +1624,6 @@ function narrowNote() {
   const info = narrowInfo(mo);
   if (!info.gain) return '';
 
-  const inMonth = o => !mo || monthKey(o) === mo;
   const lines = [];
   if (info.byOrigin > info.now) {
     const g = GROUPS.find(x => x.key === S.origin);
@@ -1642,8 +1637,7 @@ function narrowNote() {
 
   // 어느 출발지에 얼마나 있는지까지 적어야 어디를 눌러야 할지 안다.
   const rows = GROUPS.filter(g => g.key !== 'all' && g.key !== S.origin).map(g => ({
-    g, n: visibleOffers().filter(o =>
-      inMonth(o) && inGroup(o.dep, g.key) && inScope(o, S.scope)).length,
+    g, n: countOf(Object.assign({}, queryNow(), { origin: g.key })),
   })).filter(x => x.n > 0).sort((a, b) => b.n - a.n);
 
   return `<div class="note"><b>${info.now
@@ -1694,7 +1688,7 @@ function viewList() {
 
   const sortName = (LIST_SORTS.find(x => x.k === (S.sort || 'deal')) || LIST_SORTS[0]).l;
 
-  return `${plainHeader('항공권 찾기', `${esc(activeFilterTxt(q.month))} · ${matched}건`)}
+  return `${plainHeader('항공권 찾기', `${activeFilterTxt(q.month)} · ${matched}건`)}
   <div class="wrap">
     <form class="destination-search" id="destination-search" role="search">
       <label class="sr" for="destination-input">도착지 검색</label>

@@ -40,6 +40,7 @@ await test('실제 템플릿으로 부팅·필터·입력·적용을 연결한�
   assert.equal(d.querySelector('.sheet'),null);
   assert.equal(d.querySelector('.sum-n').textContent,expected.replace(' 보기',''));
   assert.equal(d.querySelector('#destination-input').value,'후쿠오카');
+  assert(!d.querySelector('.hd').textContent.includes('&quot;'),'제목의 검색어를 두 번 escape하지 않는다');
   assert.equal(errors.length,0,errors.map(e=>e.message).join('\n'));dom.window.close();
 });
 await test('비교 담기·비교 화면·상세·뒤로가기를 DOM에서 연결한다',async()=>{

@@ -25,7 +25,7 @@ const ctx = {
 };
 vm.createContext(ctx);
 const source = ['travel-state.js','compare.js','app.js'].map(f => fs.readFileSync(path.join(root,'web',f),'utf8')).join('\n');
-vm.runInContext(source + '\n;globalThis.api={TravelState,S,defaultSettings,defaultF,queryNow,applyQuery,poolOf,summaryHTML,filterSheetHTML,encState,decState,restore,closeTop,goBack,loadComparison,compareUI};',ctx);
+vm.runInContext(source + '\n;globalThis.api={TravelState,S,defaultSettings,defaultF,queryNow,applyQuery,poolOf,summaryHTML,filterSheetHTML,encState,decState,restore,closeTop,goBack,loadComparison,compareUI,narrowInfo,narrowNote};',ctx);
 ctx.renderCounter = () => { renders++; };
 vm.runInContext('render = renderCounter;',ctx);
 const a=ctx.api, S=a.S, plain=v=>JSON.parse(JSON.stringify(v));
@@ -112,5 +112,13 @@ test('비교는 이동비를 합산하고 다른 일정·미확인 연차를 표
   S.compared=['long','near'];const html=a.compareUI.viewHTML();
   assert(html.includes('1,080,000원'));assert(html.includes('목적지나 일정이 서로 다릅니다'));
   assert(html.includes('한국 도착일 확인 필요'));assert(html.includes('세금 미확인'));
+});
+test('조건 완화 안내도 목적지·예산·연차를 유지해 실제 결과와 건수가 같다',()=>{
+  S.data.offers.push(offer('cjj-fuk','일본',3,0,{dep:'CJJ',city:'후쿠오카',arr:'FUK',annual_leave:1,annual_leave_confirmed:true,price_krw:200000}));
+  S.data.offers.push(offer('icn-fuk','일본',3,0,{city:'후쿠오카',arr:'FUK',annual_leave:1,annual_leave_confirmed:true,price_krw:220000}));
+  S.origin='CJJ'; S.f={...S.f,q:'후쿠오카',cap:500000,leave:1};
+  const info=a.narrowInfo(null);assert.equal(info.now,1);assert.equal(info.byOrigin,2);
+  assert(a.narrowNote().includes('전체 출발지 2건'));
+  click('origin','all');assert.equal(a.poolOf(a.queryNow()).length,info.byOrigin);
 });
 console.log(`${tests} worker UX scenarios passed`);

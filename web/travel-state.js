@@ -23,7 +23,7 @@ const TravelState = (() => {
     const p = new URLSearchParams(hash.replace(/^#/, ''));
     const st = {
       t: oneOf(p.get('t'), ['home', 'find', 'swiss', 'more']),
-      v: oneOf(p.get('v'), ['analysis', 'settings', 'error', 'weekend', 'seed', 'compare']),
+      v: oneOf(p.get('v'), ['analysis', 'settings', 'error', 'weekend', 'seed', 'compare', 'business']),
       o: (p.get('o') || '').slice(0, 200) || null,
       from: oneOf(p.get('from'), ['all', 'CJJ', 'NEAR', 'SEOUL', 'TAE', 'ETC']),
       to: oneOf(p.get('to'), ['all', 'dom', 'intl']),

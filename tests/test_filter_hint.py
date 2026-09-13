@@ -45,9 +45,9 @@ for k in ("q.origin !== 'all'", "q.scope !== 'all'", "monthLabel(q.month)",
 #     예전 초안은 두 조건을 다 푼 값(37)을 적고 버튼은 출발지만 풀어서(36)
 #     눌러 보면 숫자가 달랐다. 안내가 틀리면 없느니만 못하다.
 body = app[app.index("function narrowInfo("):app.index("function narrowNote(")]
-chk("wide.filter(o => inScope(o, S.scope)).length" in body,
+chk("countOf(Object.assign({}, q, { origin: 'all' }))" in body,
     "byOrigin 은 국내/해외를 유지한 채 출발지만 푼 값이다")
-chk("wide.filter(o => inGroup(o.dep, S.origin)).length" in body,
+chk("countOf(Object.assign({}, q, { scope: 'all' }))" in body,
     "byScope 는 출발지를 유지한 채 국내/해외만 푼 값이다")
 note = app[app.index("function narrowNote("):app.index("function viewList()")]
 chk("data-origin=\"all\"" in note and "info.byOrigin" in note,
