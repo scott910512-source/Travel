@@ -7,7 +7,8 @@ import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
 
 const R = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
-const src = fs.readFileSync(path.join(R, 'web/app.js'), 'utf8');
+const src = ['travel-state.js', 'compare.js', 'app.js']
+  .map(f => fs.readFileSync(path.join(R, 'web', f), 'utf8')).join('\n');
 const data = JSON.parse(fs.readFileSync(path.join(R, 'flight-deals/state/deals.json'), 'utf8'));
 
 const noop = () => {};

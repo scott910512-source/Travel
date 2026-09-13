@@ -32,6 +32,7 @@ app = open(os.path.join(ROOT, "web/app.js"), encoding="utf-8").read()
 
 # ── 1. Pages 산출물에 필요한 파일이 전부 들어가는가 ────
 for f in ("web/index.html", "web/app.css", "web/app.js",
+          "web/travel-state.js", "web/compare.js",
           "deals.json", "brief.json", "manifest.webmanifest"):
     chk(f in wf, "산출물에 %s 가 들어간다" % f)
 
@@ -48,6 +49,10 @@ r = subprocess.run(["bash", "-c", script], cwd=tmp, capture_output=True, text=Tr
 chk(r.returncode == 0, "sed 스크립트가 돈다 (%s)" % (r.stderr.strip()[:120] or "ok"))
 out = open(os.path.join(tmp, "index.html"), encoding="utf-8").read()
 chk('src="app.js?v=abc1234"' in out, "app.js 에 빌드 버전이 붙는다")
+for name in ("travel-state", "compare"):
+    chk(f'src="{name}.js?v=abc1234"' in out, f"{name}.js 에 빌드 버전이 붙는다")
+    chk(html.index(f'src="{name}.js"') < html.index('src="app.js"'),
+        f"{name}.js 가 app.js 보다 먼저 로드된다")
 chk('href="app.css?v=abc1234"' in out, "app.css 에 빌드 버전이 붙는다")
 chk('content="abc1234"' in out, "meta build 가 채워진다")
 chk("__BUILD__" not in out, "치환 안 된 자리가 남지 않는다")

@@ -21,6 +21,8 @@ on:
       - "sources/**"
       - "tests/**"
       - "scanner.py"
+      - "package.json"
+      - "package-lock.json"
       - ".github/workflows/daily.yml"
 
 permissions:
@@ -58,9 +60,14 @@ jobs:
       - name: 테스트 의존성
         run: python -m pip install --quiet pyyaml
 
+      - name: DOM 테스트 의존성
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
       - name: JavaScript 구문 검사
         run: |
           node --check web/app.js
+          node --check web/travel-state.js
+          node --check web/compare.js
           node -e "JSON.parse(require('fs').readFileSync('web/manifest.webmanifest','utf8'))"
 
       - name: Python 구문 검사
@@ -81,7 +88,10 @@ jobs:
       # 화면 로직(조건·정렬·건수)은 브라우저 없이 node 로 돌린다.
       # "안내에 적힌 건수와 눌렀을 때 나오는 건수가 다르다" 를 막는 시험이다.
       - name: 화면 로직 테스트
-        run: node tests/ui_logic.mjs
+        run: |
+          node tests/ui_logic.mjs
+          node tests/worker_ux.mjs
+          node tests/dom_ux.mjs
 
       - name: 데이터 스키마 검증
         run: |
@@ -237,9 +247,12 @@ jobs:
         run: |
           mkdir -p public
           cp web/index.html web/app.css web/app.js public/
+          cp web/travel-state.js web/compare.js public/
           BUILD="${GITHUB_SHA::7}"
           sed -i "s|href=\"app.css\"|href=\"app.css?v=${BUILD}\"|" public/index.html
           sed -i "s|src=\"app.js\"|src=\"app.js?v=${BUILD}\"|"   public/index.html
+          sed -i "s|src=\"travel-state.js\"|src=\"travel-state.js?v=${BUILD}\"|" public/index.html
+          sed -i "s|src=\"compare.js\"|src=\"compare.js?v=${BUILD}\"|" public/index.html
           sed -i "s|__BUILD__|${BUILD}|"                            public/index.html
           echo "빌드 ${BUILD}"
           grep -E 'app\.(js|css)' public/index.html
