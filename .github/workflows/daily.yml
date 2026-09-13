@@ -12,6 +12,11 @@ on:
     # 아니라 6시간 이내로 유지하는 것이다.
     - cron: "0 22,4,10,16 * * *"
   workflow_dispatch:        # 수동 실행 버튼
+    inputs:
+      probe:
+        description: "검토용 프로브 (cabin = 비즈니스석 데이터 유무만 잰다 · 스캔·배포 안 함)"
+        required: false
+        default: ""
   pull_request:             # PR 은 검증만 (배포 안 함)
   push:
     branches: ["**"]        # 검증은 모든 브랜치에서, 배포는 운영 브랜치만
@@ -149,13 +154,23 @@ jobs:
       - name: 실행 모드 결정
         id: mode
         run: |
-          if [ "${{ github.event_name }}" = "push" ] && [ -f flight-deals/state/deals.json ]; then
+          if [ -n "${{ github.event.inputs.probe }}" ]; then
+            echo "scan=false" >> "$GITHUB_OUTPUT"
+            echo "프로브 모드(${{ github.event.inputs.probe }}) → 스캔·커밋 생략"
+          elif [ "${{ github.event_name }}" = "push" ] && [ -f flight-deals/state/deals.json ]; then
             echo "scan=false" >> "$GITHUB_OUTPUT"
             echo "web/ 변경 → 스캔 생략, 기존 데이터로 재배포"
           else
             echo "scan=true" >> "$GITHUB_OUTPUT"
           fi
           echo "브랜치=${{ github.ref_name }} (운영=${PROD_BRANCH})"
+
+      # 검토용. 결과는 로그에만 남고 deals.json 은 그대로다.
+      - name: 프로브 · 비즈니스석 데이터 유무
+        if: github.event.inputs.probe == 'cabin'
+        env:
+          TP_TOKEN: ${{ secrets.TP_TOKEN }}
+        run: python tools/probe_cabin.py
 
       - name: 스캔 실행
         if: steps.mode.outputs.scan == 'true'
