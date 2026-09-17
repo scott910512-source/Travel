@@ -106,22 +106,45 @@ t('변화 조건 + 직항을 동시에 걸 수 있다', () => {
   console.log(`     전체 ${base} / ${ch} ${n1} / 직항 ${n2} / 둘 다 ${nb}`);
 });
 
-/* ── 3. 0건 대안 버튼의 숫자 = 누른 뒤 실제 건수 ── */
+/* ── 3. 0건 대안 버튼의 숫자 = 누른 뒤 실제 건수 ──
+   ★ 조합을 고정하지 않는다. 예전에 '청주·강력특가·직항·12월' 을 박아
+     두고 "대안이 하나는 있어야 한다" 고 단정했는데, 9/13 데이터에서 그
+     조합의 대안이 0개가 되자 verify 가 빨갛게 되고 그 뒤에 걸린 스캔이
+     나흘 동안 한 번도 돌지 않았다. 데이터 모양에 기대는 시험이 데이터
+     갱신을 막았다. 이제 오늘 데이터에서 '0건이면서 대안이 있는' 조합을
+     찾아서 재고, 없으면 실패가 아니라 건너뛴다. */
 t('0건 대안 버튼의 숫자 = 적용 후 건수', () => {
   reset();
-  S.origin = 'CJJ'; S.f.tier = 'strong'; S.settings.stops = 'direct'; S.month = '2026-12';
-  const q = ctx.queryNow();
-  const alts = ctx.altOptions(q);
-  if (!alts.length) throw new Error('대안이 하나도 없다 (조합을 다시 골라라)');
+  const months = [...new Set(data.offers.map(o => (o.depart_date || '').slice(0, 7)))].sort();
+  const grid = [];
+  for (const origin of ['CJJ', 'TAE', 'PUS', 'ICN'])
+    for (const tier of ['strong', 'deal'])
+      for (const stops of ['direct', 'one'])
+        for (const month of months.concat([null]))
+          grid.push({ origin, tier, stops, month });
+  let picked = null;
+  for (const g of grid) {
+    reset();
+    S.origin = g.origin; S.f.tier = g.tier; S.settings.stops = g.stops; S.month = g.month;
+    const q = ctx.queryNow();
+    if (ctx.countOf(q) === 0 && ctx.altOptions(q).length) { picked = g; break; }
+  }
+  if (!picked) {
+    console.log('     (오늘 데이터엔 0건+대안 있음 조합이 없어 건너뜀)');
+    return;
+  }
+  const set = () => { reset(); S.origin = picked.origin; S.f.tier = picked.tier;
+    S.settings.stops = picked.stops; S.month = picked.month; };
+  set();
+  const alts = ctx.altOptions(ctx.queryNow());
   for (const a of alts) {
+    set();
     const applied = Object.assign({}, ctx.queryNow(), a.patch);
     if (a.patch.f) applied.f = Object.assign({}, ctx.queryNow().f, a.patch.f);
     ctx.applyQuery(applied);
     eq(a.n, ctx.poolOf(ctx.queryNow()).length, a.label);
-    S.origin = 'CJJ'; S.f = ctx.defaultF(); S.f.tier = 'strong';
-    S.settings.stops = 'direct'; S.month = '2026-12';
   }
-  console.log(`     대안 ${alts.length}개 모두 일치`);
+  console.log(`     ${JSON.stringify(picked)} 대안 ${alts.length}개 모두 일치`);
 });
 
 /* ── 3.5 도착지 글자 검색 ── */
