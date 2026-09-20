@@ -1,24 +1,24 @@
 {
  "date": "2026-09-20",
- "ts": "2026-09-21 03:36 KST",
+ "ts": "2026-09-21 08:59 KST",
  "status": "OK",
- "headline": "볼 것 631건 · 강력특가 18 · 주말여행 3 · CJJ 3 · 신규 22 · 하락 2",
+ "headline": "볼 것 634건 · 강력특가 18 · 주말여행 3 · CJJ 3 · 신규 15 · 하락 1",
  "home": "CJJ",
  "reason": null,
  "degraded": null,
  "holiday_gap": null,
  "counts": {
-  "total": 632,
-  "comparable": 631,
+  "total": 635,
+  "comparable": 634,
   "strong": 18,
-  "deal": 31,
-  "candidate": 80,
-  "weekend": 148,
+  "deal": 35,
+  "candidate": 74,
+  "weekend": 144,
   "home": 30,
-  "new": 22,
-  "down": 2,
-  "up": 7,
-  "gone": 18
+  "new": 15,
+  "down": 1,
+  "up": 121,
+  "gone": 12
  },
  "source_note": "Travelpayouts 캐시 데이터 · 실시간 확정가 아님",
  "access_note": "실부담가 = 항공권 + CJJ 기준 왕복 교통비 (추정치)",
@@ -65,27 +65,14 @@
  ],
  "weekend": [
   {
-   "text": "도쿄 ICN→NRT · 10-16~10-18 2박 · 216,006원 (실부담 260,006) · 비교 기준가보다 34% 저렴 · 강력 특가 · 주말 연차1일",
-   "tier": "strong",
-   "tier_label": "강력 특가",
-   "confidence": "높음",
-   "sample": 19,
-   "price": 216006,
-   "access": 44000,
-   "effective": 260006,
-   "weekend_trip": true,
-   "leave": 1.0,
-   "link": "https://www.aviasales.com/search/ICN1610NRT18101"
-  },
-  {
-   "text": "호치민 ICN→SGN · 11-20~11-23 3박 · 251,133원 (실부담 295,133) · 비교 기준가보다 14% 저렴 · 주말 연차1일  🆕",
+   "text": "호치민 ICN→SGN · 11-20~11-23 3박 · 251,161원 (실부담 295,161) · 비교 기준가보다 14% 저렴 · 주말 연차1일",
    "tier": "candidate",
    "tier_label": "특가 후보",
    "confidence": "보통",
    "sample": 14,
-   "price": 251133,
+   "price": 251161,
    "access": 44000,
-   "effective": 295133,
+   "effective": 295161,
    "weekend_trip": true,
    "leave": 1.0,
    "link": "https://www.aviasales.com/search/ICN2011SGN23111"
@@ -102,6 +89,19 @@
    "weekend_trip": true,
    "leave": 1.0,
    "link": "https://www.aviasales.com/search/ICN2711SGN29111"
+  },
+  {
+   "text": "홍콩 ICN→HKG · 10-30~11-01 2박 · 264,017원 (실부담 308,017) · 비교 기준가보다 15% 저렴 · 주말 연차1일",
+   "tier": "candidate",
+   "tier_label": "특가 후보",
+   "confidence": "보통",
+   "sample": 19,
+   "price": 264017,
+   "access": 44000,
+   "effective": 308017,
+   "weekend_trip": true,
+   "leave": 1.0,
+   "link": "https://www.aviasales.com/search/ICN3010HKG01111"
   }
  ],
  "home_airport": [
@@ -147,14 +147,14 @@
  ],
  "swiss": [
   {
-   "text": "취리히 ICN→ZRH · 10-03~10-13 10박 · 1,002,506원 (실부담 1,046,506) · 비교 기준가보다 0% 비쌈 · 개천절",
+   "text": "취리히 ICN→ZRH · 10-03~10-13 10박 · 1,002,617원 (실부담 1,046,617) · 비교 기준가보다 0% 비쌈 · 개천절",
    "tier": "normal",
    "tier_label": "일반",
    "confidence": "높음",
    "sample": 15,
-   "price": 1002506,
+   "price": 1002617,
    "access": 44000,
-   "effective": 1046506,
+   "effective": 1046617,
    "weekend_trip": false,
    "leave": 5.0,
    "link": "https://www.aviasales.com/search/ICN0310ZRH13101"
@@ -173,14 +173,14 @@
    "link": "https://www.aviasales.com/search/ICN0210ZRH10101"
   },
   {
-   "text": "취리히 ICN→ZRH · 10-02~10-11 9박 · 1,433,710원 (실부담 1,477,710) · 비교 기준가보다 43% 비쌈 · 개천절",
+   "text": "취리히 ICN→ZRH · 10-02~10-11 9박 · 1,433,869원 (실부담 1,477,869) · 비교 기준가보다 43% 비쌈 · 개천절",
    "tier": "normal",
    "tier_label": "일반",
    "confidence": "높음",
    "sample": 17,
-   "price": 1433710,
+   "price": 1433869,
    "access": 44000,
-   "effective": 1477710,
+   "effective": 1477869,
    "weekend_trip": false,
    "leave": 6.0,
    "link": "https://www.aviasales.com/search/ICN0210ZRH11101"
