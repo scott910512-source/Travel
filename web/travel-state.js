@@ -22,7 +22,9 @@ const TravelState = (() => {
     if (!hash || hash === '#') return null;
     const p = new URLSearchParams(hash.replace(/^#/, ''));
     const st = {
-      t: oneOf(p.get('t'), ['home', 'find', 'swiss', 'more']),
+      // ★ app.js 의 TABS 와 같아야 한다. tests/test_ui_structure.py 가 맞춘다 —
+      //   '10월 여행' 탭을 넣고 이 목록을 안 고쳐서 #t=trip 공유 링크가 홈으로 떨어졌다.
+      t: oneOf(p.get('t'), ['home', 'find', 'swiss', 'trip', 'more']),
       v: oneOf(p.get('v'), ['analysis', 'settings', 'error', 'weekend', 'seed', 'compare', 'business']),
       o: (p.get('o') || '').slice(0, 200) || null,
       from: oneOf(p.get('from'), ['all', 'CJJ', 'NEAR', 'SEOUL', 'TAE', 'ETC']),

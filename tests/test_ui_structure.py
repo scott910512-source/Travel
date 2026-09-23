@@ -44,6 +44,20 @@ def test_tabs_are_the_four_agreed_ones():
     assert keys == ["home", "find", "swiss", "trip", "more"], keys
 
 
+def test_share_link_allowlist_matches_tabs_and_views():
+    """travel-state.js 가 해시에서 받아 주는 탭·화면 목록이 app.js 와 같아야
+    한다. 한쪽만 늘리면 공유 링크가 조용히 홈으로 떨어진다 (#t=trip 이 그랬다)."""
+    ts = open("web/travel-state.js", encoding="utf-8").read()
+    m = re.search(r"t: oneOf\(p\.get\('t'\), \[(.*?)\]\)", ts)
+    allowed = set(re.findall(r"'(\w+)'", m.group(1)))
+    tabs = set(re.findall(r"k: '(\w+)'", re.search(r"const TABS = \[(.*?)\];", JS, re.S).group(1)))
+    assert tabs <= allowed, f"탭이 공유 링크 허용 목록에 없다: {sorted(tabs - allowed)}"
+    m = re.search(r"v: oneOf\(p\.get\('v'\), \[(.*?)\]\)", ts)
+    views_allowed = set(re.findall(r"'(\w+)'", m.group(1)))
+    views_used = set(re.findall(r"S\.view === '(\w+)'", JS))
+    assert views_used <= views_allowed, f"화면이 공유 링크 허용 목록에 없다: {sorted(views_used - views_allowed)}"
+
+
 def test_secondary_screens_have_a_back_button():
     """더보기 아래로 내려간 화면은 돌아갈 길이 있어야 한다."""
     for name in ("설정", "에러페어", "주말여행", "가격 자료 부족 노선", "비즈니스석 참고"):
