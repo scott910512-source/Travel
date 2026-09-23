@@ -90,7 +90,7 @@ w = b["window"]
 parts.append(f"""<div class="page cover">
   <span class="tag">임산부 여행 브리핑 · {e(w['from'][5:].replace('-', '/'))}~{e(w['to'][5:].replace('-', '/'))} · {w['nights']}박 {w['nights']+1}일</span>
   <h1>{e(b['title'])}</h1>
-  <p>청주·인천 출발 · 직항 · 비행 3시간 이내 목적지 6곳</p>
+  <p>청주 직항 일본 9곳 + 인천 직항 타이베이 + 제주 — 11곳</p>
   <p>볼거리 · 음식 · 임산부 유의점</p>
   <p style="margin-top:10mm;font-size:10pt;opacity:.8">항공편 가격은 이 문서에 없습니다 — 매 6시간 바뀌므로 앱의 '10월 여행' 탭에서 보세요.</p>
 </div>""")
@@ -110,7 +110,7 @@ cards = []
 for d in dests:
     u = img_uri(d["arr"], 0)
     cards.append(f"""<div class="card">{f'<img src="{u}" alt="">' if u else ''}
-      <div class="b"><b>{d['rank']}. {e(d['city'])}</b><small>{e(d['region'])}</small>
+      <div class="b"><b>{d['rank']}. {e(d['city'])}</b><small>{e(d['region'])}{' · 청주 직항 ✈' if d.get('cjj_direct') else ''}</small>
       <p>{e(d['why'])}</p></div></div>""")
 parts.append(f"""<div class="page">
   <h2><span class="n">2</span>추천 여행지</h2>
@@ -129,7 +129,7 @@ for d in dests:
         figs.append(f"""<figure><img src="{u}" alt=""><figcaption>{e(ph.get('credit',''))} · {e(ph.get('license',''))} · Wikimedia Commons</figcaption></figure>""")
         credits.append((d["city"], ph))
     parts.append(f"""<div class="page">
-  <h2><span class="n">3</span>상세 브리핑 — {e(d['city'])} <small style="font-size:10pt;color:#9096A8">{e(d['region'])}</small></h2>
+  <h2><span class="n">3</span>상세 브리핑 — {e(d['city'])} <small style="font-size:10pt;color:#9096A8">{e(d['region'])}{' · 청주 직항 ✈' if d.get('cjj_direct') else ''}</small></h2>
   <div class="ph2">{''.join(figs)}</div>
   <p class="why">{e(d['why'])}</p>
   <h4>볼거리</h4><ul>{''.join(f'<li><b>{e(t)}</b> — {e(x)}</li>' for t, x in d['spots'])}</ul>

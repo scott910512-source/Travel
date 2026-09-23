@@ -1251,7 +1251,7 @@ function viewTrip() {
   const s2 = slide(2, '추천 여행지', '임산부 기준 — 비행 짧고, 평지 많고, 익힌 음식이 많은 순서',
     `<div class="dest-grid">${dests.map(d => `<a class="dest" href="#trip-${esc(d.arr)}">
         ${photoHTML((d.photos || [])[0], d.city)}
-        <div class="dest-b"><b>${esc(d.city)}</b>
+        <div class="dest-b"><b>${esc(d.city)}</b>${d.cjj_direct ? ' <span class="bg pri cjjtag">청주 직항</span>' : ''}
           <small>${byArr[d.arr] ? `${won(effective(byArr[d.arr][0]))}원~ · ${byArr[d.arr].length}건` : '지금 캐시에 항공편 없음'}</small>
           <p>${esc(d.why)}</p></div></a>`).join('')}</div>`);
 
@@ -1260,7 +1260,7 @@ function viewTrip() {
     `<div class="note warn"><b>임산부 공통 체크</b><p>${esc(b.pregnancy.lead)}</p>
       <ul class="tips">${b.pregnancy.items.map(t => `<li>${esc(t)}</li>`).join('')}</ul></div>
     ${dests.map(d => `<article class="dest-d" id="trip-${esc(d.arr)}">
-      <h3>${esc(d.city)} <small>${esc(d.region)}${byArr[d.arr] ? ` · ${won(effective(byArr[d.arr][0]))}원~` : ''}</small></h3>
+      <h3>${esc(d.city)} <small>${esc(d.region)}${d.cjj_direct ? ' · 청주 직항' : ''}${byArr[d.arr] ? ` · ${won(effective(byArr[d.arr][0]))}원~` : ''}</small></h3>
       <div class="ph-row">${(d.photos || []).slice(0, 2).map(p => photoHTML(p, d.city)).join('')}</div>
       <p class="why">${esc(d.why)}</p>
       <h4>볼거리</h4><ul>${d.spots.map(([t, x]) => `<li><b>${esc(t)}</b> — ${esc(x)}</li>`).join('')}</ul>
