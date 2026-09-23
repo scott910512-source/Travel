@@ -1271,6 +1271,9 @@ function viewTrip() {
 
   return `${plainHeader(b.title, '항공편은 실시간 · 여행지 설명은 참고 자료')}
   <div class="wrap trip">
+    <a class="btn-go pdf" href="brief-2026-10.pdf" target="_blank" rel="noopener"
+      >📄 브리핑 PDF 열기 · 저장 (여행지·음식·유의점, 항공편 제외)</a>
+    <p class="live-note" style="margin-top:6px">아이폰: 열린 PDF 에서 공유 버튼 → '파일에 저장'. 항공편은 매 갱신마다 바뀌어 PDF 에 넣지 않았습니다.</p>
     <p class="live-note" style="margin-top:12px">${esc(b.note)}</p>
     ${s1}${s2}${s3}
     <p class="live-note">${esc(b.block_note)} 사진: Wikimedia Commons, 각 사진 아래 저작자·라이선스 표기.</p>
