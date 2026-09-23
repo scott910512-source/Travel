@@ -1156,6 +1156,128 @@ function viewBusiness() {
   </div>`;
 }
 
+/* ── 10월 여행 브리핑 (임산부 · 3박 4일 · 직항 3시간 이내) ──────
+   두 가지가 섞여 있고, 섞였다는 사실을 화면이 스스로 말한다.
+   - 항공편: 이 앱이 6시간마다 모으는 캐시 가격에서 고정 조건으로 걸러
+     *실시간으로* 뽑는다. 스캔이 돌면 바뀐다.
+   - 여행지·음식·유의점: 사람이 쓴 참고 자료(web/brief-2026-10.json)다.
+   통상 비행시간은 소스가 안 주므로 시간표 기준 표에서 가져오고 '참고' 라
+   적는다. 사진은 위키미디어 공용 자료이고 저작자·라이선스를 밑에 단다. */
+let BRIEF = null, BRIEF_ERR = null;
+function loadBrief() {
+  if (BRIEF || BRIEF_ERR) return;
+  fetch('brief-2026-10.json', { cache: 'no-cache' })
+    .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+    .then(j => { BRIEF = j; if (S.tab === 'trip') render(); })
+    .catch(e => { BRIEF_ERR = String(e.message || e); if (S.tab === 'trip') render(); });
+}
+
+function tripFlights(b) {
+  const w = b.window;
+  const blk = b.block_min || {};
+  return S.data.offers.filter(o =>
+    w.origins.indexOf(o.dep) !== -1 && o.nights === w.nights &&
+    o.depart_date >= w.from && o.return_date <= w.to &&
+    (!w.direct_only || o.stops === 0) && !isExpired(o) &&
+    // 소스가 준 소요시간이 있으면 그것을, 없으면 통상 시간표를 본다.
+    ((o.duration_min || blk[`${o.dep}-${o.arr}`] || 9999) <= w.max_block_min)
+  ).map(o => Object.assign({}, o, {
+    _block: o.duration_min || blk[`${o.dep}-${o.arr}`] || null,
+    _blockSrc: o.duration_min ? 'data' : (blk[`${o.dep}-${o.arr}`] ? 'table' : null),
+  })).sort((a, b) => effective(a) - effective(b));
+}
+
+function tripFlightRow(o) {
+  const bl = o._block ? `${Math.floor(o._block / 60)}시간 ${o._block % 60 ? `${o._block % 60}분` : ''}`.trim() : '미상';
+  return `<button class="cd trip" data-open="${esc(o.id)}">
+    <div class="top"><div class="ttl">
+      <div class="route">${esc(depCity(o.dep))} → ${esc(o.city)}
+        <span class="ac">${esc(o.airline_kr || o.airline)}</span></div>
+      <div class="sub">${md(o.depart_date)}(${dow(o.depart_date)})${o.dep_hour != null ? ` ${String(o.dep_hour).padStart(2, '0')}시대` : ''} 출발 →
+        ${md(o.return_date)}(${dow(o.return_date)}) 현지 출발 · ${o.nights}박</div>
+      <div class="sub">직항 · 비행 약 ${esc(bl)}${o._blockSrc === 'table' ? ' <small>(통상 시간표 · 참고)</small>' : ''}</div>
+    </div>
+    <div class="price"><div class="v">${won(effective(o))}</div>
+      <div class="k">예상 부담액<br>${accessOf(o.dep) ? `이동비 ${won(accessOf(o.dep))} 포함` : '이동비 0원 설정'}</div></div>
+    </div>
+    ${cardBadges(o)}
+  </button>`;
+}
+
+function photoHTML(ph, alt) {
+  if (!ph || !ph.url) return '';
+  return `<figure class="ph"><img src="${esc(ph.url)}" alt="${esc(alt || '')}" loading="lazy">
+    <figcaption>${esc(ph.credit || '')}${ph.license ? ` · ${esc(ph.license)}` : ''} · Wikimedia Commons</figcaption></figure>`;
+}
+
+function viewTrip() {
+  if (!BRIEF && !BRIEF_ERR) {
+    loadBrief();
+    return `${plainHeader('10월 여행 브리핑', '불러오는 중…')}<div class="wrap"><div class="boot">브리핑 자료를 불러오는 중…</div></div>`;
+  }
+  if (BRIEF_ERR) {
+    return `${plainHeader('10월 여행 브리핑', '')}<div class="wrap">
+      ${emptyBlock('브리핑 자료를 불러오지 못했습니다', BRIEF_ERR)}${footerHTML()}</div>`;
+  }
+  const b = BRIEF, w = b.window;
+  const flights = tripFlights(b);
+  const byArr = {};
+  flights.forEach(o => { (byArr[o.arr] = byArr[o.arr] || []).push(o); });
+  const m = S.data.meta || {};
+
+  const slide = (n, title, sub, body) => `<section class="slide">
+    <div class="slide-hd"><span class="num">${n}</span><div><h2>${title}</h2>${sub ? `<p>${sub}</p>` : ''}</div></div>
+    ${body}</section>`;
+
+  // 1. 비행편 요약 — 도착지별 최저 한 줄 + 전체 목록
+  const summaryRows = Object.keys(byArr).map(arr => byArr[arr][0])
+    .sort((a, b) => effective(a) - effective(b))
+    .map(o => `<div class="kv"><span class="k">${esc(depCity(o.dep))} → ${esc(o.city)}
+        <small>비행 ${o._block ? `약 ${Math.round(o._block / 60 * 10) / 10}h` : '미상'} · ${byArr[o.arr].length}건</small></span>
+      <span class="v">${won(effective(o))}원~</span></div>`).join('');
+  const s1 = slide(1, '비행편 요약',
+    `${md(w.from)}~${md(w.to)} · ${w.nights}박 ${w.nights + 1}일 · ${w.origins.map(depCity).join('·')} 출발 · 직항 · 비행 ${w.max_block_min / 60}시간 이내`,
+    flights.length
+      ? `<div class="panel">${summaryRows}</div>
+         <p class="live-note">이 앱의 캐시 가격에서 실시간으로 걸렀습니다 (마지막 갱신 ${esc(m.ts || '—')} · ${flights.length}건).
+           소스가 이 노선들의 소요시간을 주지 않아 <b>통상 시간표 기준 대략값</b>을 적었습니다.</p>
+         <div class="list two">${flights.map(tripFlightRow).join('')}</div>`
+      : emptyBlock('지금 캐시에는 조건에 맞는 항공편이 없습니다',
+          '조건: 10/3~10/11 · 3박 · 청주/인천 출발 · 직항 · 3시간 이내. 다음 갱신(6시간마다) 후 다시 보세요.'));
+
+  // 2. 추천 여행지 — 카드 그리드 (항공편이 있는 곳을 위로)
+  const dests = b.destinations.slice().sort((x, y) =>
+    ((byArr[y.arr] ? 1 : 0) - (byArr[x.arr] ? 1 : 0)) || (x.rank - y.rank));
+  const s2 = slide(2, '추천 여행지', '임산부 기준 — 비행 짧고, 평지 많고, 익힌 음식이 많은 순서',
+    `<div class="dest-grid">${dests.map(d => `<a class="dest" href="#trip-${esc(d.arr)}">
+        ${photoHTML((d.photos || [])[0], d.city)}
+        <div class="dest-b"><b>${esc(d.city)}</b>
+          <small>${byArr[d.arr] ? `${won(effective(byArr[d.arr][0]))}원~ · ${byArr[d.arr].length}건` : '지금 캐시에 항공편 없음'}</small>
+          <p>${esc(d.why)}</p></div></a>`).join('')}</div>`);
+
+  // 3. 상세 브리핑 — 여행지별 특징·음식·유의점 + 임산부 공통
+  const s3 = slide(3, '상세 브리핑', '여행지별 볼거리 · 음식 · 유의점',
+    `<div class="note warn"><b>임산부 공통 체크</b><p>${esc(b.pregnancy.lead)}</p>
+      <ul class="tips">${b.pregnancy.items.map(t => `<li>${esc(t)}</li>`).join('')}</ul></div>
+    ${dests.map(d => `<article class="dest-d" id="trip-${esc(d.arr)}">
+      <h3>${esc(d.city)} <small>${esc(d.region)}${byArr[d.arr] ? ` · ${won(effective(byArr[d.arr][0]))}원~` : ''}</small></h3>
+      <div class="ph-row">${(d.photos || []).slice(0, 2).map(p => photoHTML(p, d.city)).join('')}</div>
+      <p class="why">${esc(d.why)}</p>
+      <h4>볼거리</h4><ul>${d.spots.map(([t, x]) => `<li><b>${esc(t)}</b> — ${esc(x)}</li>`).join('')}</ul>
+      <h4>음식</h4><ul>${d.foods.map(([t, x]) => `<li><b>${esc(t)}</b> — ${esc(x)}</li>`).join('')}</ul>
+      ${d.caution ? `<p class="live-note">⚠ ${esc(d.caution)}</p>` : ''}
+      ${byArr[d.arr] ? `<div class="frow"><button class="fchip" data-open="${esc(byArr[d.arr][0].id)}">가장 싼 편 보기 · ${won(effective(byArr[d.arr][0]))}원</button></div>` : ''}
+    </article>`).join('')}`);
+
+  return `${plainHeader(b.title, '항공편은 실시간 · 여행지 설명은 참고 자료')}
+  <div class="wrap trip">
+    <p class="live-note" style="margin-top:12px">${esc(b.note)}</p>
+    ${s1}${s2}${s3}
+    <p class="live-note">${esc(b.block_note)} 사진: Wikimedia Commons, 각 사진 아래 저작자·라이선스 표기.</p>
+    ${footerHTML()}
+  </div>`;
+}
+
 /* ── 청주 전용 화면 ───────────────────────────────────────
    운항 노선 / 가격 데이터 / 특가를 절대 섞지 않는다.
    가격이 없는 노선은 0원이나 "-" 가 아니라 "가격 데이터 부족"으로 적는다. */
@@ -2832,6 +2954,7 @@ const ICONS = {
   home: '<path d="M3 10.5L12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/>',
   find: '<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/>',
   more: '<circle cx="5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/>',
+  trip: '<path d="M4 19h16"/><path d="M6 19V9l6-5 6 5v10"/><path d="M10 19v-5h4v5"/>',
   weekend: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 11h18"/>',
   swiss: '<path d="M3 20l6.5-11 4 6 2.5-4L21 20z"/>',
   error: '<path d="M13 2L4.5 13H11l-1 9 8.5-11H12l1-9z"/>',
@@ -2842,7 +2965,7 @@ const ICONS = {
    에러페어·설정·진단은 '더보기' 로 내렸다. 기능은 그대로 남아 있다. */
 const TABS = [
   { k: 'home', l: '추천' }, { k: 'find', l: '찾기' }, { k: 'swiss', l: '스위스' },
-  { k: 'more', l: '더보기' },
+  { k: 'trip', l: '10월 여행' }, { k: 'more', l: '더보기' },
 ];
 
 function renderTabs() {
@@ -2880,6 +3003,7 @@ function render() {
   else if (S.view === 'business') html = viewBusiness();
   else if (S.tab === 'find') html = viewList();
   else if (S.tab === 'swiss') html = viewSwiss();
+  else if (S.tab === 'trip') html = viewTrip();
   else if (S.tab === 'more') html = viewMore();
   else html = viewHome();
 

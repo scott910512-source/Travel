@@ -40,7 +40,8 @@ def test_nav_comes_before_main():
 def test_tabs_are_the_four_agreed_ones():
     m = re.search(r"const TABS = \[(.*?)\];", JS, re.S)
     keys = re.findall(r"k: '(\w+)'", m.group(1))
-    assert keys == ["home", "find", "swiss", "more"], keys
+    # 10월 여행 브리핑은 사용자가 "따로 메뉴로" 를 명시해서 탭으로 뒀다.
+    assert keys == ["home", "find", "swiss", "trip", "more"], keys
 
 
 def test_secondary_screens_have_a_back_button():

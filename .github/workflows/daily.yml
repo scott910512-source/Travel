@@ -271,6 +271,7 @@ jobs:
           mkdir -p public
           cp web/index.html web/app.css web/app.js public/
           cp web/travel-state.js web/compare.js public/
+          cp web/brief-2026-10.json public/            # 여행 브리핑 자료 (사람이 쓴 참고)
           BUILD="${GITHUB_SHA::7}"
           sed -i "s|href=\"app.css\"|href=\"app.css?v=${BUILD}\"|" public/index.html
           sed -i "s|src=\"app.js\"|src=\"app.js?v=${BUILD}\"|"   public/index.html
