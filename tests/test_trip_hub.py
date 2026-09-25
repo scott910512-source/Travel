@@ -12,7 +12,8 @@ def chk(c, m):
     if not c: fails += 1
 
 hub = re.search(r"function viewTrip\(\) \{(.*?)\n\}", JS, re.S).group(1)
-chk(hub.count("row(") == 7, "허브 메뉴가 7줄이다")
+chk(hub.count("tile(") == 7, "허브가 큰 메뉴 7개만 보여 준다")
+chk("tripConceptHTML()" not in hub and "tripDateChips()" not in hub, "허브에는 컨셉 카드·출발일 칩이 없다 (각 화면 안에 있다)")
 for v in ("tripflights", "tripstay", "tripprep", "tripall"):
     chk(f"'{v}'" in hub, f"허브에 {v} 가 있다")
     chk(f"S.view === '{v}'" in JS, f"render 가 {v} 를 그린다")

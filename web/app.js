@@ -1379,26 +1379,25 @@ function tripExact() {
     .sort((a, b) => effective(a) - effective(b));
 }
 function viewTrip() {
+  /* 허브는 큰 메뉴만 보여 준다. 컨셉·출발일 칩은 각 화면 안에 있다. */
   const exact = tripExact();
-  const row = (attr, val, title, sub, ext) => ext
-    ? `<a class="mrow" href="${esc(val)}" target="_blank" rel="noopener"><span class="mt">${title}</span><span class="ms">${esc(sub)}</span>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" width="16" height="16" aria-hidden="true"><path d="M7 17L17 7M9 7h8v8"/></svg></a>`
-    : `<button class="mrow" data-${attr}="${esc(val)}"><span class="mt">${title}</span><span class="ms">${esc(sub)}</span>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" width="16" height="16" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg></button>`;
+  const tile = (attr, val, ico, title, sub, ext) => ext
+    ? `<a class="tile" href="${esc(val)}" target="_blank" rel="noopener"><span class="ico">${ico}</span><b>${title}</b><small>${esc(sub)}</small></a>`
+    : `<button class="tile" data-${attr}="${esc(val)}"><span class="ico">${ico}</span><b>${title}</b><small>${esc(sub)}</small></button>`;
   return `${plainHeader('10월 여행 · 오키나와', '청주 출발 · 10/3~5 출발 · 3박 4일 · 렌터카 · 임산부')}
   <div class="wrap trip hub">
-    ${tripConceptHTML()}
-    <section class="sec">
-      ${row('view', 'tripflights', '✈️ 항공편', exact.length ? `캐시 ${exact.length}건 · ${won(effective(exact[0]))}원~` : '캐시에 가격 없음 · 직접 검색 링크')}
-      ${row('view', 'tripstay', '🏨 숙소 추천', `온나 서해안 3박 한 곳 · 후보 ${TRIP_STAYS.length}곳`)}
-      ${row('', TRIP.plan, '🗺 상세 일정 · 지도', '렌터카 동선 · 식사 · 체크', true)}
-      ${row('', TRIP.show, '▶ 사진 브리핑 자동재생', '청주 출발 시뮬레이션 · 배경음', true)}
-      ${row('', TRIP.food, '🍜 식당 리스트', '구글 평점 4.3↑ · 리뷰 10개↑ 자동 필터', true)}
-      ${row('view', 'tripprep', '🤰 준비물 · 유의점', '임산부 체크 · 병원 · 볼거리 · 음식')}
-      ${row('view', 'tripall', '📄 다른 목적지 비교 · PDF', '후쿠오카·타이베이 등 11곳 · 브리핑 PDF')}
-    </section>
+    <div class="bigmenu">
+      ${tile('view', 'tripflights', '✈️', '항공편', exact.length ? `${won(effective(exact[0]))}원~ · ${exact.length}건` : '캐시에 가격 없음 · 직접 검색')}
+      ${tile('view', 'tripstay', '🏨', '숙소 추천', `온나 3박 · 후보 ${TRIP_STAYS.length}곳`)}
+      ${tile('', TRIP.plan, '🗺', '일정 · 지도', '렌터카 동선 · 식사', true)}
+      ${tile('', TRIP.show, '▶', '사진 브리핑', '자동재생 · 배경음', true)}
+      ${tile('', TRIP.food, '🍜', '식당 리스트', '구글 평점 4.3↑', true)}
+      ${tile('view', 'tripprep', '🤰', '준비물 · 유의점', '임산부 체크 · 병원')}
+      ${tile('view', 'tripall', '📄', '다른 목적지', '11곳 비교 · PDF')}
+    </div>
     ${footerHTML()}
-  </div>`;
+  </div>
+`;
 }
 function tripSearchLinks(d) {
   const r = addDays(d, TRIP.nights);
@@ -1418,7 +1417,7 @@ function viewTripFlights() {
   const diff = o => [o.dep !== TRIP.dep ? `${depCity(o.dep)} 출발` : '', o.nights !== TRIP.nights ? `${o.nights}박` : '', o.stops ? `경유 ${o.stops}회` : ''].filter(Boolean).join(' · ');
   return `${plainHeader('항공편 · 청주 → 오키나와', `10/3~5 출발 · 3박 · 직항 · 마지막 갱신 ${m.ts || '—'}`, true)}
   <div class="wrap trip">
-    ${tripDateChips()}
+    ${tripConceptHTML()}
     <section class="sec">
       <div class="sec-hd"><div><h2>조건에 딱 맞는 편</h2><p>청주 출발 · 10/3·4·5 출발 · 3박 · 직항</p></div></div>
       ${exact.length
@@ -1450,7 +1449,7 @@ function viewTripStay() {
   const sub = `${md(ci)}(${dow(ci)}) 체크인 → ${md(co)}(${dow(co)}) 체크아웃 · 2인`;
   return `${plainHeader('숙소 추천 · 오키나와 3박', sub, true)}
   <div class="wrap trip">
-    ${tripDateChips()}
+    ${tripConceptHTML()}
     <div class="note warn"><b>고르는 기준 (임산부 · 렌터카)</b>
       <ul class="tips">
         <li>한 곳에 3박 — 짐 싸고 푸는 일을 없앱니다. 일정표가 온나 서해안 기준으로 짜여 있습니다.</li>
