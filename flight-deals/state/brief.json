@@ -1,24 +1,24 @@
 {
  "date": "2026-09-25",
- "ts": "2026-09-25 18:31 KST",
+ "ts": "2026-09-26 00:06 KST",
  "status": "OK",
- "headline": "볼 것 553건 · 강력특가 7 · 주말여행 3 · CJJ 3 · 신규 1 · 하락 45",
+ "headline": "볼 것 556건 · 강력특가 6 · 주말여행 3 · CJJ 3 · 신규 22 · 하락 49",
  "home": "CJJ",
  "reason": null,
  "degraded": null,
  "holiday_gap": null,
  "counts": {
-  "total": 554,
-  "comparable": 553,
-  "strong": 7,
-  "deal": 28,
-  "candidate": 73,
-  "weekend": 90,
-  "home": 34,
-  "new": 1,
-  "down": 45,
-  "up": 8,
-  "gone": 1
+  "total": 558,
+  "comparable": 556,
+  "strong": 6,
+  "deal": 30,
+  "candidate": 75,
+  "weekend": 86,
+  "home": 36,
+  "new": 22,
+  "down": 49,
+  "up": 11,
+  "gone": 18
  },
  "source_note": "Travelpayouts 캐시 데이터 · 실시간 확정가 아님",
  "access_note": "실부담가 = 항공권 + CJJ 기준 왕복 교통비 (추정치)",
@@ -50,14 +50,14 @@
    "link": "https://www.aviasales.com/search/CJJ2909CJU01101"
   },
   {
-   "text": "오사카 ICN→KIX · 09-29~10-01 2박 · 165,082원 (실부담 209,082) · 비교 기준가보다 57% 저렴 · 강력 특가  📉-371",
+   "text": "오사카 ICN→KIX · 09-29~10-01 2박 · 164,910원 (실부담 208,910) · 비교 기준가보다 58% 저렴 · 강력 특가  📉-172",
    "tier": "strong",
    "tier_label": "강력 특가",
    "confidence": "높음",
    "sample": 18,
-   "price": 165082,
+   "price": 164910,
    "access": 44000,
-   "effective": 209082,
+   "effective": 208910,
    "weekend_trip": false,
    "leave": 2.0,
    "link": "https://www.aviasales.com/search/ICN2909KIX01101"
@@ -65,14 +65,14 @@
  ],
  "weekend": [
   {
-   "text": "하노이 ICN→HAN · 11-27~11-29 2박 · 234,019원 (실부담 278,019) · 비교 기준가보다 13% 저렴 · 주말 연차1일  📉-525",
+   "text": "하노이 ICN→HAN · 11-27~11-29 2박 · 233,774원 (실부담 277,774) · 비교 기준가보다 13% 저렴 · 주말 연차1일  📉-245",
    "tier": "candidate",
    "tier_label": "특가 후보",
    "confidence": "보통",
    "sample": 10,
-   "price": 234019,
+   "price": 233774,
    "access": 44000,
-   "effective": 278019,
+   "effective": 277774,
    "weekend_trip": true,
    "leave": 1.0,
    "link": "https://www.aviasales.com/search/ICN2711HAN29111"
@@ -91,17 +91,17 @@
    "link": "https://www.aviasales.com/search/ICN1311DPS16111"
   },
   {
-   "text": "도쿄 GMP→HND · 10-10~10-12 2박 · 518,244원 (실부담 558,244) · 비교 기준가보다 17% 저렴 · 주말 연차1일",
+   "text": "제주 CJJ→CJU · 10-01~10-03 2박 · 97,835원 · 비교 기준가보다 14% 저렴 · 주말 연차1일 · 개천절",
    "tier": "candidate",
    "tier_label": "특가 후보",
    "confidence": "높음",
    "sample": 22,
-   "price": 518244,
-   "access": 40000,
-   "effective": 558244,
+   "price": 97835,
+   "access": 0,
+   "effective": 97835,
    "weekend_trip": true,
    "leave": 1.0,
-   "link": "https://www.aviasales.com/search/GMP1010HND12101"
+   "link": "https://www.aviasales.com/search/CJJ0110CJU03101"
   }
  ],
  "home_airport": [
@@ -132,26 +132,39 @@
    "link": "https://www.aviasales.com/search/CJJ2909CJU01101"
   },
   {
-   "text": "다낭 CJJ→DAD · 11-12~11-18 6박 · 298,174원 · 비교 기준가보다 37% 저렴  🔻추적기간 최저",
-   "tier": "unknown",
-   "tier_label": "비교 불가",
-   "confidence": "낮음",
-   "sample": 4,
-   "price": 298174,
+   "text": "타이베이 CJJ→TPE · 11-25~11-28 3박 · 340,365원 · 비교 기준가보다 13% 저렴",
+   "tier": "candidate",
+   "tier_label": "특가 후보",
+   "confidence": "보통",
+   "sample": 8,
+   "price": 340365,
    "access": 0,
-   "effective": 298174,
+   "effective": 340365,
    "weekend_trip": false,
-   "leave": 4.0,
-   "link": "https://www.aviasales.com/search/CJJ1211DAD18111"
+   "leave": 2.0,
+   "link": "https://www.aviasales.com/search/CJJ2511TPE28111"
   }
  ],
  "swiss": [
   {
-   "text": "취리히 ICN→ZRH · 10-03~10-13 10박 · 1,002,617원 (실부담 1,046,617) · 개천절",
+   "text": "취리히 ICN→ZRH · 10-03~10-13 10박 · 980,914원 (실부담 1,024,914) · 비교 기준가보다 2% 저렴 · 개천절  🆕",
    "tier": "normal",
    "tier_label": "일반",
    "confidence": "높음",
-   "sample": 16,
+   "sample": 17,
+   "price": 980914,
+   "access": 44000,
+   "effective": 1024914,
+   "weekend_trip": false,
+   "leave": 5.0,
+   "link": "https://www.aviasales.com/search/ICN0310ZRH13101"
+  },
+  {
+   "text": "취리히 ICN→ZRH · 10-03~10-13 10박 · 1,002,617원 (실부담 1,046,617) · 비교 기준가보다 0% 비쌈 · 개천절",
+   "tier": "normal",
+   "tier_label": "일반",
+   "confidence": "높음",
+   "sample": 17,
    "price": 1002617,
    "access": 44000,
    "effective": 1046617,
@@ -160,30 +173,17 @@
    "link": "https://www.aviasales.com/search/ICN0310ZRH13101"
   },
   {
-   "text": "취리히 ICN→ZRH · 10-02~10-10 8박 · 1,329,750원 (실부담 1,373,750) · 비교 기준가보다 33% 비쌈 · 개천절",
-   "tier": "normal",
-   "tier_label": "일반",
-   "confidence": "높음",
-   "sample": 19,
-   "price": 1329750,
+   "text": "제네바 ICN→GVA · 10-26~10-31 5박 · 1,056,914원 (실부담 1,100,914)  🆕",
+   "tier": "unknown",
+   "tier_label": "비교 불가",
+   "confidence": "참고",
+   "sample": 0,
+   "price": 1056914,
    "access": 44000,
-   "effective": 1373750,
+   "effective": 1100914,
    "weekend_trip": false,
-   "leave": 4.0,
-   "link": "https://www.aviasales.com/search/ICN0210ZRH10101"
-  },
-  {
-   "text": "취리히 ICN→ZRH · 10-04~10-17 13박 · 1,395,736원 (실부담 1,439,736) · 비교 기준가보다 39% 비쌈 · 개천절 대체",
-   "tier": "normal",
-   "tier_label": "일반",
-   "confidence": "높음",
-   "sample": 19,
-   "price": 1395736,
-   "access": 44000,
-   "effective": 1439736,
-   "weekend_trip": false,
-   "leave": 8.0,
-   "link": "https://www.aviasales.com/search/ICN0410ZRH17101"
+   "leave": 5.0,
+   "link": "https://www.aviasales.com/search/ICN2610GVA31101"
   }
  ],
  "dashboard": "index.html"
