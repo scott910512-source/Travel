@@ -108,6 +108,24 @@ font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo",Pretendard,"N
  font-size:14px;z-index:6;pointer-events:none;opacity:0;transition:opacity .3s}
 #hint.on{opacity:1}
 /* .sl .tx (0,2,0) 이 기본 패딩을 잡고 있어 .tx 만으로는 못 이긴다 — 같은 특이도로 쓴다 */
+/* ── 보기(뷰) 모드: 같은 장면들을 세로로 펼쳐 읽는다. DOM 을 재사용하므로 파일이 두 배가 되지 않는다. */
+#modebar{position:fixed;top:calc(10px + env(safe-area-inset-top));right:12px;z-index:7;display:flex;gap:6px}
+#modebar button{font:inherit;font-weight:800;font-size:13px;color:#fff;background:rgba(0,0,0,.45);border:1px solid rgba(255,255,255,.35);
+ border-radius:999px;min-height:38px;padding:0 13px;cursor:pointer;backdrop-filter:blur(8px)}
+#modebar button[aria-pressed="true"]{background:#fff;color:#5B4BE0;border-color:#fff}
+body.view{overflow:auto;height:auto;background:#0f1120}
+body.view #stage{position:static;padding:calc(64px + env(safe-area-inset-top)) 0 40px;max-width:820px;margin:0 auto}
+body.view .sl{position:static;opacity:1;pointer-events:auto;margin:0 14px 18px;border-radius:16px;overflow:hidden;background:#171a30;transition:none}
+body.view .sl .bg{position:relative;height:230px;transform:none!important;transition:none}
+body.view .sl .shade{display:none}
+body.view .sl .tx{position:static;padding:14px 16px 18px;text-shadow:none}
+body.view .sl .tx h1{font-size:22px}
+body.view .sl .tx p{font-size:14.5px}
+body.view .sl.cover .tx{transform:none;text-align:left;padding-top:14px}
+body.view .sl.cover h1{font-size:28px}
+body.view .credit{position:static;display:block;padding:6px 16px 0;max-width:none;color:rgba(255,255,255,.55)}
+body.view #ctl,body.view #bar{display:none}
+@media(min-width:800px){body.view .sl .bg{height:360px}body.view .sl .tx{padding:18px 24px 22px}body.view .sl .tx h1{font-size:28px}body.view .sl .tx p{font-size:17px}}
 @media(min-width:800px){.tx h1{font-size:40px}.tx p{font-size:18px}.sl .tx{padding-left:6vw;padding-right:40vw}.sl.cover .tx{padding-right:6vw}}
 @media(min-width:1400px){.tx h1{font-size:52px}.tx p{font-size:22px}.preg{font-size:17px}#ctl button{min-height:52px;font-size:16px;padding:0 20px}}
 """
@@ -142,12 +160,12 @@ function show(n){i=(n+sls.length)%sls.length;sls.forEach((s,k)=>s.classList.togg
 function tick(now){if(playing){const p=Math.min(1,(now-t0)/DUR);bar.style.width=(p*100)+'%';if(p>=1){if(i===sls.length-1){setPlay(false);}else show(i+1);}}raf=requestAnimationFrame(tick);}
 function setPlay(v){playing=v;btn.textContent=v?'⏸ 멈춤':'▶ 재생';if(v)t0=performance.now()-(parseFloat(bar.style.width)||0)/100*DUR;
  hint.textContent=v?'자동 재생':'멈춤 — 화면을 누르면 재생';hint.classList.add('on');setTimeout(()=>hint.classList.remove('on'),900);}
-document.getElementById('stage').addEventListener('click',()=>setPlay(!playing));
+document.getElementById('stage').addEventListener('click',()=>{if(!document.body.classList.contains('view'))setPlay(!playing);});
 btn.addEventListener('click',ev=>{ev.stopPropagation();setPlay(!playing);});
 document.getElementById('prev').addEventListener('click',ev=>{ev.stopPropagation();show(i-1);});
 document.getElementById('next').addEventListener('click',ev=>{ev.stopPropagation();show(i+1);});
 let sx=null;document.addEventListener('touchstart',e=>{sx=e.touches[0].clientX});
-document.addEventListener('touchend',e=>{if(sx==null)return;const dx=e.changedTouches[0].clientX-sx;sx=null;if(Math.abs(dx)>50)show(dx<0?i+1:i-1);});
+document.addEventListener('touchend',e=>{if(sx==null||document.body.classList.contains('view'))return;const dx=e.changedTouches[0].clientX-sx;sx=null;if(Math.abs(dx)>50)show(dx<0?i+1:i-1);});
 document.addEventListener('keydown',e=>{if(e.key==='ArrowRight')show(i+1);else if(e.key==='ArrowLeft')show(i-1);else if(e.key===' '){e.preventDefault();setPlay(!playing);}});
 /* ── 배경음 ─────────────────────────────────────────────
    저작권 있는 음원을 넣지 않는다. 류큐 음계(도·미·파·솔·시)로 산신 비슷한
@@ -189,7 +207,17 @@ if(bgmOn){hint.textContent='🔊 화면을 한 번 터치하면 배경음이 켜
 const fs=document.getElementById('fs');
 if(!document.documentElement.requestFullscreen) fs.style.display='none';
 fs.addEventListener('click',ev=>{ev.stopPropagation();document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen().catch(()=>{});});
+/* ── 보기 / 자동재생 전환 ── 같은 페이지, 같은 장면. 보기 모드는 세로 스크롤 문서다. */
+const MODE_KEY='okinawa-2026-10.mode';
+function setMode(m){document.body.classList.toggle('view',m==='view');
+ document.getElementById('m-view').setAttribute('aria-pressed',m==='view');document.getElementById('m-play').setAttribute('aria-pressed',m!=='view');
+ if(m==='view'){playing=false;btn.textContent='▶ 재생';window.scrollTo(0,0);}else{sls.forEach((s,k)=>s.classList.toggle('on',k===i));setPlay(true);}
+ try{localStorage.setItem(MODE_KEY,m);}catch(e){}}
+document.getElementById('m-view').addEventListener('click',ev=>{ev.stopPropagation();setMode('view');});
+document.getElementById('m-play').addEventListener('click',ev=>{ev.stopPropagation();setMode('play');});
 show(0);raf=requestAnimationFrame(tick);
+{let m=null;try{m=new URLSearchParams(location.search).get('mode')||localStorage.getItem(MODE_KEY);}catch(e){}
+ if(m==='view')setMode('view');}
 """
 
 doc = f"""<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8">
@@ -197,6 +225,7 @@ doc = f"""<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8">
 <title>오키나와 3박 4일 · 청주 출발 시뮬레이션</title><style>{css}</style></head><body>
 <div id="bar"><i></i></div>
 <div id="stage">{''.join(sl_html)}</div>
+<div id="modebar"><button id="m-play" aria-pressed="true">▶ 자동재생</button><button id="m-view" aria-pressed="false">📖 보기</button></div>
 <div id="hint"></div>
 <div id="ctl"><button id="prev">‹ 이전</button><span class="n"><span id="num"></span> · 7초마다 넘어감 · 화면 탭 = 멈춤/재생</span><button id="next">다음 ›</button><button id="play">⏸ 멈춤</button><button id="bgm" title="배경음">🔇 음악</button><button id="fs" title="전체화면">⛶</button></div>
 <script>{js}</script></body></html>"""
