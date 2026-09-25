@@ -51,7 +51,7 @@ const TripStage = (() => {
         <g class="car pr-car" style="display:none"><use href="#pr-car" x="-65" y="-70" width="130" height="65"/></g>
         <g class="chars"><ellipse cx="0" cy="-5" rx="79" ry="13" fill="#29352b" opacity=".16"/>
           <g class="pair"><g class="char man"><svg class="sprite" x="-136" y="-270" width="272" height="272" viewBox="0 512 512 512" overflow="hidden"><image href="assets/trip/couple.webp" width="1536" height="1024"/></svg></g></g>
-          <g class="bubble" style="display:none"><rect x="-80" y="-302" width="160" height="34" rx="17" fill="#fffdf8"/><text x="0" y="-279" text-anchor="middle" font-size="17" font-weight="700" fill="#173c40"></text></g></g>`;
+          <g class="bubble" style="display:none"><rect x="-80" y="-365" width="160" height="34" rx="17" fill="#fffdf8"/><text x="0" y="-342" text-anchor="middle" font-size="17" font-weight="700" fill="#173c40"></text></g></g>`;
       chars=svg.querySelector('.chars'); car=svg.querySelector('.car');
     }
     function node(s,i) {
@@ -95,7 +95,8 @@ const TripStage = (() => {
         const k = Math.min(1, (now - t0) / dur); const e = k < .5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
         const x = a.x + (b.x - a.x) * e, y = a.y + (b.y - a.y) * e;
         moving.x = x; moving.y = y;
-        (byCar ? car : chars).setAttribute('transform', `translate(${245+e*105},${615-e*75})`);
+        const sceneProgress=(fromXY && fromXY.progress || 0)+(1-(fromXY && fromXY.progress || 0))*e; moving.progress=sceneProgress;
+        (byCar ? car : chars).setAttribute('transform', `translate(${245+sceneProgress*105},${615-sceneProgress*75})`);
         if(!byCar)frame(Math.floor((now-travelStart)/150)%3);
         if (k < 1) raf = requestAnimationFrame(tick); else { raf = 0; moving = null; arrive(to); }
       };
@@ -114,11 +115,11 @@ const TripStage = (() => {
         if (steps.length) arrive(ni, { instant: true }); else emit();
       },
       play() { if (!steps.length) return; playing = true;
-        if (paused) { const p = paused; go(p.to, { x: p.x, y: p.y }); }
+        if (paused) { const p = paused; go(p.to, { x: p.x, y: p.y, progress:p.progress }); }
         else if (phase === 'at') { if (idx >= steps.length - 1) { idx = -1; go(0); } else go(idx + 1); }
         emit(); },
       pause() { playing = false;
-        if (phase === 'moving' && moving) { paused = { to: moving.to, x: moving.x, y: moving.y }; clearTimers(); phase = 'paused'; pose('wait'); }
+        if (phase === 'moving' && moving) { paused = { to: moving.to, x: moving.x, y: moving.y, progress:moving.progress }; clearTimers(); phase = 'paused'; pose('wait'); }
         else clearTimers();
         emit(); },
       toggle() { playing ? api.pause() : api.play(); },
