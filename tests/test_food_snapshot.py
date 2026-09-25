@@ -18,6 +18,7 @@ chk(not auto, "페이지가 열릴 때 구글을 자동으로 조회하지 않�
 chk("24*3600" not in js and "24 * 3600" not in js, "24시간 만료가 없다 (한 번 저장하면 계속 쓴다)")
 chk("fetch(SNAP" in js and "okinawa-2026-10-food.json" in js, "시작할 때 저장본 JSON 을 읽는다")
 chk("function merge()" in js and "(b.t||0)>st" in js, "저장본과 기기 조회 중 더 최근 것을 쓴다")
+chk("MIN_RATING_FALLBACK=4.0" in js and "function computeTH()" in js and "thr(x)" in js, "4.3 이상이 없는 메뉴는 4.0 기준으로 낮춘다")
 chk("confirm(" in js and "다시 조회" in js, "다시 조회는 사람이 누르고 확인해야 한다")
 chk("AIza" not in js.replace("AIza… 브라우저 API 키", "").replace("startsWith('__')", ""), "소스에 실제 키가 없다")
 

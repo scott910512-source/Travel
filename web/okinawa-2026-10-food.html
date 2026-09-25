@@ -57,7 +57,7 @@ footer{color:var(--tx3);font-size:11.5px;text-align:center;padding:20px 0 0;line
 <main class="wrap">
   <div class="card" id="gpanel" style="background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-top:12px">
     <b style="display:block;margin-bottom:4px">구글 평점·리뷰 수·리뷰 사진 — 한 번 조회해서 저장</b>
-    <p style="margin:0 0 8px;font-size:13px;color:var(--tx2)">이 페이지는 서버가 없어서 구글 데이터를 <b>본인 브라우저에서 직접</b> 불러옵니다. Google Maps Platform 의 <b>브라우저 키</b>(HTTP 리퍼러를 이 사이트로 제한한 것)를 한 번 넣고 조회하면 결과가 이 기기에 저장되고(자동 재조회 없음), 항목마다 평점·리뷰 수·실제 이용자 사진이 채워지며 <b>리뷰 10개 미만 · 평점 4.3 미만은 자동으로 걸러집니다.</b></p>
+    <p style="margin:0 0 8px;font-size:13px;color:var(--tx2)">이 페이지는 서버가 없어서 구글 데이터를 <b>본인 브라우저에서 직접</b> 불러옵니다. Google Maps Platform 의 <b>브라우저 키</b>(HTTP 리퍼러를 이 사이트로 제한한 것)를 한 번 넣고 조회하면 결과가 이 기기에 저장되고(자동 재조회 없음), 항목마다 평점·리뷰 수·실제 이용자 사진이 채워지며 <b>리뷰 10개 미만 · 평점 4.3 미만은 자동으로 걸러집니다</b>(4.3 이상이 하나도 없는 메뉴는 4.0 기준).</p>
     <div style="display:flex;gap:6px;flex-wrap:wrap"><input class="q" id="gkey" type="password" placeholder="AIza… 브라우저 API 키" autocomplete="off" style="flex:1;min-width:200px;margin:0"><button class="chip" id="gload">불러오기</button><button class="chip" id="gclear">키 지우기</button></div>
     <p id="gstat" style="margin:8px 0 0;font-size:12.5px;color:var(--tx2)"></p>
     <details style="margin-top:8px;font-size:12.5px;color:var(--tx2)"><summary style="cursor:pointer;font-weight:700">키 만드는 법 (5분 · 개인용은 월 무료 크레딧 안)</summary>
@@ -156,13 +156,22 @@ let SN=null, G={};
 function merge(){G={};const sd=(SN&&SN.data)||{};const st=SN?(Date.parse(SN.ts)||0):0;
   for(const k of new Set([...Object.keys(sd),...Object.keys(DEV)])){const a=sd[k],b=DEV[k];G[k]=(a&&b)?(((b.t||0)>st)?b:a):(a||b);}}
 const gget=x=>G[x.j||x.n];
-const MIN_REVIEWS=10, MIN_RATING=4.3;
+const MIN_REVIEWS=10, MIN_RATING=4.3, MIN_RATING_FALLBACK=4.0;
+/* 메뉴(t)마다 기준을 정한다. 같은 메뉴에 4.3 이상이 하나도 없으면(예: 스테이크·해산물)
+   그 메뉴만 4.0 으로 낮춘다. 리뷰 10개 기준은 그대로. 화면에 '4.0 기준' 이라고 적는다. */
+let TH={};
+function computeTH(){TH={};const seen={};
+  R.forEach(x=>{const g=gget(x);if(!g||g.err)return;(seen[x.t]=seen[x.t]||[]).push(g);});
+  Object.keys(seen).forEach(t=>{TH[t]=seen[t].some(g=>(g.total||0)>=MIN_REVIEWS&&(g.rating||0)>=MIN_RATING)?MIN_RATING:MIN_RATING_FALLBACK;});}
+const thr=x=>TH[x.t]||MIN_RATING;
+const lowered=()=>Object.keys(TH).filter(t=>TH[t]===MIN_RATING_FALLBACK);
 function passes(x){const g=gget(x);if(!g||g.err)return true;      // 아직 모르면 보여 준다
-  return (g.total||0)>=MIN_REVIEWS && (g.rating||0)>=MIN_RATING;}
+  return (g.total||0)>=MIN_REVIEWS && (g.rating||0)>=thr(x);}
 function gd(x){const g=gget(x);if(!g)return '';
   if(g.err)return `<p style="font-size:12px;color:var(--tx3)">구글: 찾지 못함 (${g.err})</p>`;
   const stars='★'.repeat(Math.round(g.rating))+'☆'.repeat(5-Math.round(g.rating));
-  return `<div style="margin-top:6px;font-size:13px"><b style="color:#B7791F">${stars}</b> <b>${g.rating}</b> <span style="color:var(--tx3)">· 리뷰 ${(g.total||0).toLocaleString()}개${g.open===true?' · 영업 중':g.open===false?' · 지금 영업 안 함':''}</span></div>
+  const low=thr(x)<MIN_RATING&&(g.rating||0)<MIN_RATING;
+  return `<div style="margin-top:6px;font-size:13px"><b style="color:#B7791F">${stars}</b> <b>${g.rating}</b> <span style="color:var(--tx3)">· 리뷰 ${(g.total||0).toLocaleString()}개${g.open===true?' · 영업 중':g.open===false?' · 지금 영업 안 함':''}</span>${low?` <span class="k" title="이 메뉴에는 4.3 이상이 없어 4.0 기준으로 보여 줍니다">${MIN_RATING_FALLBACK.toFixed(1)} 기준</span>`:''}</div>
     ${g.photos&&g.photos.length?`<div class="ph">${g.photos.map(p=>`<figure><img src="${p.url}" alt="" loading="lazy"><figcaption>${p.attr||'이용자 사진'}</figcaption></figure>`).join('')}</div>`:''}`;}
 function gsave(){try{localStorage.setItem(GC,JSON.stringify(DEV));}catch(e){}}
 function gstatus(t){const e=document.getElementById('gstat');if(e)e.textContent=t;}
@@ -201,7 +210,7 @@ function renderPanel(){
   if(devN)lines.push(`이 기기 조회 · ${fmt(devT)} · ${devN}곳${SN?' · 저장본보다 새 항목만 우선':''}`);
   if(!has)lines.push('아직 조회한 적 없음. 아래 버튼을 누르면 한 번 조회해서 이 기기에 저장합니다.');
   panel.innerHTML=`<b style="display:block">구글 평점·리뷰 사진</b>
-    <p style="margin:4px 0 0;font-size:12.5px;color:var(--tx2)">${lines.join('<br>')}<br>리뷰 ${MIN_REVIEWS}개 미만 · 평점 ${MIN_RATING} 미만은 숨깁니다. 자동으로 다시 조회하지 않습니다.</p>
+    <p style="margin:4px 0 0;font-size:12.5px;color:var(--tx2)">${lines.join('<br>')}<br>리뷰 ${MIN_REVIEWS}개 미만 · 평점 ${MIN_RATING} 미만은 숨깁니다(4.3 이상이 없는 메뉴는 ${MIN_RATING_FALLBACK.toFixed(1)} 기준). 자동으로 다시 조회하지 않습니다.</p>
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
       ${key?`<button class="chip" id="gre">🔄 다시 조회 (이 기기에서)</button>`:''}
       ${devN?`<button class="chip" id="gclear">이 기기 조회 결과 지우기</button>`:''}
@@ -223,10 +232,12 @@ const nav=x=>`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComp
 function render(){
   document.getElementById('areas').innerHTML=AREAS.map(([k,l])=>`<button class="chip" data-area="${k}" aria-pressed="${area===k}">${l} ${k==='all'?R.length:R.filter(x=>x.a===k).length}</button>`).join('');
   document.getElementById('types').innerHTML=TYPES.map(t=>`<button class="chip" data-type="${t}" aria-pressed="${type===t}">${t}</button>`).join('');
+  computeTH();
   const qq=q.trim().toLowerCase();
   const base=R.filter(x=>(area==='all'||x.a===area)&&(type==='전체'||x.t.includes(type)||x.t===type)&&(!qq||(x.n+x.j+x.t+x.d).toLowerCase().includes(qq)));
   const rows=base.filter(passes); const hidden=base.length-rows.length; const linked=Object.keys(G).length>0;
-  document.getElementById('info').textContent=`${rows.length}곳${hidden?` · 기준 미달 ${hidden}곳 숨김`:''} · ${linked?'구글 평점·리뷰 수 반영':'평점은 구글 연결 후 표시'} · 임산부: 무난 ${rows.filter(x=>x.p==='ok').length} / 주의 ${rows.filter(x=>x.p==='care').length}`;
+  const lo=lowered();
+  document.getElementById('info').textContent=`${rows.length}곳${hidden?` · 기준 미달 ${hidden}곳 숨김`:''}${lo.length?` · ${lo.join('·')}은 4.3↑ 없어 ${MIN_RATING_FALLBACK.toFixed(1)} 기준`:''} · ${linked?'구글 평점·리뷰 수 반영':'평점은 구글 연결 후 표시'} · 임산부: 무난 ${rows.filter(x=>x.p==='ok').length} / 주의 ${rows.filter(x=>x.p==='care').length}`;
   document.getElementById('sorts').innerHTML=SORTS.map(([k,l])=>`<button class="chip" data-sort="${k}" aria-pressed="${sort===k}">${l}</button>`).join('');
   const AL=Object.fromEntries(AREAS);
   const card=x=>`<div class="r"><h3>${x.n} <small>${x.j}</small><span class="k">${x.t}</span><span class="k ${x.p}">${PLBL[x.p]}</span>${sort!=='rec'?`<span class="k">${AL[x.a]||x.a}</span>`:''}</h3>
