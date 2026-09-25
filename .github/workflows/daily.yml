@@ -267,6 +267,8 @@ jobs:
       #   GitHub Pages 는 max-age=600 을 주는데, iOS 홈 화면 앱은 그보다
       #   훨씬 오래 붙들고 있는다. 배포마다 URL 이 바뀌어야 확실하다.
       - name: Pages 산출물 준비
+        env:
+          MAPS_BROWSER_KEY: ${{ secrets.MAPS_BROWSER_KEY }}
         run: |
           mkdir -p public
           cp web/index.html web/app.css web/app.js public/
@@ -278,6 +280,10 @@ jobs:
           sed -i "s|src=\"travel-state.js\"|src=\"travel-state.js?v=${BUILD}\"|" public/index.html
           sed -i "s|src=\"compare.js\"|src=\"compare.js?v=${BUILD}\"|" public/index.html
           sed -i "s|__BUILD__|${BUILD}|"                            public/index.html
+          # 식당 리스트의 구글 브라우저 키. Secret 이 없으면 빈칸 → 페이지가 직접 입력 패널을 보여 준다.
+          # 레포 소스에는 자리표시자만 있고, 산출물(public/)은 커밋되지 않는다.
+          sed -i "s|__MAPS_KEY__|${MAPS_BROWSER_KEY}|" public/okinawa-2026-10-food.html
+          if [ -n "$MAPS_BROWSER_KEY" ]; then echo "식당 리스트: 관리자 지도 키 주입됨"; else echo "::notice::MAPS_BROWSER_KEY 없음 — 식당 리스트는 직접 입력 방식"; fi
           echo "빌드 ${BUILD}"
           grep -E 'app\.(js|css)' public/index.html
           cp web/icon.svg web/icon-32.png web/icon-180.png \

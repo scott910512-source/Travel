@@ -4,6 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="color-scheme" content="light">
+<!-- 배포 시 workflow 가 GitHub Secret(MAPS_BROWSER_KEY)으로 바꾼다. 레포에는 자리표시자만 남는다.
+     리퍼러 제한 브라우저 키라 페이지에 보여도 이 사이트 밖에서는 못 쓴다. -->
+<meta name="maps-key" content="__MAPS_KEY__">
 <title>오키나와 식당 리스트 · 임산부 기준</title>
 <style>
 :root{--pri:#5B4BE0;--pri-soft:#EFEDFD;--pri-line:#D9D3FA;--tx:#16181F;--tx2:#5B6072;--tx3:#9096A8;--line:#E9EAF0;
@@ -168,12 +171,19 @@ async function genrich(key){
     await new Promise(r=>setTimeout(r,120));}
   gstatus(`완료 · 채움 ${done} · 못 찾음 ${fail} · 리뷰 ${MIN_REVIEWS}개 미만/평점 ${MIN_RATING} 미만은 숨김 (${new Date().toLocaleString('ko-KR')})`);
   document.getElementById('gnote').style.display='none';}
-document.getElementById('gload').addEventListener('click',async()=>{const key=document.getElementById('gkey').value.trim();if(!key)return gstatus('키를 넣어 주세요.');
+(document.getElementById('gload')||document.createElement('b')).addEventListener('click',async()=>{const key=document.getElementById('gkey').value.trim();if(!key)return gstatus('키를 넣어 주세요.');
   try{localStorage.setItem(GK,key);}catch(e){} try{await genrich(key);}catch(e){gstatus('실패: '+e.message);}});
-document.getElementById('gclear').addEventListener('click',()=>{try{localStorage.removeItem(GK);localStorage.removeItem(GC);}catch(e){}G={};document.getElementById('gkey').value='';gstatus('키와 캐시를 지웠습니다.');document.getElementById('gnote').style.display='';render();});
-(function(){let k=null;try{k=localStorage.getItem(GK);}catch(e){} if(k){document.getElementById('gkey').value=k;
-  if(Object.keys(G).length){gstatus('저장된 결과를 보여 줍니다. 최신으로 하려면 불러오기.');document.getElementById('gnote').style.display='none';}
-  else genrich(k).catch(e=>gstatus('실패: '+e.message));}})();
+(document.getElementById('gclear')||document.createElement('b')).addEventListener('click',()=>{try{localStorage.removeItem(GK);localStorage.removeItem(GC);}catch(e){}G={};document.getElementById('gkey').value='';gstatus('키와 캐시를 지웠습니다.');document.getElementById('gnote').style.display='';render();});
+/* 관리자 키: 배포 시 meta 에 주입된다. 있으면 아무 기기에서나 바로 불러온다.
+   개인 키를 넣어 두었으면 그것을 우선한다. */
+const ADMIN_KEY=(()=>{const m=document.querySelector('meta[name="maps-key"]');const v=m&&m.getAttribute('content')||'';return (v&&v!=='__MAPS_KEY__')?v:'';})();
+(function(){let k=null;try{k=localStorage.getItem(GK);}catch(e){}
+  if(!k&&ADMIN_KEY){k=ADMIN_KEY;
+    const panel=document.getElementById('gpanel');panel.innerHTML='<b style="display:block">구글 평점·리뷰 사진 — 관리자 키로 자동 연결됨</b><p style="margin:4px 0 0;font-size:12.5px;color:var(--tx2)">리뷰 10개 미만 · 평점 4.3 미만은 자동으로 숨깁니다. 결과는 이 기기에 24시간 캐시됩니다.</p><p id="gstat" style="margin:6px 0 0;font-size:12.5px;color:var(--tx2)"></p>';}
+  else if(k){document.getElementById('gkey').value=k;}
+  if(!k)return;
+  if(Object.keys(G).length){gstatus('저장된 결과를 보여 줍니다.'+(ADMIN_KEY&&!localStorage.getItem(GK)?'':' 최신으로 하려면 불러오기.'));document.getElementById('gnote').style.display='none';}
+  else genrich(k).catch(e=>gstatus('실패: '+e.message));})();
 const gm=x=>{const g=gget(x);return (g&&g.url)||`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent('沖縄 '+(x.j||x.n))}`;};
 const nav=x=>`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent('沖縄 '+(x.j||x.n))}&travelmode=driving`;
 function render(){
