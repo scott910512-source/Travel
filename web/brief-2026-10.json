@@ -472,6 +472,10 @@
       "show": {
         "url": "okinawa-2026-10-show.html",
         "label": "▶ 사진 자동재생 시뮬레이션 (청주 출발)"
+      },
+      "food": {
+        "url": "okinawa-2026-10-food.html",
+        "label": "🍜 식당 리스트 (지역별 · 임산부 표시 · 구글 평점 링크)"
       }
     },
     {

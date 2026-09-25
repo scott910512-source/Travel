@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="light">
+<title>오키나와 식당 리스트 · 임산부 기준</title>
+<style>
+:root{--pri:#5B4BE0;--pri-soft:#EFEDFD;--pri-line:#D9D3FA;--tx:#16181F;--tx2:#5B6072;--tx3:#9096A8;--line:#E9EAF0;
+  --card:#fff;--bg:#F6F7FB;--warn:#D07C12;--warn-soft:#FDF3E5;--hot:#E0452C;--ok:#0F9D58;--ok-soft:#E9F7EF;
+  --sans:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo",Pretendard,"Noto Sans KR",system-ui,sans-serif;--mono:ui-monospace,Menlo,monospace}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font-family:var(--sans);font-size:15px;line-height:1.55;padding-bottom:calc(24px + env(safe-area-inset-bottom))}
+.wrap{max-width:820px;margin:0 auto;padding:0 16px}
+header{background:var(--pri);color:#fff;padding:calc(18px + env(safe-area-inset-top)) 0 16px}
+header h1{margin:0;font-size:22px;letter-spacing:-.03em}header p{margin:6px 0 0;font-size:13px;opacity:.9}
+.note{border-left:3px solid var(--warn);background:var(--warn-soft);border-radius:10px;padding:10px 12px;font-size:13.5px;margin-top:12px}
+.note b{display:block;margin-bottom:3px}
+.filters{position:sticky;top:0;z-index:10;background:var(--bg);padding:10px 0 8px;border-bottom:1px solid var(--line)}
+.row{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:4px}.row::-webkit-scrollbar{display:none}
+.chip{flex:0 0 auto;min-height:40px;padding:8px 13px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:var(--tx2);font:inherit;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap}
+.chip[aria-pressed="true"]{background:var(--pri);border-color:var(--pri);color:#fff}
+input.q{width:100%;min-height:44px;border:1px solid var(--line);border-radius:12px;padding:0 14px;font:inherit;font-size:15px;margin-bottom:8px;background:var(--card)}
+.info{font-size:12.5px;color:var(--tx2);margin:8px 0 6px;font-weight:700}
+.list{display:grid;gap:10px;margin-top:6px}
+.r{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+.r h3{margin:0;font-size:15.5px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.r h3 small{font-size:12px;color:var(--tx3);font-weight:600}
+.k{font-size:10.5px;padding:2px 7px;border-radius:6px;background:var(--pri-soft);color:var(--pri);font-weight:800}
+.k.ok{background:var(--ok-soft);color:var(--ok)}.k.care{background:var(--warn-soft);color:var(--warn)}.k.no{background:#FDEDE9;color:var(--hot)}
+.r p{margin:5px 0 0;font-size:13.5px;color:var(--tx2)}
+.r .preg{margin-top:6px;font-size:12.5px;color:#8A4B00;background:var(--warn-soft);padding:5px 8px;border-radius:8px}
+.links{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.links a{font-size:12px;font-weight:700;padding:7px 11px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:var(--tx2);text-decoration:none;min-height:34px;display:inline-flex;align-items:center}
+.links a.g{border-color:var(--pri-line);background:var(--pri-soft);color:var(--pri)}
+.area{margin:18px 0 6px;font-size:16px;font-weight:800}
+footer{color:var(--tx3);font-size:11.5px;text-align:center;padding:20px 0 0;line-height:1.6}
+@media(min-width:700px){.list{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <h1>오키나와 식당 리스트</h1>
+  <p>임산부 기준 · 익힌 메뉴 위주 · 지역별 · 구글 평점은 링크로 확인</p>
+</div></header>
+<main class="wrap">
+  <div class="note"><b>평점은 여기서 확인하지 못했습니다</b>
+    이 목록은 오키나와에서 평판이 좋은 곳을 제 지식 범위에서 모은 <b>"구글 평점 4.3 이상 후보"</b>입니다. 이 문서를 만든 환경에서는 구글 지도 평점을 조회할 수 없어 <b>검증하지 못했습니다.</b> 각 항목의 <b>구글 지도</b> 버튼을 누르면 현재 평점·영업시간·휴무가 바로 뜹니다 — 가기 전에 그것을 보세요. 오키나와는 폐업·이전이 잦습니다.</div>
+  <div class="filters">
+    <input class="q" id="q" type="search" placeholder="이름·메뉴로 찾기 (예: 소바, 스테이크, 카페)" autocomplete="off">
+    <div class="row" id="areas"></div>
+    <div class="row" id="types" style="margin-top:6px"></div>
+  </div>
+  <p class="info" id="info"></p>
+  <div id="list"></div>
+  <footer>익힌 메뉴 기준 표시: <span class="k ok">무난</span> 익힌 요리 위주 · <span class="k care">주의</span> 생것·날것 메뉴가 섞여 있어 고를 때 주의 · <span class="k no">비추</span> 임산부에겐 권하지 않음<br>
+  영업시간·휴무·가격은 방문 전 구글 지도에서 확인하세요. 이 문서는 참고 자료이며 의학적 조언이 아닙니다.</footer>
+</main>
+<script>
+/* 지역: naha 나하·남부 / mid 중부(차탄·요미탄·온나) / north 북부(나고·모토부) / south 남부(난조·이토만)
+   preg: ok 무난 / care 주의 / no 비추 */
+const R = [
+ // ── 나하 ──
+ {n:'슈리소바', j:'首里そば', a:'naha', t:'소바', p:'ok', d:'슈리성 옆 노포 오키나와 소바. 면이 굵고 담백. 12시 전 도착 권장, 재료 소진 시 마감.'},
+ {n:'다이토소바', j:'大東そば', a:'naha', t:'소바', p:'ok', d:'마키시 시장 근처. 굵은 면과 가쓰오 국물. 다이토 스시(익힌 재료 초밥)도 유명.'},
+ {n:'슈리 호리카와', j:'首里ほりかわ', a:'naha', t:'소바', p:'ok', d:'슈리 골목 조용한 소바집. 소키소바·주시.'},
+ {n:'얏빠리 스테이크 국제거리점', j:'やっぱりステーキ 国際通り', a:'naha', t:'스테이크', p:'ok', d:'가성비 스테이크 체인 본가. 뜨거운 철판에 나와 굽기 조절 가능 — 잘 익혀 달라고.'},
+ {n:'잭스 스테이크 하우스', j:'ジャッキーステーキハウス', a:'naha', t:'스테이크', p:'ok', d:'1953년 노포 스테이크. 테더로인 미디엄웰 요청 가능. 대기 있음.'},
+ {n:'샘즈 앵커 인 국제거리점', j:"Sam's Anchor Inn 国際通り", a:'naha', t:'스테이크', p:'ok', d:'철판 퍼포먼스 스테이크·시푸드. 익혀서 나옴.'},
+ {n:'아구 샤브샤브 야마모토', j:'あぐー しゃぶしゃぶ 山本', a:'naha', t:'아구돼지', p:'ok', d:'아구 돼지 샤브샤브 전문. 끓여 먹는 요리라 무난. 예약 권장.'},
+ {n:'유우난기', j:'ゆうなんぎい', a:'naha', t:'오키나와 가정식', p:'ok', d:'국제거리 근처 노포 정식집. 라후테·고야참프루·지마미도후. 줄 김.'},
+ {n:'하테루마', j:'波照間', a:'naha', t:'오키나와 요리', p:'care', d:'민요 라이브 있는 오키나와 요리 이자카야. 익힌 메뉴 많지만 회도 있음 — 고를 때 주의.'},
+ {n:'포크타마고오니기리 본점', j:'ポークたまごおにぎり本店', a:'naha', t:'아침·간식', p:'ok', d:'마키시 시장 옆. 스팸·달걀 주먹밥. 아침 7시부터, 줄 김.'},
+ {n:'C&C 브렉퍼스트 오키나와', j:'C&C BREAKFAST OKINAWA', a:'naha', t:'아침·카페', p:'ok', d:'마키시 근처 팬케이크·에그베네딕트. 달걀은 완숙 요청.'},
+ {n:'하나가사 식당', j:'花笠食堂', a:'naha', t:'오키나와 가정식', p:'ok', d:'국제거리 골목 정식집. 양 많고 저렴. 소바·정식.'},
+ {n:'타코스야 국제거리점', j:'タコス屋 国際通り', a:'naha', t:'타코스', p:'ok', d:'오키나와식 타코스·타코라이스. 익힌 고기.'},
+ {n:'블루실 국제거리점', j:'ブルーシール 国際通り', a:'naha', t:'디저트', p:'ok', d:'오키나와 아이스크림. 자색고구마·시콰사. 살균 유제품.'},
+ {n:'후쿠기야 국제거리점', j:'ふくぎや 国際通り', a:'naha', t:'디저트', p:'ok', d:'바움쿠헨(자색고구마·흑당). 선물용.'},
+ {n:'오하코르테 미나토가와', j:'oHacorte 港川', a:'naha', t:'디저트·카페', p:'ok', d:'미나토가와 외국인주택가 과일 타르트. 조용한 카페 거리.'},
+ {n:'하마야', j:'浜屋', a:'mid', t:'소바', p:'ok', d:'차탄·미야기 해안. 하마야소바(뼈째 소키). 현지인 인기.'},
+ {n:'아구야 나하', j:'あぐー屋', a:'naha', t:'아구돼지', p:'ok', d:'아구 돼지 구이·정식. 익혀서.'},
+ // ── 남부 ──
+ {n:'하마베노차야', j:'浜辺の茶屋', a:'south', t:'카페', p:'ok', d:'난조 바닷가 카페. 만조 때 창가 자리. 주스·토스트.'},
+ {n:'야마노차야 라쿠스이', j:'山の茶屋 楽水', a:'south', t:'카페·식사', p:'ok', d:'하마베노차야 자매점. 언덕 위, 계단 있음. 채소 정식.'},
+ {n:'카페 쿠루쿠마', j:'カフェくるくま', a:'south', t:'카페·식사', p:'ok', d:'난조 절벽 위 태국풍 카페. 뷰 명소. 커리(매운 정도 조절).'},
+ {n:'나카모토 센교 텐푸라', j:'中本鮮魚てんぷら店', a:'south', t:'튀김', p:'care', d:'오지마 튀김 가게. 생선·모즈쿠 튀김은 익힌 것 — 옆 회는 피하기.'},
+ {n:'우미카지 테라스 · 타코라이스 카페 키진무', j:'瀬長島ウミカジテラス タコライスカフェ きじむなぁ', a:'south', t:'타코라이스', p:'ok', d:'공항 15분. 오믈렛 타코라이스. 바다 뷰.'},
+ {n:'우미카지 테라스 · 시아와세노 팬케이크', j:'幸せのパンケーキ 沖縄ウミカジテラス', a:'south', t:'디저트·카페', p:'ok', d:'수플레 팬케이크. 대기 김, 예약 앱.'},
+ {n:'타마야 하에바루점', j:'玉家 南風原', a:'south', t:'소바', p:'ok', d:'현지인 소바 노포. 소키·삼겹 소바.'},
+ {n:'이토만 어협 오사카나 센터 (익힌 것)', j:'糸満漁協 お魚センター', a:'south', t:'해산물', p:'care', d:'이토만 수산시장. 튀김·구이는 괜찮고 회·생굴은 피하기.'},
+ // ── 중부 ──
+ {n:'나카무라소바', j:'なかむらそば', a:'mid', t:'소바', p:'ok', d:'온나손 노포. 아사(해초)소바·소키소바. 19시 전 마감 잦음.'},
+ {n:'류큐노우시 온나점', j:'琉球の牛 恩納', a:'mid', t:'야키니쿠', p:'ok', d:'오키나와 소·아구 구이. 잘 익혀서. 예약 필수급.'},
+ {n:'킨치치소바', j:'金月そば 読谷', a:'mid', t:'소바', p:'ok', d:'요미탄. 자가제면 소바, 츠케소바도. 점심만.'},
+ {n:'A&W 미하마점', j:'A&W 美浜', a:'mid', t:'버거', p:'ok', d:'오키나와 드라이브인 버거. 루트비어 카페인 없음. 아메리칸 빌리지.'},
+ {n:'킹타코스 킨 본점', j:'キングタコス 金武本店', a:'mid', t:'타코라이스', p:'ok', d:'타코라이스 발상지. 양 많음. 킨초(북쪽으로 조금).'},
+ {n:'트랜짓 카페', j:'Transit Cafe 北谷', a:'mid', t:'카페·식사', p:'ok', d:'미야기 해안 뷰 카페. 파스타·피자.'},
+ {n:'얏빠리 스테이크 아메리칸빌리지점', j:'やっぱりステーキ 美浜', a:'mid', t:'스테이크', p:'ok', d:'아메리칸 빌리지 안. 국제거리점과 같은 체인.'},
+ {n:'하나우이 소바', j:'花織そば 読谷', a:'mid', t:'소바', p:'ok', d:'요미탄. 야채소바가 인기.'},
+ {n:'오키나와 소바 · 이시구후 온나점', j:'いしぐふー 恩納', a:'mid', t:'소바', p:'ok', d:'소키·아부라미소 소바 체인(본점 나하). 아침 소바도.'},
+ {n:'블루실 마키미나토 본점', j:'ブルーシール 牧港本店', a:'mid', t:'디저트', p:'ok', d:'우라소에 본점. 드라이브인. 살균 유제품.'},
+ {n:'이온몰 오키나와 라이카무 푸드코트', j:'イオンモール沖縄ライカム', a:'mid', t:'푸드코트', p:'ok', d:'통째로 실내. 대기 없음. 한낮 피난처.'},
+ // ── 북부 ──
+ {n:'기시모토 식당 본점', j:'きしもと食堂 本店', a:'north', t:'소바', p:'ok', d:'1905년 모토부 원조 소바. 줄 김, 야치문 거리 분점(八重岳店) 있음.'},
+ {n:'야마하라 소바', j:'山原そば', a:'north', t:'소바', p:'ok', d:'모토부 산쪽. 소키·삼겹 소바, 재료 소진 시 마감. 점심 일찍.'},
+ {n:'미야자토소바', j:'宮里そば', a:'north', t:'소바', p:'ok', d:'나고 현지인 소바. 저렴·양 많음.'},
+ {n:'카진호우 (피자)', j:'花人逢', a:'north', t:'피자·카페', p:'ok', d:'모토부 산 위 전망 피자집. 대기 김, 오후 일찍. 계단 있음.'},
+ {n:'카페 코쿠', j:'カフェこくう', a:'north', t:'카페·식사', p:'ok', d:'모토부 언덕 위 채소 정식. 조용함.'},
+ {n:'오리온 해피파크', j:'オリオンハッピーパーク', a:'north', t:'견학·식사', p:'care', d:'나고 맥주공장. 임산부는 무알코올·소프트드링크. 식당 있음.'},
+ {n:'카진호우 옆 · 야치문 킷사 시사엔', j:'やちむん喫茶 シーサー園', a:'north', t:'카페', p:'ok', d:'모토부 산속 히라야치(오키나와 팬케이크) 카페. 계단 있음.'},
+ {n:'코우리 섬 · L LOTA', j:'L LOTA 古宇利島', a:'north', t:'카페', p:'ok', d:'코우리 대교 옆 언덕 카페. 파스타·주스.'},
+ {n:'코우리 오션타워 카페', j:'古宇利オーシャンタワー', a:'north', t:'카페', p:'ok', d:'전망대 카페. 카트로 올라감(계단 생략 가능).'},
+ {n:'모토부 우시 야키니쿠', j:'焼肉もとぶ牧場 もとぶ店', a:'north', t:'야키니쿠', p:'ok', d:'모토부 소 직영 야키니쿠. 잘 익혀서.'},
+ {n:'나고 · 얏빠리 스테이크', j:'やっぱりステーキ 名護', a:'north', t:'스테이크', p:'ok', d:'체인. 북부에서 저녁 대안.'},
+ {n:'파인애플 파크 카페', j:'ナゴパイナップルパーク', a:'north', t:'디저트', p:'ok', d:'파인애플 디저트·주스. 카트 관람.'},
+];
+const AREAS=[['all','전체'],['naha','나하'],['south','남부'],['mid','중부'],['north','북부']];
+const TYPES=['전체','소바','스테이크','야키니쿠','아구돼지','오키나와 가정식','타코라이스','카페','디저트','아침·간식','튀김','해산물','버거','피자·카페','푸드코트'];
+const PLBL={ok:'무난',care:'주의',no:'비추'};
+let area='all',type='전체',q='';
+const gm=x=>`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent('沖縄 '+(x.j||x.n))}`;
+const nav=x=>`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent('沖縄 '+(x.j||x.n))}&travelmode=driving`;
+function render(){
+  document.getElementById('areas').innerHTML=AREAS.map(([k,l])=>`<button class="chip" data-area="${k}" aria-pressed="${area===k}">${l} ${k==='all'?R.length:R.filter(x=>x.a===k).length}</button>`).join('');
+  document.getElementById('types').innerHTML=TYPES.map(t=>`<button class="chip" data-type="${t}" aria-pressed="${type===t}">${t}</button>`).join('');
+  const qq=q.trim().toLowerCase();
+  const rows=R.filter(x=>(area==='all'||x.a===area)&&(type==='전체'||x.t.includes(type)||x.t===type)&&(!qq||(x.n+x.j+x.t+x.d).toLowerCase().includes(qq)));
+  document.getElementById('info').textContent=`${rows.length}곳 · 평점은 구글 지도 버튼으로 확인 · 임산부 표시: 무난 ${rows.filter(x=>x.p==='ok').length} / 주의 ${rows.filter(x=>x.p==='care').length}`;
+  const byArea={};rows.forEach(x=>(byArea[x.a]=byArea[x.a]||[]).push(x));
+  document.getElementById('list').innerHTML=AREAS.filter(([k])=>byArea[k]).map(([k,l])=>`<div class="area">${l} <small style="color:var(--tx3);font-size:12px">${byArea[k].length}곳</small></div>
+    <div class="list">${byArea[k].map(x=>`<div class="r"><h3>${x.n} <small>${x.j}</small><span class="k">${x.t}</span><span class="k ${x.p}">${PLBL[x.p]}</span></h3>
+      <p>${x.d}</p>${x.p!=='ok'?`<div class="preg">🤰 ${x.p==='care'?'생것·날것 메뉴가 섞여 있습니다. 익힌 것으로 고르세요.':'임산부에겐 권하지 않습니다.'}</div>`:''}
+      <div class="links"><a class="g" href="${gm(x)}" target="_blank" rel="noopener">구글 지도 · 평점 확인</a><a href="${nav(x)}" target="_blank" rel="noopener">길찾기</a></div></div>`).join('')}</div>`).join('');
+}
+document.addEventListener('click',e=>{const a=e.target.closest('[data-area]');if(a){area=a.dataset.area;render();return;}const t=e.target.closest('[data-type]');if(t){type=t.dataset.type;render();}});
+document.getElementById('q').addEventListener('input',e=>{q=e.target.value;render();});
+render();
+</script>
+</body>
+</html>

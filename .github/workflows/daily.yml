@@ -271,7 +271,7 @@ jobs:
           mkdir -p public
           cp web/index.html web/app.css web/app.js public/
           cp web/travel-state.js web/compare.js public/
-          cp web/brief-2026-10.json web/brief-2026-10.pdf web/okinawa-2026-10.html web/okinawa-2026-10-show.html public/   # 여행 브리핑 자료 + PDF + 오키나와 일정 (사람이 쓴 참고)
+          cp web/brief-2026-10.json web/brief-2026-10.pdf web/okinawa-2026-10.html web/okinawa-2026-10-show.html web/okinawa-2026-10-food.html public/   # 여행 브리핑 자료 + PDF + 오키나와 일정 (사람이 쓴 참고)
           BUILD="${GITHUB_SHA::7}"
           sed -i "s|href=\"app.css\"|href=\"app.css?v=${BUILD}\"|" public/index.html
           sed -i "s|src=\"app.js\"|src=\"app.js?v=${BUILD}\"|"   public/index.html

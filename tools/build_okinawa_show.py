@@ -149,6 +149,42 @@ document.getElementById('next').addEventListener('click',ev=>{ev.stopPropagation
 let sx=null;document.addEventListener('touchstart',e=>{sx=e.touches[0].clientX});
 document.addEventListener('touchend',e=>{if(sx==null)return;const dx=e.changedTouches[0].clientX-sx;sx=null;if(Math.abs(dx)>50)show(dx<0?i+1:i-1);});
 document.addEventListener('keydown',e=>{if(e.key==='ArrowRight')show(i+1);else if(e.key==='ArrowLeft')show(i-1);else if(e.key===' '){e.preventDefault();setPlay(!playing);}});
+/* ── 배경음 ─────────────────────────────────────────────
+   저작권 있는 음원을 넣지 않는다. 류큐 음계(도·미·파·솔·시)로 산신 비슷한
+   튕김음을 브라우저가 즉석에서 만든다 — 파일 크기 0, 어디서나 재생.
+   브라우저는 사용자가 한 번 터치하기 전엔 소리를 못 내게 막으므로,
+   첫 터치에서 켠다. 켜고 끈 선택은 이 기기에 저장한다. */
+const BGM_KEY='okinawa-2026-10.bgm';let ac=null,bgmOn=false,bgmTimer=null,master=null;
+try{bgmOn=localStorage.getItem(BGM_KEY)!=='off';}catch(e){}
+const bgmBtn=document.getElementById('bgm');
+function bgmLabel(){bgmBtn.textContent=(ac&&bgmOn)?'🔊 음악':'🔇 음악';}
+const SCALE=[0,4,5,7,11];  // 류큐 음계 (반음 단위)
+function pluck(t,freq,gain){const o=ac.createOscillator(),o2=ac.createOscillator(),g=ac.createGain(),f=ac.createBiquadFilter();
+ o.type='triangle';o2.type='sine';o.frequency.value=freq;o2.frequency.value=freq*2.01;
+ f.type='lowpass';f.frequency.setValueAtTime(2600,t);f.frequency.exponentialRampToValueAtTime(700,t+0.9);
+ g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(gain,t+0.012);g.gain.exponentialRampToValueAtTime(0.0001,t+1.6);
+ o.connect(f);o2.connect(f);f.connect(g);g.connect(master);o.start(t);o2.start(t);o.stop(t+1.7);o2.stop(t+1.7);}
+function phrase(){if(!ac||!bgmOn)return;const t0=ac.currentTime+0.05,base=220;let t=t0;const n=6+Math.floor(Math.random()*5);
+ for(let i=0;i<n;i++){const deg=SCALE[Math.floor(Math.random()*SCALE.length)],oct=Math.random()<0.25?12:0;
+  pluck(t,base*Math.pow(2,(deg+oct)/12),0.16+Math.random()*0.06);
+  if(Math.random()<0.35)pluck(t+0.02,base*Math.pow(2,(deg-12)/12),0.08);   // 낮은 줄 같이 튕김
+  t+=0.42+Math.random()*0.5;}
+ bgmTimer=setTimeout(phrase,(t-t0)*1000+900+Math.random()*1500);}
+function bgmStart(){if(!bgmOn)return;if(!ac){const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;ac=new AC();
+  master=ac.createGain();master.gain.value=0.22;
+  const d=ac.createDelay(1.0);d.delayTime.value=0.38;const fb=ac.createGain();fb.gain.value=0.32;const wet=ac.createGain();wet.gain.value=0.35;
+  master.connect(ac.destination);master.connect(d);d.connect(fb);fb.connect(d);d.connect(wet);wet.connect(ac.destination);}
+ if(ac.state==='suspended')ac.resume();clearTimeout(bgmTimer);phrase();bgmLabel();}
+function bgmStop(){clearTimeout(bgmTimer);if(ac&&ac.state==='running')ac.suspend();bgmLabel();}
+bgmBtn.addEventListener('click',ev=>{ev.stopPropagation();bgmOn=!bgmOn;try{localStorage.setItem(BGM_KEY,bgmOn?'on':'off');}catch(e){}
+ if(bgmOn)bgmStart();else bgmStop();});
+// 첫 터치/클릭/키 입력에서 켠다 (브라우저 자동재생 정책)
+const arm=()=>{bgmStart();document.removeEventListener('pointerdown',arm,true);document.removeEventListener('keydown',arm,true);};
+document.addEventListener('pointerdown',arm,true);document.addEventListener('keydown',arm,true);
+document.addEventListener('visibilitychange',()=>{if(document.hidden)bgmStop();else if(bgmOn&&ac)bgmStart();});
+bgmLabel();
+if(bgmOn){hint.textContent='🔊 화면을 한 번 터치하면 배경음이 켜집니다';hint.classList.add('on');setTimeout(()=>hint.classList.remove('on'),2500);}
+
 // 전체화면 — 테슬라·PC 브라우저용. 못 하는 브라우저(iOS 사파리)면 버튼을 숨긴다.
 const fs=document.getElementById('fs');
 if(!document.documentElement.requestFullscreen) fs.style.display='none';
@@ -162,7 +198,7 @@ doc = f"""<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8">
 <div id="bar"><i></i></div>
 <div id="stage">{''.join(sl_html)}</div>
 <div id="hint"></div>
-<div id="ctl"><button id="prev">‹ 이전</button><span class="n"><span id="num"></span> · 7초마다 넘어감 · 화면 탭 = 멈춤/재생</span><button id="next">다음 ›</button><button id="play">⏸ 멈춤</button><button id="fs" title="전체화면">⛶</button></div>
+<div id="ctl"><button id="prev">‹ 이전</button><span class="n"><span id="num"></span> · 7초마다 넘어감 · 화면 탭 = 멈춤/재생</span><button id="next">다음 ›</button><button id="play">⏸ 멈춤</button><button id="bgm" title="배경음">🔇 음악</button><button id="fs" title="전체화면">⛶</button></div>
 <script>{js}</script></body></html>"""
 open(OUT, "w", encoding="utf-8").write(doc)
 print("out", OUT, os.path.getsize(OUT) // 1024, "KB · 슬라이드", len(sl_html), "· 사진", len(credits))
