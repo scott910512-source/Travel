@@ -97,6 +97,7 @@ jobs:
           node tests/ui_logic.mjs
           node tests/worker_ux.mjs
           node tests/dom_ux.mjs
+          node tests/trip_dates.mjs
 
       - name: 데이터 스키마 검증
         run: |

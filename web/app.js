@@ -1342,11 +1342,17 @@ const TRIP_STAYS = [
     con: ['짐을 한 번 더 싸야 함 — 일정은 3박 한 곳을 전제로 함'] },
 ];
 function tripDep() { return TRIP.deps.indexOf(S.tripDep) !== -1 ? S.tripDep : TRIP.deps[0]; }
-function addDays(d, n) { const t = new Date(d + 'T00:00:00'); t.setDate(t.getDate() + n); return t.toISOString().slice(0, 10); }
+/* ★ toISOString 은 UTC 로 바꾼다. 한국 시간대 폰에서는 하루를 더해도 같은 날짜가
+   돌아와 leaveDays 가 끝나지 않았다(탭이 얼어 '클릭이 안 되는' 것처럼 보였다).
+   로컬 날짜 부품으로 조립한다. */
+function addDays(d, n) {
+  const t = new Date(d + 'T00:00:00'); t.setDate(t.getDate() + n);
+  return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+}
 function leaveDays(d0, d1) {
   const hol = (S.data && S.data.holidays) || {};
-  let n = 0;
-  for (let d = d0; d <= d1; d = addDays(d, 1)) {
+  let n = 0, guard = 0;
+  for (let d = d0; d <= d1 && guard++ < 60; d = addDays(d, 1)) {   // guard: 어떤 경우에도 화면을 얼리지 않는다
     const w = new Date(d + 'T00:00:00').getDay();
     if (w !== 0 && w !== 6 && !hol[d]) n++;
   }
