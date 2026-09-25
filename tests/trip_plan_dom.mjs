@@ -46,7 +46,7 @@ await test('기존 저장 일정·방문 완료를 보존한 채 새 화면 진�
   assert(d.querySelectorAll('#stage .node').length === 6, '2일차 스텝 6개가 맵에');
   assert(d.querySelector('#stage .node.done'), '방문 완료 표시 보존');
   assert(txt(d.querySelector('#hdsub')).includes('10/4(일) 출발'), '출발일은 저장값');
-  assert([...d.querySelectorAll('#stage .node')].some(n => n.getAttribute('aria-label').includes('슈리소바')), '저장된 식당 선택 보존');
+  assert([...d.querySelectorAll('#stage .node')].some(n => n.querySelector('.landmark-hit').getAttribute('aria-label').includes('슈리소바')), '저장된 식당 선택 보존');
 });
 await test('2일차 재생 → 캐릭터 이동 → 도착 (걷기 동작 · 말풍선 · 방문 완료로 기록되지 않음)', async () => {
   const { d, w } = await boot(PLAN, { hash: '#d2' });
@@ -84,7 +84,7 @@ await test('점심 식당 변경(상세 → 선택 시트) → 일정표·맵 �
   assert(txt(d.querySelector('#pbody')).includes('현재 선택 (필터와 무관)'), '필터에 걸려도 현재 선택은 보인다');
   const opt = [...d.querySelectorAll('.opt')].find(o => txt(o).includes('슈리소바') && !txt(o).includes('현재 선택')); opt.querySelector('[data-choose]').click();
   assert(!d.querySelector('#sheet').hidden && txt(d.querySelector('#sheet .hd')).includes('슈리소바'), '상세로 돌아옴');
-  assert([...d.querySelectorAll('#stage .node')].some(n => n.getAttribute('aria-label').includes('슈리소바')), '맵 노드 갱신');
+  assert([...d.querySelectorAll('#stage .node')].some(n => n.querySelector('.landmark-hit').getAttribute('aria-label').includes('슈리소바')), '맵 노드 갱신');
   d.querySelector('#sheet [data-close]').click();
   d.querySelector('[data-view="list"]').click();
   assert(names(d).some(n => n.includes('슈리소바')));
@@ -182,7 +182,7 @@ await test('새 추천 일정은 체험·북부·출국 선택을 제공하고 �
  const {d,w}=await boot(PLAN,{hash:'#d3',fresh:true});
  assert(txt(d.querySelector('#stage')).includes('시사'));
  assert(txt(d.querySelector('#unknown-places')).includes('호텔'));
- assert(![...d.querySelectorAll('#stage .node')].some(n=>n.getAttribute('aria-label').includes('호텔')));
+ assert(![...d.querySelectorAll('#stage .node')].some(n=>n.querySelector('.landmark-hit').getAttribute('aria-label').includes('호텔')));
  d.querySelector('[data-day="4"]').click();
  d.querySelector('[data-lastday="kokusai"]').click();
  let p=JSON.parse(w.localStorage.getItem('trip.plan'));
@@ -204,7 +204,7 @@ await test('새 추천 코스 적용은 명시적이고 실행 취소하면 저�
 await test('숙소 설정·재방문은 한 랜드마크를 공유하며 저장·재로드된다',async()=>{
  const b=await boot(PLAN,{hash:'#d3',fresh:true});const {d}=b;
  d.querySelector('[data-hotel-name]').value='내 숙소';d.querySelector('[data-hotel-lat]').value='26.49';d.querySelector('[data-hotel-lon]').value='127.85';d.querySelector('[data-hotel-save]').click();
- const hotels=[...d.querySelectorAll('#stage .node')].filter(n=>n.getAttribute('aria-label').includes('내 숙소'));
+ const hotels=[...d.querySelectorAll('#stage .node')].filter(n=>n.querySelector('.landmark-hit').getAttribute('aria-label').includes('내 숙소'));
  assert.equal(hotels.length,1);assert(txt(hotels[0].querySelector('.visit-number')).includes('1 · 3 · 4 · 7'));
  const re=await boot(PLAN,{hash:'#d3',storage:b.dump(),fresh:true});assert.equal(re.d.querySelector('[data-hotel-name]').value,'내 숙소');
 });
@@ -212,7 +212,7 @@ await test('지리 좌표·이동선·캐릭터가 동일한 투영을 사용하
  const {d,w}=await boot(PLAN,{hash:'#d2',fresh:true});
  d.querySelector('[data-next]').click(); // aquarium; next destination is located restaurant
  const nodes=[...d.querySelectorAll('#stage .node')];
- const aquarium=nodes.find(n=>n.getAttribute('aria-label').includes('츄라우미'));const kouri=nodes.find(n=>n.getAttribute('aria-label').includes('코우리'));
+ const aquarium=nodes.find(n=>n.querySelector('.landmark-hit').getAttribute('aria-label').includes('츄라우미'));const kouri=nodes.find(n=>n.querySelector('.landmark-hit').getAttribute('aria-label').includes('코우리'));
  assert(+aquarium.querySelector('.anchor').getAttribute('cx')<+kouri.querySelector('.anchor').getAttribute('cx'),'Kouri east of aquarium');
  d.querySelector('[data-play]').click();await wait(180);d.querySelector('[data-play]').click();
  const p=d.querySelector('#stage .car').getAttribute('transform');await wait(80);assert.equal(d.querySelector('#stage .car').getAttribute('transform'),p);
