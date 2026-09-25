@@ -52,6 +52,7 @@ r = subprocess.run(["bash", "-c", script], cwd=tmp, capture_output=True, text=Tr
 chk(r.returncode == 0, "sed 스크립트가 돈다 (%s)" % (r.stderr.strip()[:120] or "ok"))
 food_out = open(os.path.join(tmp, "okinawa-2026-10-food.html"), encoding="utf-8").read()
 chk('<meta name="maps-key" content="AIzaTESTKEY">' in food_out, "Secret 이 있으면 식당 리스트에 지도 키가 들어간다")
+chk(food_out.count("AIzaTESTKEY") == 1, "주입된 키는 meta 한 곳에만 들어간다")
 open(os.path.join(tmp, "okinawa-2026-10-food.html"), "w", encoding="utf-8").write(food_src)
 r2 = subprocess.run(["bash", "-c", script], cwd=tmp, capture_output=True, text=True,
                     env={k: v for k, v in os.environ.items() if k != "MAPS_BROWSER_KEY"})
@@ -89,6 +90,6 @@ sys.exit(1 if fail else 0)
 
 # ── 구글 브라우저 키는 레포에 없고 배포 때만 끼운다 ──
 food = open(os.path.join(ROOT, "web/okinawa-2026-10-food.html"), encoding="utf-8").read()
-chk('content="__MAPS_KEY__"' in food, "식당 리스트 소스에는 지도 키 자리표시자만 있다")
+chk(food.count("__MAPS_KEY__") == 1, "지도 키 자리표시자는 meta 한 곳에만 있다 (JS 에 있으면 sed 가 같이 바꿔 버린다)")
 chk("AIza" not in food, "식당 리스트 소스에 실제 키가 없다")
 chk("MAPS_BROWSER_KEY" in wf and "__MAPS_KEY__" in wf, "워크플로가 Secret 으로 지도 키를 주입한다")

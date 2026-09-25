@@ -176,7 +176,7 @@ async function genrich(key){
 (document.getElementById('gclear')||document.createElement('b')).addEventListener('click',()=>{try{localStorage.removeItem(GK);localStorage.removeItem(GC);}catch(e){}G={};document.getElementById('gkey').value='';gstatus('키와 캐시를 지웠습니다.');document.getElementById('gnote').style.display='';render();});
 /* 관리자 키: 배포 시 meta 에 주입된다. 있으면 아무 기기에서나 바로 불러온다.
    개인 키를 넣어 두었으면 그것을 우선한다. */
-const ADMIN_KEY=(()=>{const m=document.querySelector('meta[name="maps-key"]');const v=m&&m.getAttribute('content')||'';return (v&&v!=='__MAPS_KEY__')?v:'';})();
+const ADMIN_KEY=(()=>{const m=document.querySelector('meta[name="maps-key"]');const v=m&&m.getAttribute('content')||'';return (v&&!v.startsWith('__'))?v:'';  /* 자리표시자(__…__)는 없는 것으로 */})();
 (function(){let k=null;try{k=localStorage.getItem(GK);}catch(e){}
   if(!k&&ADMIN_KEY){k=ADMIN_KEY;
     const panel=document.getElementById('gpanel');panel.innerHTML='<b style="display:block">구글 평점·리뷰 사진 — 관리자 키로 자동 연결됨</b><p style="margin:4px 0 0;font-size:12.5px;color:var(--tx2)">리뷰 10개 미만 · 평점 4.3 미만은 자동으로 숨깁니다. 결과는 이 기기에 24시간 캐시됩니다.</p><p id="gstat" style="margin:6px 0 0;font-size:12.5px;color:var(--tx2)"></p>';}
