@@ -20,6 +20,7 @@ header h1{margin:0;font-size:22px;letter-spacing:-.03em}header p{margin:6px 0 0;
 .note b{display:block;margin-bottom:3px}
 .filters{position:sticky;top:0;z-index:10;background:var(--bg);padding:10px 0 8px;border-bottom:1px solid var(--line)}
 .row{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:4px}.row::-webkit-scrollbar{display:none}
+.frow{display:flex;align-items:flex-start;gap:8px;margin-top:6px}.fl{flex:0 0 30px;font-size:12px;font-weight:800;color:var(--tx3);padding-top:11px}.frow .row{flex:1;min-width:0}
 .chip{flex:0 0 auto;min-height:40px;padding:8px 13px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:var(--tx2);font:inherit;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap}
 .chip[aria-pressed="true"]{background:var(--pri);border-color:var(--pri);color:#fff}
 input.q{width:100%;min-height:44px;border:1px solid var(--line);border-radius:12px;padding:0 14px;font:inherit;font-size:15px;margin-bottom:8px;background:var(--card)}
@@ -63,8 +64,9 @@ footer{color:var(--tx3);font-size:11.5px;text-align:center;padding:20px 0 0;line
     아래 목록은 평판이 좋은 곳을 제 지식 범위에서 모은 <b>후보</b>이고, 평점·리뷰 수·사진은 위 패널로 구글을 연결해야 채워집니다. 연결 전에는 각 항목의 <b>구글 지도</b> 버튼으로 확인하세요. 오키나와는 폐업·이전이 잦습니다.</div>
   <div class="filters">
     <input class="q" id="q" type="search" placeholder="이름·메뉴로 찾기 (예: 소바, 스테이크, 카페)" autocomplete="off">
-    <div class="row" id="areas"></div>
-    <div class="row" id="types" style="margin-top:6px"></div>
+    <div class="frow"><span class="fl">지역</span><div class="row" id="areas"></div></div>
+    <div class="frow"><span class="fl">메뉴</span><div class="row" id="types"></div></div>
+    <div class="frow"><span class="fl">정렬</span><div class="row" id="sorts"></div></div>
   </div>
   <p class="info" id="info"></p>
   <div id="list"></div>
@@ -132,7 +134,8 @@ const R = [
 const AREAS=[['all','전체'],['naha','나하'],['south','남부'],['mid','중부'],['north','북부']];
 const TYPES=['전체','소바','스테이크','야키니쿠','아구돼지','오키나와 가정식','타코라이스','카페','디저트','아침·간식','튀김','해산물','버거','피자·카페','푸드코트'];
 const PLBL={ok:'무난',care:'주의',no:'비추'};
-let area='all',type='전체',q='';
+const SORTS=[['rec','추천순'],['rating','별점순'],['reviews','리뷰 많은 순']];
+let area='all',type='전체',q='',sort='rec'; try{sort=localStorage.getItem('okinawa-food.sort')||'rec';}catch(e){}
 /* ── 구글 평점 · 리뷰 사진 ───────────────────────────────
    원칙: 한 번 조회해서 저장하고, 다시 조회는 사람이 눌렀을 때만 한다. 자동 조회는 없다.
    출처 둘 중 더 최근 것을 쓴다.
@@ -216,13 +219,25 @@ function render(){
   const base=R.filter(x=>(area==='all'||x.a===area)&&(type==='전체'||x.t.includes(type)||x.t===type)&&(!qq||(x.n+x.j+x.t+x.d).toLowerCase().includes(qq)));
   const rows=base.filter(passes); const hidden=base.length-rows.length; const linked=Object.keys(G).length>0;
   document.getElementById('info').textContent=`${rows.length}곳${hidden?` · 기준 미달 ${hidden}곳 숨김`:''} · ${linked?'구글 평점·리뷰 수 반영':'평점은 구글 연결 후 표시'} · 임산부: 무난 ${rows.filter(x=>x.p==='ok').length} / 주의 ${rows.filter(x=>x.p==='care').length}`;
-  const byArea={};rows.forEach(x=>(byArea[x.a]=byArea[x.a]||[]).push(x));
-  document.getElementById('list').innerHTML=AREAS.filter(([k])=>byArea[k]).map(([k,l])=>`<div class="area">${l} <small style="color:var(--tx3);font-size:12px">${byArea[k].length}곳</small></div>
-    <div class="list">${byArea[k].map(x=>`<div class="r"><h3>${x.n} <small>${x.j}</small><span class="k">${x.t}</span><span class="k ${x.p}">${PLBL[x.p]}</span></h3>
+  document.getElementById('sorts').innerHTML=SORTS.map(([k,l])=>`<button class="chip" data-sort="${k}" aria-pressed="${sort===k}">${l}</button>`).join('');
+  const AL=Object.fromEntries(AREAS);
+  const card=x=>`<div class="r"><h3>${x.n} <small>${x.j}</small><span class="k">${x.t}</span><span class="k ${x.p}">${PLBL[x.p]}</span>${sort!=='rec'?`<span class="k">${AL[x.a]||x.a}</span>`:''}</h3>
       ${gd(x)}<p>${x.d}</p>${x.p!=='ok'?`<div class="preg">🤰 ${x.p==='care'?'생것·날것 메뉴가 섞여 있습니다. 익힌 것으로 고르세요.':'임산부에겐 권하지 않습니다.'}</div>`:''}
-      <div class="links"><a class="g" href="${gm(x)}" target="_blank" rel="noopener">구글 지도 · 평점 확인</a><a href="${nav(x)}" target="_blank" rel="noopener">길찾기</a></div></div>`).join('')}</div>`).join('');
+      <div class="links"><a class="g" href="${gm(x)}" target="_blank" rel="noopener">구글 지도 · 평점 확인</a><a href="${nav(x)}" target="_blank" rel="noopener">길찾기</a></div></div>`;
+  if(sort==='rec'){
+    const byArea={};rows.forEach(x=>(byArea[x.a]=byArea[x.a]||[]).push(x));
+    document.getElementById('list').innerHTML=AREAS.filter(([k])=>byArea[k]).map(([k,l])=>`<div class="area">${l} <small style="color:var(--tx3);font-size:12px">${byArea[k].length}곳</small></div>
+      <div class="list">${byArea[k].map(card).join('')}</div>`).join('');
+  }else{
+    /* 별점·리뷰 순: 지역 묶음을 풀고 한 줄로. 구글 값이 없는 곳은 맨 뒤(순서 유지). */
+    const v=x=>{const g=gget(x);return g&&!g.err?(sort==='rating'?[g.rating||0,g.total||0]:[g.total||0,g.rating||0]):null;};
+    const sorted=rows.map((x,i)=>({x,i,v:v(x)})).sort((a,b)=>{if(!a.v&&!b.v)return a.i-b.i;if(!a.v)return 1;if(!b.v)return -1;return (b.v[0]-a.v[0])||(b.v[1]-a.v[1])||(a.i-b.i);});
+    const n=sorted.filter(s=>s.v).length;
+    document.getElementById('list').innerHTML=`<div class="area">${sort==='rating'?'별점 높은 순':'리뷰 많은 순'} <small style="color:var(--tx3);font-size:12px">${n}곳${n<sorted.length?` · 구글 값 없는 ${sorted.length-n}곳은 뒤에`:''}</small></div>
+      <div class="list">${sorted.map(s=>card(s.x)).join('')}</div>`;
+  }
 }
-document.addEventListener('click',e=>{const a=e.target.closest('[data-area]');if(a){area=a.dataset.area;render();return;}const t=e.target.closest('[data-type]');if(t){type=t.dataset.type;render();}});
+document.addEventListener('click',e=>{const a=e.target.closest('[data-area]');if(a){area=a.dataset.area;render();return;}const t=e.target.closest('[data-type]');if(t){type=t.dataset.type;render();return;}const so=e.target.closest('[data-sort]');if(so){sort=so.dataset.sort;try{localStorage.setItem('okinawa-food.sort',sort);}catch(e){}render();}});
 document.getElementById('q').addEventListener('input',e=>{q=e.target.value;render();});
 render();
 </script>
