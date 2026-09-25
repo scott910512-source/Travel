@@ -19,6 +19,7 @@ const S = {
   settings: null,
   tab: 'home',         // home | find | swiss | more
   view: null,          // 탭 위에 얹히는 화면 (analysis | settings | error | weekend | seed)
+  tripDep: (() => { try { return localStorage.getItem('trip.dep'); } catch (_) { return null; } })(),  // 10월 여행 출발일 후보
   detail: null,        // 열려 있는 상세 offer
   compared: [],
   range: 30,           // 그래프 구간(일)
@@ -1210,7 +1211,7 @@ function photoHTML(ph, alt) {
     <figcaption>${esc(ph.credit || '')}${ph.license ? ` · ${esc(ph.license)}` : ''} · Wikimedia Commons</figcaption></figure>`;
 }
 
-function viewTrip() {
+function viewTripAll() {
   if (!BRIEF && !BRIEF_ERR) {
     loadBrief();
     return `${plainHeader('10월 여행 브리핑', '불러오는 중…')}<div class="wrap"><div class="boot">브리핑 자료를 불러오는 중…</div></div>`;
@@ -1272,7 +1273,7 @@ function viewTrip() {
       ${byArr[d.arr] ? `<div class="frow"><button class="fchip" data-open="${esc(byArr[d.arr][0].id)}">가장 싼 편 보기 · ${won(effective(byArr[d.arr][0]))}원</button></div>` : ''}
     </article>`).join('')}`);
 
-  return `${plainHeader(b.title, '항공편은 실시간 · 여행지 설명은 참고 자료')}
+  return `${plainHeader('다른 목적지 비교 · PDF', '항공편은 실시간 · 여행지 설명은 참고 자료', true)}
   <div class="wrap trip">
     <a class="btn-go pdf" href="brief-2026-10.pdf" target="_blank" rel="noopener"
       >📄 브리핑 PDF 열기 · 저장 (여행지·음식·유의점, 항공편 제외)</a>
@@ -1280,6 +1281,218 @@ function viewTrip() {
     <p class="live-note" style="margin-top:12px">${esc(b.note)}</p>
     ${s1}${s2}${s3}
     <p class="live-note">${esc(b.block_note)} 사진: Wikimedia Commons, 각 사진 아래 저작자·라이선스 표기.</p>
+    ${footerHTML()}
+  </div>`;
+}
+
+
+/* ── 10월 여행: 컨셉이 정해진 뒤의 큰 메뉴 ──────────────────
+   컨셉은 고정이다: 청주 출발 · 오키나와 · 10/3~5 출발 · 3박 4일 · 렌터카 · 임산부.
+   허브(viewTrip)는 메뉴만 보여 주고, 항공편·숙소·준비물은 각각 한 화면이다.
+   일정·지도 / 사진 브리핑 / 식당 리스트는 별도 페이지라 링크로 연다.
+   예전의 목적지 비교 화면은 '다른 목적지 비교' 로 남겨 둔다. */
+const TRIP = {
+  dep: 'CJJ', arr: 'OKA', city: '오키나와', nights: 3, block: 150,
+  deps: ['2026-10-03', '2026-10-04', '2026-10-05'],
+  plan: 'okinawa-2026-10.html', show: 'okinawa-2026-10-show.html', food: 'okinawa-2026-10-food.html',
+};
+/* 숙소 후보. 요금은 예약 사이트를 이 환경에서 못 열어 *대략값(2인 1박, 성수기 끝자락)* 이다.
+   화면에도 그렇게 적고, 실제 값은 링크에서 보게 한다. 일정(okinawa-2026-10.html)이
+   온나 서해안 한 곳 3박을 전제로 짜여 있어 온나 리조트를 위에 둔다. */
+const TRIP_STAYS = [
+  { n: 'ANA 인터컨티넨탈 만자 비치 리조트', q: 'ANA InterContinental Manza Beach Resort', area: '온나 북부 · 만자모 옆',
+    tier: '추천 1순위', band: '35~55만', hosp: '북부지구의료센터(나고) 차 30분',
+    pro: ['일정의 중심. 만자모 3분, 츄라우미·나고 40분, 공항 1시간 10분', '잔잔한 만 안쪽 해변이라 산책이 편하고 파도가 약함', '단지 안에 식당 여러 곳 — 저녁에 운전 안 해도 됨', '엘리베이터·평지 동선, 조식 뷔페(익힌 음식 고르기 쉬움)'],
+    con: ['단지가 커서 로비→객실이 멀 수 있음 — 예약 메모에 "본관 가까운 방·저층" 요청', '가격대가 높음'] },
+  { n: '하얏트 리젠시 세라가키 아일랜드', q: 'Hyatt Regency Seragaki Island Okinawa', area: '온나 북부 · 세라가키섬',
+    tier: '추천', band: '30~50만', hosp: '북부지구의료센터(나고) 차 30분',
+    pro: ['2018년 개장이라 시설이 깔끔하고 객실이 넓음', '수영장 여러 곳, 얕은 바다', '만자모·츄라우미 동선은 만자와 거의 같음'],
+    con: ['섬 안이라 밖으로 걸어 나갈 데가 없음 — 산책은 단지 안', '조식 가격이 높은 편'] },
+  { n: '할레쿨라니 오키나와', q: 'Halekulani Okinawa', area: '온나 북부',
+    tier: '최고급', band: '60만~', hosp: '북부지구의료센터(나고) 차 30분',
+    pro: ['조용하고 객실이 큼. 실내 온수 수영장 포함 수영장 5곳', '직원 응대가 세심해 임산부 요청(베개·저층·식단)이 잘 통함'],
+    con: ['가격', '단지가 넓어 이동은 카트나 셔틀'] },
+  { n: '카푸 리조트 후차쿠 콘도·호텔', q: 'Kafuu Resort Fuchaku Condo Hotel', area: '온나 남부 · 후차쿠',
+    tier: '실속 추천', band: '15~28만', hosp: '중부병원(우루마) 차 30분',
+    pro: ['콘도형 — 전자레인지·냉장고·식기가 있어 과일·간식을 방에서 손질', '객실이 넓고 해변 바로 앞. 편의점 도보', '나하 쪽으로 20분 가까워 마지막 날이 편함'],
+    con: ['리조트 느낌은 덜함(조식은 옵션)', '북부(츄라우미) 편도 1시간'] },
+  { n: '리잔 시파크 호텔 탄차 베이', q: 'Rizzan Sea-Park Hotel Tancha Bay', area: '온나 남부',
+    tier: '가성비', band: '10~20만', hosp: '중부병원(우루마) 차 30분',
+    pro: ['실내 수영장, 조식 뷔페 규모가 큼', '편의점이 바로 옆. 가격이 가장 무난'],
+    con: ['800실 대형이라 단체·아이가 많고 소음', '건물이 오래된 편 — 리뉴얼 객실로 요청'] },
+  { n: '호텔 문 비치', q: 'Hotel Moon Beach Okinawa', area: '온나 남부 · 문 비치',
+    tier: '조용함', band: '15~25만', hosp: '중부병원(우루마) 차 30분',
+    pro: ['자연 해변이 바로 앞, 나무 그늘 산책로 — 한적하게 쉬기 좋음', '가족 단위가 많고 차분함'],
+    con: ['1975년 개장 — 시설이 오래됨, 실내 수영장 없음'] },
+  { n: '셰라톤 오키나와 선마리나 리조트', q: 'Sheraton Okinawa Sunmarina Resort', area: '온나 남부',
+    tier: '중간', band: '20~35만', hosp: '중부병원(우루마) 차 30분',
+    pro: ['리뉴얼 객실, 실내 수영장', '조식 종류가 다양'],
+    con: ['단체 손님이 많은 편'] },
+  { n: '르네상스 오키나와 리조트', q: 'Renaissance Okinawa Resort', area: '요미탄',
+    tier: '대안 · 가족형', band: '25~40만', hosp: '중부병원(우루마) 차 25분',
+    pro: ['실내 수영장, 돌고래·체험 프로그램. 잔파곶·요미탄 도자기 마을 가까움'],
+    con: ['츄라우미까지 편도 1시간 10분 — 북부 일정이 길어짐'] },
+  { n: '힐튼 오키나와 차탄 리조트', q: 'Hilton Okinawa Chatan Resort', area: '차탄 · 아메리칸 빌리지',
+    tier: '대안 · 도시형', band: '20~35만', hosp: '중부병원(우루마) 차 15분',
+    pro: ['마트·약국·식당이 도보 — 저녁 산책이 편함', '병원이 가장 가까움. 실내 수영장'],
+    con: ['해변 리조트 느낌은 적음', '북부 왕복이 길어 일정을 다시 짜야 함'] },
+  { n: '하얏트 리젠시 나하', q: 'Hyatt Regency Naha Okinawa', area: '나하 · 국제거리',
+    tier: '대안 · 마지막 밤만', band: '15~25만', hosp: '나하시립병원 차 10분',
+    pro: ['공항 20분, 국제거리 도보. 귀국편이 오전이면 마지막 밤만 옮기는 방법'],
+    con: ['짐을 한 번 더 싸야 함 — 일정은 3박 한 곳을 전제로 함'] },
+];
+function tripDep() { return TRIP.deps.indexOf(S.tripDep) !== -1 ? S.tripDep : TRIP.deps[0]; }
+function addDays(d, n) { const t = new Date(d + 'T00:00:00'); t.setDate(t.getDate() + n); return t.toISOString().slice(0, 10); }
+function leaveDays(d0, d1) {
+  const hol = (S.data && S.data.holidays) || {};
+  let n = 0;
+  for (let d = d0; d <= d1; d = addDays(d, 1)) {
+    const w = new Date(d + 'T00:00:00').getDay();
+    if (w !== 0 && w !== 6 && !hol[d]) n++;
+  }
+  return n;
+}
+function tripDateChips() {
+  const cur = tripDep();
+  return `<div class="chips dchips" role="group" aria-label="출발일">${TRIP.deps.map(d => {
+    const r = addDays(d, TRIP.nights);
+    return `<button class="chip${d === cur ? ' on' : ''}" data-tripdep="${d}" aria-pressed="${d === cur}">
+      ${md(d)}(${dow(d)}) 출발<small>${md(r)}(${dow(r)}) 귀국 · 연차 ${leaveDays(d, r)}일</small></button>`;
+  }).join('')}</div>`;
+}
+function tripConceptHTML() {
+  const d = tripDep(), r = addDays(d, TRIP.nights);
+  return `<section class="concept">
+    <div class="concept-hd"><span class="bg pri">컨셉 확정</span><b>청주 → 오키나와 · 3박 4일</b></div>
+    <div class="kv"><span class="k">출발</span><span class="v">청주공항 · 직항 약 ${Math.floor(TRIP.block / 60)}시간 ${TRIP.block % 60}분</span></div>
+    <div class="kv"><span class="k">날짜</span><span class="v">${md(d)}(${dow(d)}) → ${md(r)}(${dow(r)}) · 연차 ${leaveDays(d, r)}일</span></div>
+    <div class="kv"><span class="k">이동</span><span class="v">렌터카 · 온나 서해안 한 곳 3박</span></div>
+    <div class="kv"><span class="k">기준</span><span class="v">임산부 — 걷기 적게, 익힌 음식, 병원 30분 이내</span></div>
+    ${tripDateChips()}
+  </section>`;
+}
+function tripExact() {
+  const deps = TRIP.deps;
+  return S.data.offers.filter(o => o.dep === TRIP.dep && o.arr === TRIP.arr &&
+    deps.indexOf(o.depart_date) !== -1 && o.nights === TRIP.nights && o.stops === 0 && !isExpired(o))
+    .map(o => Object.assign({}, o, { _block: o.duration_min || TRIP.block, _blockSrc: o.duration_min ? 'data' : 'table' }))
+    .sort((a, b) => effective(a) - effective(b));
+}
+function viewTrip() {
+  const exact = tripExact();
+  const row = (attr, val, title, sub, ext) => ext
+    ? `<a class="mrow" href="${esc(val)}" target="_blank" rel="noopener"><span class="mt">${title}</span><span class="ms">${esc(sub)}</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" width="16" height="16" aria-hidden="true"><path d="M7 17L17 7M9 7h8v8"/></svg></a>`
+    : `<button class="mrow" data-${attr}="${esc(val)}"><span class="mt">${title}</span><span class="ms">${esc(sub)}</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" width="16" height="16" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg></button>`;
+  return `${plainHeader('10월 여행 · 오키나와', '청주 출발 · 10/3~5 출발 · 3박 4일 · 렌터카 · 임산부')}
+  <div class="wrap trip hub">
+    ${tripConceptHTML()}
+    <section class="sec">
+      ${row('view', 'tripflights', '✈️ 항공편', exact.length ? `캐시 ${exact.length}건 · ${won(effective(exact[0]))}원~` : '캐시에 가격 없음 · 직접 검색 링크')}
+      ${row('view', 'tripstay', '🏨 숙소 추천', `온나 서해안 3박 한 곳 · 후보 ${TRIP_STAYS.length}곳`)}
+      ${row('', TRIP.plan, '🗺 상세 일정 · 지도', '렌터카 동선 · 식사 · 체크', true)}
+      ${row('', TRIP.show, '▶ 사진 브리핑 자동재생', '청주 출발 시뮬레이션 · 배경음', true)}
+      ${row('', TRIP.food, '🍜 식당 리스트', '구글 평점 4.3↑ · 리뷰 10개↑ 자동 필터', true)}
+      ${row('view', 'tripprep', '🤰 준비물 · 유의점', '임산부 체크 · 병원 · 볼거리 · 음식')}
+      ${row('view', 'tripall', '📄 다른 목적지 비교 · PDF', '후쿠오카·타이베이 등 11곳 · 브리핑 PDF')}
+    </section>
+    ${footerHTML()}
+  </div>`;
+}
+function tripSearchLinks(d) {
+  const r = addDays(d, TRIP.nights);
+  const dm = x => x.slice(8, 10) + x.slice(5, 7);
+  return ['CJJ', 'ICN'].map(o => `<a class="fchip" href="https://www.aviasales.com/search/${o}${dm(d)}OKA${dm(r)}1" target="_blank" rel="noopener">${o === 'CJJ' ? '청주' : '인천'} ${md(d)}→${md(r)} 검색</a>`).join('');
+}
+function viewTripFlights() {
+  const exact = tripExact();
+  const cur = tripDep();
+  const m = S.data.meta || {};
+  // 근처 참고: 같은 출발일 창의 오키나와행이면 출발지·박수가 달라도 보여 주되, 다른 점을 적는다.
+  const near = S.data.offers.filter(o => o.arr === TRIP.arr && !isExpired(o) &&
+    o.depart_date >= '2026-10-01' && o.depart_date <= '2026-10-08' && exact.indexOf(o) === -1 &&
+    !exact.some(e => e.id === o.id))
+    .map(o => { const tb = { CJJ: 150, ICN: 145 }[o.dep] || null; return Object.assign({}, o, { _block: o.duration_min || tb, _blockSrc: o.duration_min ? 'data' : (tb ? 'table' : null) }); })
+    .sort((a, b) => effective(a) - effective(b));
+  const diff = o => [o.dep !== TRIP.dep ? `${depCity(o.dep)} 출발` : '', o.nights !== TRIP.nights ? `${o.nights}박` : '', o.stops ? `경유 ${o.stops}회` : ''].filter(Boolean).join(' · ');
+  return `${plainHeader('항공편 · 청주 → 오키나와', `10/3~5 출발 · 3박 · 직항 · 마지막 갱신 ${m.ts || '—'}`, true)}
+  <div class="wrap trip">
+    ${tripDateChips()}
+    <section class="sec">
+      <div class="sec-hd"><div><h2>조건에 딱 맞는 편</h2><p>청주 출발 · 10/3·4·5 출발 · 3박 · 직항</p></div></div>
+      ${exact.length
+        ? `<div class="list">${exact.map(tripFlightRow).join('')}</div>`
+        : emptyBlock('지금 캐시에 청주 → 오키나와 가격이 없습니다',
+            '이 앱은 사람들이 검색한 결과의 캐시를 모읍니다. 청주–오키나와는 검색량이 적어 캐시가 잘 안 생깁니다. 아래 링크로 직접 검색하면 결과가 캐시에 남아 다음 갱신(6시간)부터 여기 들어옵니다.')}
+      <div class="frow">${tripSearchLinks(cur)}</div>
+      <p class="live-note">통상 비행시간 약 2시간 30분(시간표 기준 · 참고). 판매처 가격은 링크에서 확인.</p>
+    </section>
+    <section class="sec">
+      <div class="sec-hd"><div><h2>근처 참고</h2><p>10/1~8 출발 오키나와행 중 조건이 다른 것 — 다른 점을 적었습니다</p></div></div>
+      ${near.length
+        ? `<div class="list">${near.map(o => `<div class="near"><span class="bg warn">${esc(diff(o) || '조건 다름')}</span>${tripFlightRow(o)}</div>`).join('')}</div>`
+        : emptyBlock('근처 날짜의 오키나와행도 캐시에 없습니다', '')}
+    </section>
+    ${footerHTML()}
+  </div>`;
+}
+function stayLinks(st, ci, co) {
+  const q = encodeURIComponent(st.q);
+  return `<div class="frow">
+    <a class="fchip" href="https://www.booking.com/searchresults.ko.html?ss=${q}&checkin=${ci}&checkout=${co}&group_adults=2&no_rooms=1&group_children=0" target="_blank" rel="noopener">부킹닷컴 ${md(ci)}~${md(co)}</a>
+    <a class="fchip" href="https://www.agoda.com/ko-kr/search?textToSearch=${q}&checkIn=${ci}&los=${TRIP.nights}&rooms=1&adults=2" target="_blank" rel="noopener">아고다</a>
+    <a class="fchip" href="https://www.google.com/maps/search/?api=1&query=${q}" target="_blank" rel="noopener">구글 지도</a>
+  </div>`;
+}
+function viewTripStay() {
+  const ci = tripDep(), co = addDays(ci, TRIP.nights);
+  const sub = `${md(ci)}(${dow(ci)}) 체크인 → ${md(co)}(${dow(co)}) 체크아웃 · 2인`;
+  return `${plainHeader('숙소 추천 · 오키나와 3박', sub, true)}
+  <div class="wrap trip">
+    ${tripDateChips()}
+    <div class="note warn"><b>고르는 기준 (임산부 · 렌터카)</b>
+      <ul class="tips">
+        <li>한 곳에 3박 — 짐 싸고 푸는 일을 없앱니다. 일정표가 온나 서해안 기준으로 짜여 있습니다.</li>
+        <li>엘리베이터·평지 동선, 저층 객실 요청. 욕조가 있으면 미끄럼 방지 매트 요청.</li>
+        <li>조식 뷔페가 있으면 익힌 음식을 고르기 쉽습니다. 편의점·약국이 차로 5분 안.</li>
+        <li>병원 30분 이내. 온나는 북부지구의료센터(나고) 또는 중부병원(우루마).</li>
+        <li>실내 수영장·온수풀은 10월 초 흐린 날 대비. 온천(사우나)은 피합니다.</li>
+      </ul></div>
+    <p class="live-note">요금은 <b>2인 1박 대략값</b>입니다. 이 환경에서 예약 사이트를 열 수 없어 정확한 값은 링크에서 확인하세요. 링크에는 위 날짜가 미리 들어갑니다.</p>
+    <div class="list">${TRIP_STAYS.map((st, i) => `<article class="stay${i === 0 ? ' top' : ''}">
+      <div class="stay-hd"><div><b>${i + 1}. ${esc(st.n)}</b><small>${esc(st.area)}</small></div>
+        <span class="bg ${i < 2 || /추천/.test(st.tier) ? 'pri' : ''}">${esc(st.tier)}</span></div>
+      <div class="kv"><span class="k">대략 요금</span><span class="v">${esc(st.band)}원 / 박</span></div>
+      <div class="kv"><span class="k">병원</span><span class="v">${esc(st.hosp)}</span></div>
+      <ul class="pro">${st.pro.map(t => `<li>${esc(t)}</li>`).join('')}</ul>
+      <ul class="con">${st.con.map(t => `<li>${esc(t)}</li>`).join('')}</ul>
+      ${stayLinks(st, ci, co)}
+    </article>`).join('')}</div>
+    <p class="live-note">예약 메모에 적을 것: 임산부 · 저층 또는 엘리베이터 가까운 방 · 금연 객실 · 늦은 체크인 가능 여부.</p>
+    ${footerHTML()}
+  </div>`;
+}
+function viewTripPrep() {
+  if (!BRIEF && !BRIEF_ERR) { loadBrief(); return `${plainHeader('준비물 · 유의점', '불러오는 중…', true)}<div class="wrap"><div class="boot">브리핑 자료를 불러오는 중…</div></div>`; }
+  const b = BRIEF, d = b && (b.destinations || []).find(x => x.arr === TRIP.arr);
+  return `${plainHeader('준비물 · 유의점', '임산부 · 오키나와 · 렌터카', true)}
+  <div class="wrap trip">
+    ${b ? `<div class="note warn"><b>임산부 공통 체크</b><p>${esc(b.pregnancy.lead)}</p>
+      <ul class="tips">${b.pregnancy.items.map(t => `<li>${esc(t)}</li>`).join('')}</ul></div>` : emptyBlock('브리핑 자료를 불러오지 못했습니다', BRIEF_ERR || '')}
+    <section class="sec"><div class="sec-hd"><div><h2>병원 · 비상</h2></div></div>
+      <ul class="tips">
+        <li>북부지구의료센터 (나고) — 온나 북부 리조트에서 차 30분. 산부인과 있음.</li>
+        <li>오키나와현립 중부병원 (우루마) — 온나 남부·차탄에서 20~30분. 응급 24시간.</li>
+        <li>나하시립병원 — 나하·공항 근처. 마지막 날 기준.</li>
+        <li>일본 구급차 119 · 영어·한국어 통역은 여행자보험 콜센터로.</li>
+        <li>렌터카 — 안전벨트는 배 아래로, 1시간마다 정차해서 걷기. 야간 운전 최소.</li>
+      </ul></section>
+    ${d ? `<section class="sec"><div class="sec-hd"><div><h2>오키나와 볼거리</h2><p>${esc(d.why)}</p></div></div>
+      <div class="ph-row">${(d.photos || []).slice(0, 2).map(p => photoHTML(p, d.city)).join('')}</div>
+      <ul>${d.spots.map(([t, x]) => `<li><b>${esc(t)}</b> — ${esc(x)}</li>`).join('')}</ul>
+      <h4>음식</h4><ul>${d.foods.map(([t, x]) => `<li><b>${esc(t)}</b> — ${esc(x)}</li>`).join('')}</ul>
+      ${d.caution ? `<p class="live-note">⚠ ${esc(d.caution)}</p>` : ''}</section>` : ''}
     ${footerHTML()}
   </div>`;
 }
@@ -3007,6 +3220,10 @@ function render() {
   else if (S.view === 'weekend') html = viewWeekend();
   else if (S.view === 'seed') html = viewSeed();
   else if (S.view === 'business') html = viewBusiness();
+  else if (S.view === 'tripflights') html = viewTripFlights();
+  else if (S.view === 'tripstay') html = viewTripStay();
+  else if (S.view === 'tripprep') html = viewTripPrep();
+  else if (S.view === 'tripall') html = viewTripAll();
   else if (S.tab === 'find') html = viewList();
   else if (S.tab === 'swiss') html = viewSwiss();
   else if (S.tab === 'trip') html = viewTrip();
@@ -3106,7 +3323,7 @@ const CLICK_ATTRS = [
   'longstops', 'reset', 'reset-prefs', 'reload', 'retry',
   'tier', 'change', 'cap', 'weekend', 'nights', 'apply', 'sheetopen',
   'clear', 'chip-off', 'more', 'alt', 'biz', 'compare', 'compare-clear', 'longnights', 'leave',
-];
+  'tripdep'];
 const CLICK_SEL = CLICK_ATTRS.map(a => `[data-${a}]`).join(',');
 
 document.addEventListener('click', ev => {
@@ -3191,6 +3408,8 @@ document.addEventListener('click', ev => {
     push(); return render();
   }
 
+  const td = t.getAttribute('data-tripdep');
+  if (td) { S.tripDep = td; try { localStorage.setItem('trip.dep', td); } catch (_) {} return render(); }
   const view = t.getAttribute('data-view');
   if (view) { S.view = view; push(); window.scrollTo(0, 0); return render(); }
 
@@ -3292,7 +3511,9 @@ function closeTop() {
 }
 function goBack() {
   if (history.state && history.state.inside) return history.back();
-  S.view = null; S.detail = null; S.sheet = null; S.pending = null; S.tab = 'home';
+  // 여행 하위 화면(tripflights…)에서 히스토리가 없으면 여행 허브로 돌아간다.
+  S.tab = (S.view && S.view.indexOf('trip') === 0) ? 'trip' : 'home';
+  S.view = null; S.detail = null; S.sheet = null; S.pending = null;
   replace(); render();
 }
 function applyPendingSearch() {

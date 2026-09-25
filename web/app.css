@@ -640,3 +640,29 @@ button:focus-visible,a:focus-visible,summary:focus-visible,[tabindex]:focus-visi
 @media(min-width:900px){.compare-bar{bottom:20px}}
 @media(max-width:390px){.compare-bar{gap:6px;padding:9px}.compare-bar .cta,.compare-bar .btn-line{padding:0 9px}}
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;animation:none!important;transition:none!important}}
+
+/* ── 10월 여행 허브 · 항공편 · 숙소 ────────────────── */
+.concept{background:var(--card);border:1px solid var(--pri-line);border-radius:var(--r);padding:14px;margin-bottom:14px}
+.concept-hd{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.concept-hd b{font-size:16px;font-weight:800;letter-spacing:-.02em}
+.concept .kv{padding:4px 0}
+.dchips{margin-top:10px;display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.dchips .chip{display:flex;flex-direction:column;align-items:flex-start;gap:2px;min-height:52px;
+  padding:8px 10px;white-space:normal;text-align:left;line-height:1.3}
+.dchips .chip small{font-size:11px;font-weight:600;opacity:.8}
+.hub .mrow .mt{font-size:15.5px}
+.hub .mrow{min-height:64px}
+a.mrow{text-decoration:none;color:inherit}
+.near{position:relative}
+.near > .bg{position:absolute;right:12px;top:10px;z-index:1}
+.stay{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px;margin-top:10px}
+.stay.top{border-color:var(--pri-line);background:var(--pri-soft)}
+.stay-hd{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px}
+.stay-hd b{font-size:15.5px;font-weight:800;display:block;line-height:1.3}
+.stay-hd small{display:block;font-size:12px;color:var(--tx3);font-weight:600;margin-top:2px}
+.stay .kv{padding:3px 0}
+.stay ul{margin:8px 0 0;padding-left:18px;font-size:13px;line-height:1.55}
+.stay ul.pro li::marker{color:var(--pri)}
+.stay ul.con{color:var(--tx2)}
+.stay ul.con li::marker{content:"– "}
+.stay .frow{margin-top:10px}

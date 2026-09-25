@@ -60,7 +60,8 @@ def test_share_link_allowlist_matches_tabs_and_views():
 
 def test_secondary_screens_have_a_back_button():
     """더보기 아래로 내려간 화면은 돌아갈 길이 있어야 한다."""
-    for name in ("설정", "에러페어", "주말여행", "가격 자료 부족 노선", "비즈니스석 참고"):
+    for name in ("설정", "에러페어", "주말여행", "가격 자료 부족 노선", "비즈니스석 참고",
+                 "항공편 · 청주 → 오키나와", "숙소 추천 · 오키나와 3박", "준비물 · 유의점", "다른 목적지 비교 · PDF"):
         m = re.search(r"plainHeader\('" + re.escape(name) + r"',[^)]*\)", JS)
         assert m, f"{name} 화면을 못 찾았다"
         assert m.group(0).rstrip(")").rstrip().endswith("true"), \
