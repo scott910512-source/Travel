@@ -32,3 +32,5 @@
 #unknown-places:empty{display:none}#unknown-places{padding:8px 0 0}.unknown-title{font-size:10px;color:var(--tx2);margin-bottom:5px}.unknown-row{display:flex;gap:6px;overflow-x:auto}.unknown-row button{white-space:nowrap;border:1px dashed #c9cabc;background:#fffdf5;border-radius:12px;padding:8px 10px;min-height:38px;font:inherit;font-size:11px;color:#687573;cursor:pointer}
 .landmark-detail{display:flex;justify-content:center;background:linear-gradient(140deg,#d8eee4,#faf3d9)}.landmark-detail svg{height:100%;width:100%}.candidate-title{font-size:12px;font-weight:800;color:var(--pri);margin:12px 0}
 @media(min-width:800px){.trip-redesign .stage{height:600px}}
+
+.trip-redesign .stage .node{pointer-events:visiblePainted}

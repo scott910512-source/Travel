@@ -211,7 +211,7 @@ footer{color:var(--tx3);font-size:11.5px;text-align:center;padding:20px 0 0;line
 <div id="notice" class="note" hidden></div>
 <div id="journey-options"></div>
 
-<!-- 캐릭터 여행: 축약 일러스트 맵. 지리·거리를 나타내지 않는다. -->
+<!-- 좌표 기반 여행 지도 · 개략 동선은 실제 도로 경로와 다릅니다. -->
 <section id="v-chars" class="view">
   <div class="stagewrap">
     <svg id="stage" class="stage" viewBox="0 0 1000 600" preserveAspectRatio="xMidYMin meet" aria-label="캐릭터 여행 맵"></svg>
@@ -426,7 +426,7 @@ function renderShell() {
   document.getElementById('tripbar').innerHTML = `
     <details class="date-picker"><summary>${TS.fmt(dep)} — ${TS.fmt(TS.addDays(dep, TS.NIGHTS))} <span>날짜 변경⌄</span></summary><div class="deps" role="group" aria-label="출발일">${TS.DEPS.map(d => `<button data-dep="${d}" aria-pressed="${d === dep}">${TS.fmt(d)} 출발<small>${TS.fmt(TS.addDays(d, TS.NIGHTS))} 귀국</small></button>`).join('')}</div></details>
     <div class="tabs" role="tablist">${[1, 2, 3, 4].map(n => `<button role="tab" aria-selected="${n === cur}" data-day="${n}">${n}일차<small>${TS.fmt(TS.dayDate(dep, n))}</small></button>`).join('')}</div>
-    <div class="viewsw" role="group" aria-label="보기">${[['chars', '여행 장면'], ['list', '일정표'], ['map', '실제 지도']].map(([v, l]) => `<button data-view="${v}" aria-pressed="${ui.view === v}">${l}</button>`).join('')}</div>`;
+    <div class="viewsw" role="group" aria-label="보기">${[['chars', '여행 지도'], ['list', '일정표'], ['map', '실제 지도']].map(([v, l]) => `<button data-view="${v}" aria-pressed="${ui.view === v}">${l}</button>`).join('')}</div>`;
   ['chars', 'list', 'map'].forEach(v => document.getElementById('v-' + v).classList.toggle('on', ui.view === v));
   document.getElementById('hdsub').textContent = `${TS.fmt(dep)} 출발 → ${TS.fmt(TS.addDays(dep, TS.NIGHTS))} 귀국 · ${cur}일차 ${TS.fmt(TS.dayDate(dep, cur))}`;
 }
