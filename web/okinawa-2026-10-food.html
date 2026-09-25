@@ -43,8 +43,21 @@ footer{color:var(--tx3);font-size:11.5px;text-align:center;padding:20px 0 0;line
   <p>임산부 기준 · 익힌 메뉴 위주 · 지역별 · 구글 평점은 링크로 확인</p>
 </div></header>
 <main class="wrap">
-  <div class="note"><b>평점은 여기서 확인하지 못했습니다</b>
-    이 목록은 오키나와에서 평판이 좋은 곳을 제 지식 범위에서 모은 <b>"구글 평점 4.3 이상 후보"</b>입니다. 이 문서를 만든 환경에서는 구글 지도 평점을 조회할 수 없어 <b>검증하지 못했습니다.</b> 각 항목의 <b>구글 지도</b> 버튼을 누르면 현재 평점·영업시간·휴무가 바로 뜹니다 — 가기 전에 그것을 보세요. 오키나와는 폐업·이전이 잦습니다.</div>
+  <div class="card" id="gpanel" style="background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-top:12px">
+    <b style="display:block;margin-bottom:4px">구글 평점·리뷰 수·리뷰 사진 불러오기</b>
+    <p style="margin:0 0 8px;font-size:13px;color:var(--tx2)">이 페이지는 서버가 없어서 구글 데이터를 <b>본인 브라우저에서 직접</b> 불러옵니다. Google Maps Platform 의 <b>브라우저 키</b>(HTTP 리퍼러를 이 사이트로 제한한 것)를 한 번 넣으면 이 기기에만 저장되고, 항목마다 평점·리뷰 수·실제 이용자 사진이 채워지며 <b>리뷰 10개 미만 · 평점 4.3 미만은 자동으로 걸러집니다.</b></p>
+    <div style="display:flex;gap:6px;flex-wrap:wrap"><input class="q" id="gkey" type="password" placeholder="AIza… 브라우저 API 키" autocomplete="off" style="flex:1;min-width:200px;margin:0"><button class="chip" id="gload">불러오기</button><button class="chip" id="gclear">키 지우기</button></div>
+    <p id="gstat" style="margin:8px 0 0;font-size:12.5px;color:var(--tx2)"></p>
+    <details style="margin-top:8px;font-size:12.5px;color:var(--tx2)"><summary style="cursor:pointer;font-weight:700">키 만드는 법 (5분 · 개인용은 월 무료 크레딧 안)</summary>
+      <ol style="margin:6px 0 0;padding-left:18px;line-height:1.6">
+        <li>console.cloud.google.com → 프로젝트 만들기 → 결제 계정 연결(무료 크레딧 사용, 자동 과금 아님 — 한도 알림 설정 권장)</li>
+        <li>API 및 서비스 → 라이브러리 → <b>Maps JavaScript API</b>, <b>Places API</b> 사용 설정</li>
+        <li>사용자 인증 정보 → API 키 만들기 → <b>애플리케이션 제한: HTTP 리퍼러</b> → <code>https://scott910512-source.github.io/*</code> 추가 → API 제한: 위 두 API만</li>
+        <li>여기 붙여넣고 불러오기. 키는 이 기기 브라우저에만 저장됩니다(레포·서버에 안 올라감).</li>
+      </ol></details>
+  </div>
+  <div class="note" id="gnote"><b>아직 구글 데이터가 연결되지 않았습니다</b>
+    아래 목록은 평판이 좋은 곳을 제 지식 범위에서 모은 <b>후보</b>이고, 평점·리뷰 수·사진은 위 패널로 구글을 연결해야 채워집니다. 연결 전에는 각 항목의 <b>구글 지도</b> 버튼으로 확인하세요. 오키나와는 폐업·이전이 잦습니다.</div>
   <div class="filters">
     <input class="q" id="q" type="search" placeholder="이름·메뉴로 찾기 (예: 소바, 스테이크, 카페)" autocomplete="off">
     <div class="row" id="areas"></div>
@@ -117,18 +130,63 @@ const AREAS=[['all','전체'],['naha','나하'],['south','남부'],['mid','중�
 const TYPES=['전체','소바','스테이크','야키니쿠','아구돼지','오키나와 가정식','타코라이스','카페','디저트','아침·간식','튀김','해산물','버거','피자·카페','푸드코트'];
 const PLBL={ok:'무난',care:'주의',no:'비추'};
 let area='all',type='전체',q='';
-const gm=x=>`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent('沖縄 '+(x.j||x.n))}`;
+/* ── 구글 Places (브라우저에서 직접) ──────────────────────
+   키는 localStorage 에만. 결과는 24시간 캐시. 리뷰 10개 미만·평점 4.3 미만은 숨긴다. */
+const GK='okinawa-food.gkey', GC='okinawa-food.gcache';
+let G={}; try{G=JSON.parse(localStorage.getItem(GC)||'{}');}catch(e){}
+const gget=x=>G[x.j||x.n];
+const MIN_REVIEWS=10, MIN_RATING=4.3;
+function passes(x){const g=gget(x);if(!g||g.err)return true;      // 아직 모르면 보여 준다
+  return (g.total||0)>=MIN_REVIEWS && (g.rating||0)>=MIN_RATING;}
+function gd(x){const g=gget(x);if(!g)return '';
+  if(g.err)return `<p style="font-size:12px;color:var(--tx3)">구글: 찾지 못함 (${g.err})</p>`;
+  const stars='★'.repeat(Math.round(g.rating))+'☆'.repeat(5-Math.round(g.rating));
+  return `<div style="margin-top:6px;font-size:13px"><b style="color:#B7791F">${stars}</b> <b>${g.rating}</b> <span style="color:var(--tx3)">· 리뷰 ${g.total.toLocaleString()}개${g.open===true?' · 영업 중':g.open===false?' · 지금 영업 안 함':''}</span></div>
+    ${g.photos&&g.photos.length?`<div style="display:flex;gap:6px;overflow-x:auto;margin-top:8px;scrollbar-width:none">${g.photos.map(p=>`<figure style="margin:0;flex:0 0 auto"><img src="${p.url}" alt="" loading="lazy" style="height:110px;width:auto;border-radius:10px;display:block"><figcaption style="font-size:9.5px;color:var(--tx3);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.attr||'이용자 사진'}</figcaption></figure>`).join('')}</div>`:''}`;}
+function gsave(){try{localStorage.setItem(GC,JSON.stringify(G));}catch(e){}}
+function gstatus(t){document.getElementById('gstat').textContent=t;}
+function loadMaps(key){return new Promise((res,rej)=>{if(window.google&&google.maps&&google.maps.places)return res();
+  const s=document.createElement('script');s.src=`https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&libraries=places&language=ko&region=JP&loading=async&callback=__gmready`;
+  window.__gmready=()=>res();s.onerror=()=>rej(new Error('스크립트 로드 실패 — 키·리퍼러 제한 확인'));document.head.appendChild(s);
+  setTimeout(()=>rej(new Error('시간 초과 — 키가 잘못됐거나 결제 미설정')),15000);});}
+async function genrich(key){
+  await loadMaps(key);
+  const svc=new google.maps.places.PlacesService(document.createElement('div'));
+  const call=(fn,req)=>new Promise(res=>svc[fn](req,(r,st)=>res({r,st})));
+  const fresh=Date.now()-24*3600*1000; let done=0, fail=0;
+  for(const x of R){const k=x.j||x.n;
+    if(G[k]&&G[k].t>fresh&&!G[k].err){done++;continue;}
+    gstatus(`불러오는 중… ${done+fail+1}/${R.length} ${x.n}`);
+    const f=await call('findPlaceFromQuery',{query:(x.j||x.n)+' 沖縄',fields:['place_id']});
+    if(f.st!=='OK'||!f.r||!f.r[0]){G[k]={err:f.st,t:Date.now()};fail++;gsave();render();continue;}
+    const d=await call('getDetails',{placeId:f.r[0].place_id,fields:['rating','user_ratings_total','photos','url','opening_hours','name']});
+    if(d.st!=='OK'){G[k]={err:d.st,t:Date.now()};fail++;gsave();render();continue;}
+    const p=d.r; let open=null; try{open=p.opening_hours?p.opening_hours.isOpen():null;}catch(e){}
+    G[k]={rating:p.rating||0,total:p.user_ratings_total||0,url:p.url,gname:p.name,open,t:Date.now(),
+      photos:(p.photos||[]).slice(0,4).map(ph=>({url:ph.getUrl({maxWidth:480,maxHeight:360}),attr:(ph.html_attributions||[]).join(' ').replace(/<[^>]+>/g,'')}))};
+    done++; gsave(); render();
+    await new Promise(r=>setTimeout(r,120));}
+  gstatus(`완료 · 채움 ${done} · 못 찾음 ${fail} · 리뷰 ${MIN_REVIEWS}개 미만/평점 ${MIN_RATING} 미만은 숨김 (${new Date().toLocaleString('ko-KR')})`);
+  document.getElementById('gnote').style.display='none';}
+document.getElementById('gload').addEventListener('click',async()=>{const key=document.getElementById('gkey').value.trim();if(!key)return gstatus('키를 넣어 주세요.');
+  try{localStorage.setItem(GK,key);}catch(e){} try{await genrich(key);}catch(e){gstatus('실패: '+e.message);}});
+document.getElementById('gclear').addEventListener('click',()=>{try{localStorage.removeItem(GK);localStorage.removeItem(GC);}catch(e){}G={};document.getElementById('gkey').value='';gstatus('키와 캐시를 지웠습니다.');document.getElementById('gnote').style.display='';render();});
+(function(){let k=null;try{k=localStorage.getItem(GK);}catch(e){} if(k){document.getElementById('gkey').value=k;
+  if(Object.keys(G).length){gstatus('저장된 결과를 보여 줍니다. 최신으로 하려면 불러오기.');document.getElementById('gnote').style.display='none';}
+  else genrich(k).catch(e=>gstatus('실패: '+e.message));}})();
+const gm=x=>{const g=gget(x);return (g&&g.url)||`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent('沖縄 '+(x.j||x.n))}`;};
 const nav=x=>`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent('沖縄 '+(x.j||x.n))}&travelmode=driving`;
 function render(){
   document.getElementById('areas').innerHTML=AREAS.map(([k,l])=>`<button class="chip" data-area="${k}" aria-pressed="${area===k}">${l} ${k==='all'?R.length:R.filter(x=>x.a===k).length}</button>`).join('');
   document.getElementById('types').innerHTML=TYPES.map(t=>`<button class="chip" data-type="${t}" aria-pressed="${type===t}">${t}</button>`).join('');
   const qq=q.trim().toLowerCase();
-  const rows=R.filter(x=>(area==='all'||x.a===area)&&(type==='전체'||x.t.includes(type)||x.t===type)&&(!qq||(x.n+x.j+x.t+x.d).toLowerCase().includes(qq)));
-  document.getElementById('info').textContent=`${rows.length}곳 · 평점은 구글 지도 버튼으로 확인 · 임산부 표시: 무난 ${rows.filter(x=>x.p==='ok').length} / 주의 ${rows.filter(x=>x.p==='care').length}`;
+  const base=R.filter(x=>(area==='all'||x.a===area)&&(type==='전체'||x.t.includes(type)||x.t===type)&&(!qq||(x.n+x.j+x.t+x.d).toLowerCase().includes(qq)));
+  const rows=base.filter(passes); const hidden=base.length-rows.length; const linked=Object.keys(G).length>0;
+  document.getElementById('info').textContent=`${rows.length}곳${hidden?` · 기준 미달 ${hidden}곳 숨김`:''} · ${linked?'구글 평점·리뷰 수 반영':'평점은 구글 연결 후 표시'} · 임산부: 무난 ${rows.filter(x=>x.p==='ok').length} / 주의 ${rows.filter(x=>x.p==='care').length}`;
   const byArea={};rows.forEach(x=>(byArea[x.a]=byArea[x.a]||[]).push(x));
   document.getElementById('list').innerHTML=AREAS.filter(([k])=>byArea[k]).map(([k,l])=>`<div class="area">${l} <small style="color:var(--tx3);font-size:12px">${byArea[k].length}곳</small></div>
     <div class="list">${byArea[k].map(x=>`<div class="r"><h3>${x.n} <small>${x.j}</small><span class="k">${x.t}</span><span class="k ${x.p}">${PLBL[x.p]}</span></h3>
-      <p>${x.d}</p>${x.p!=='ok'?`<div class="preg">🤰 ${x.p==='care'?'생것·날것 메뉴가 섞여 있습니다. 익힌 것으로 고르세요.':'임산부에겐 권하지 않습니다.'}</div>`:''}
+      ${gd(x)}<p>${x.d}</p>${x.p!=='ok'?`<div class="preg">🤰 ${x.p==='care'?'생것·날것 메뉴가 섞여 있습니다. 익힌 것으로 고르세요.':'임산부에겐 권하지 않습니다.'}</div>`:''}
       <div class="links"><a class="g" href="${gm(x)}" target="_blank" rel="noopener">구글 지도 · 평점 확인</a><a href="${nav(x)}" target="_blank" rel="noopener">길찾기</a></div></div>`).join('')}</div>`).join('');
 }
 document.addEventListener('click',e=>{const a=e.target.closest('[data-area]');if(a){area=a.dataset.area;render();return;}const t=e.target.closest('[data-type]');if(t){type=t.dataset.type;render();}});
