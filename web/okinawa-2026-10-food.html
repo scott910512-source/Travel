@@ -47,8 +47,8 @@ footer{color:var(--tx3);font-size:11.5px;text-align:center;padding:20px 0 0;line
 </div></header>
 <main class="wrap">
   <div class="card" id="gpanel" style="background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-top:12px">
-    <b style="display:block;margin-bottom:4px">구글 평점·리뷰 수·리뷰 사진 불러오기</b>
-    <p style="margin:0 0 8px;font-size:13px;color:var(--tx2)">이 페이지는 서버가 없어서 구글 데이터를 <b>본인 브라우저에서 직접</b> 불러옵니다. Google Maps Platform 의 <b>브라우저 키</b>(HTTP 리퍼러를 이 사이트로 제한한 것)를 한 번 넣으면 이 기기에만 저장되고, 항목마다 평점·리뷰 수·실제 이용자 사진이 채워지며 <b>리뷰 10개 미만 · 평점 4.3 미만은 자동으로 걸러집니다.</b></p>
+    <b style="display:block;margin-bottom:4px">구글 평점·리뷰 수·리뷰 사진 — 한 번 조회해서 저장</b>
+    <p style="margin:0 0 8px;font-size:13px;color:var(--tx2)">이 페이지는 서버가 없어서 구글 데이터를 <b>본인 브라우저에서 직접</b> 불러옵니다. Google Maps Platform 의 <b>브라우저 키</b>(HTTP 리퍼러를 이 사이트로 제한한 것)를 한 번 넣고 조회하면 결과가 이 기기에 저장되고(자동 재조회 없음), 항목마다 평점·리뷰 수·실제 이용자 사진이 채워지며 <b>리뷰 10개 미만 · 평점 4.3 미만은 자동으로 걸러집니다.</b></p>
     <div style="display:flex;gap:6px;flex-wrap:wrap"><input class="q" id="gkey" type="password" placeholder="AIza… 브라우저 API 키" autocomplete="off" style="flex:1;min-width:200px;margin:0"><button class="chip" id="gload">불러오기</button><button class="chip" id="gclear">키 지우기</button></div>
     <p id="gstat" style="margin:8px 0 0;font-size:12.5px;color:var(--tx2)"></p>
     <details style="margin-top:8px;font-size:12.5px;color:var(--tx2)"><summary style="cursor:pointer;font-weight:700">키 만드는 법 (5분 · 개인용은 월 무료 크레딧 안)</summary>
@@ -133,10 +133,17 @@ const AREAS=[['all','전체'],['naha','나하'],['south','남부'],['mid','중�
 const TYPES=['전체','소바','스테이크','야키니쿠','아구돼지','오키나와 가정식','타코라이스','카페','디저트','아침·간식','튀김','해산물','버거','피자·카페','푸드코트'];
 const PLBL={ok:'무난',care:'주의',no:'비추'};
 let area='all',type='전체',q='';
-/* ── 구글 Places (브라우저에서 직접) ──────────────────────
-   키는 localStorage 에만. 결과는 24시간 캐시. 리뷰 10개 미만·평점 4.3 미만은 숨긴다. */
-const GK='okinawa-food.gkey', GC='okinawa-food.gcache';
-let G={}; try{G=JSON.parse(localStorage.getItem(GC)||'{}');}catch(e){}
+/* ── 구글 평점 · 리뷰 사진 ───────────────────────────────
+   원칙: 한 번 조회해서 저장하고, 다시 조회는 사람이 눌렀을 때만 한다. 자동 조회는 없다.
+   출처 둘 중 더 최근 것을 쓴다.
+   (1) 저장본 okinawa-2026-10-food.json — 관리자가 워크플로(probe=food)를 한 번 돌리면
+       레포에 커밋되어 모든 기기가 공유한다. 사진도 함께 저장돼 구글 호출이 없다.
+   (2) 이 기기 조회 — '다시 조회' 를 누르면 브라우저 키로 직접 조회해 이 기기에 저장(만료 없음). */
+const GK='okinawa-food.gkey', GC='okinawa-food.gcache', SNAP='okinawa-2026-10-food.json';
+let DEV={}; try{DEV=JSON.parse(localStorage.getItem(GC)||'{}');}catch(e){}
+let SN=null, G={};
+function merge(){G={};const sd=(SN&&SN.data)||{};const st=SN?(Date.parse(SN.ts)||0):0;
+  for(const k of new Set([...Object.keys(sd),...Object.keys(DEV)])){const a=sd[k],b=DEV[k];G[k]=(a&&b)?(((b.t||0)>st)?b:a):(a||b);}}
 const gget=x=>G[x.j||x.n];
 const MIN_REVIEWS=10, MIN_RATING=4.3;
 function passes(x){const g=gget(x);if(!g||g.err)return true;      // 아직 모르면 보여 준다
@@ -144,46 +151,62 @@ function passes(x){const g=gget(x);if(!g||g.err)return true;      // 아직 모�
 function gd(x){const g=gget(x);if(!g)return '';
   if(g.err)return `<p style="font-size:12px;color:var(--tx3)">구글: 찾지 못함 (${g.err})</p>`;
   const stars='★'.repeat(Math.round(g.rating))+'☆'.repeat(5-Math.round(g.rating));
-  return `<div style="margin-top:6px;font-size:13px"><b style="color:#B7791F">${stars}</b> <b>${g.rating}</b> <span style="color:var(--tx3)">· 리뷰 ${g.total.toLocaleString()}개${g.open===true?' · 영업 중':g.open===false?' · 지금 영업 안 함':''}</span></div>
+  return `<div style="margin-top:6px;font-size:13px"><b style="color:#B7791F">${stars}</b> <b>${g.rating}</b> <span style="color:var(--tx3)">· 리뷰 ${(g.total||0).toLocaleString()}개${g.open===true?' · 영업 중':g.open===false?' · 지금 영업 안 함':''}</span></div>
     ${g.photos&&g.photos.length?`<div style="display:flex;gap:6px;overflow-x:auto;margin-top:8px;scrollbar-width:none">${g.photos.map(p=>`<figure style="margin:0;flex:0 0 auto"><img src="${p.url}" alt="" loading="lazy" style="height:110px;width:auto;border-radius:10px;display:block"><figcaption style="font-size:9.5px;color:var(--tx3);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.attr||'이용자 사진'}</figcaption></figure>`).join('')}</div>`:''}`;}
-function gsave(){try{localStorage.setItem(GC,JSON.stringify(G));}catch(e){}}
-function gstatus(t){document.getElementById('gstat').textContent=t;}
+function gsave(){try{localStorage.setItem(GC,JSON.stringify(DEV));}catch(e){}}
+function gstatus(t){const e=document.getElementById('gstat');if(e)e.textContent=t;}
+const ADMIN_KEY=(()=>{const m=document.querySelector('meta[name="maps-key"]');const v=m&&m.getAttribute('content')||'';return (v&&!v.startsWith('__'))?v:'';  /* 자리표시자(__…__)는 없는 것으로 */})();
+function keyNow(){let k=null;try{k=localStorage.getItem(GK);}catch(e){}return k||ADMIN_KEY||'';}
+const fmt=t=>{const d=new Date(t);return isNaN(d)?'':d.toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});};
 function loadMaps(key){return new Promise((res,rej)=>{if(window.google&&google.maps&&google.maps.places)return res();
   const s=document.createElement('script');s.src=`https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&libraries=places&language=ko&region=JP&loading=async&callback=__gmready`;
   window.__gmready=()=>res();s.onerror=()=>rej(new Error('스크립트 로드 실패 — 키·리퍼러 제한 확인'));document.head.appendChild(s);
   setTimeout(()=>rej(new Error('시간 초과 — 키가 잘못됐거나 결제 미설정')),15000);});}
+/* 사람이 '다시 조회' 를 눌렀을 때만. 전부 새로 묻고 이 기기에 저장한다. */
 async function genrich(key){
   await loadMaps(key);
   const svc=new google.maps.places.PlacesService(document.createElement('div'));
   const call=(fn,req)=>new Promise(res=>svc[fn](req,(r,st)=>res({r,st})));
-  const fresh=Date.now()-24*3600*1000; let done=0, fail=0;
+  let done=0, fail=0;
   for(const x of R){const k=x.j||x.n;
-    if(G[k]&&G[k].t>fresh&&!G[k].err){done++;continue;}
-    gstatus(`불러오는 중… ${done+fail+1}/${R.length} ${x.n}`);
+    gstatus(`조회 중… ${done+fail+1}/${R.length} ${x.n}`);
     const f=await call('findPlaceFromQuery',{query:(x.j||x.n)+' 沖縄',fields:['place_id']});
-    if(f.st!=='OK'||!f.r||!f.r[0]){G[k]={err:f.st,t:Date.now()};fail++;gsave();render();continue;}
+    if(f.st!=='OK'||!f.r||!f.r[0]){DEV[k]={err:f.st,t:Date.now()};fail++;gsave();merge();render();continue;}
     const d=await call('getDetails',{placeId:f.r[0].place_id,fields:['rating','user_ratings_total','photos','url','opening_hours','name']});
-    if(d.st!=='OK'){G[k]={err:d.st,t:Date.now()};fail++;gsave();render();continue;}
+    if(d.st!=='OK'){DEV[k]={err:d.st,t:Date.now()};fail++;gsave();merge();render();continue;}
     const p=d.r; let open=null; try{open=p.opening_hours?p.opening_hours.isOpen():null;}catch(e){}
-    G[k]={rating:p.rating||0,total:p.user_ratings_total||0,url:p.url,gname:p.name,open,t:Date.now(),
+    DEV[k]={rating:p.rating||0,total:p.user_ratings_total||0,url:p.url,gname:p.name,open,t:Date.now(),
       photos:(p.photos||[]).slice(0,4).map(ph=>({url:ph.getUrl({maxWidth:480,maxHeight:360}),attr:(ph.html_attributions||[]).join(' ').replace(/<[^>]+>/g,'')}))};
-    done++; gsave(); render();
+    done++; gsave(); merge(); render();
     await new Promise(r=>setTimeout(r,120));}
-  gstatus(`완료 · 채움 ${done} · 못 찾음 ${fail} · 리뷰 ${MIN_REVIEWS}개 미만/평점 ${MIN_RATING} 미만은 숨김 (${new Date().toLocaleString('ko-KR')})`);
-  document.getElementById('gnote').style.display='none';}
+  renderPanel(); gstatus(`완료 · 채움 ${done} · 못 찾음 ${fail} · 이 기기에 저장됨 (${fmt(Date.now())})`);}
+function renderPanel(){
+  const panel=document.getElementById('gpanel'); const key=keyNow(); const devN=Object.keys(DEV).length; const devT=devN?Math.max(...Object.values(DEV).map(v=>v.t||0)):0;
+  const has=SN||devN;
+  const note=document.getElementById('gnote'); if(note)note.style.display=has?'none':'';
+  if(!has&&!key)return;                      // 아무것도 없고 키도 없음 → 원래 안내 패널(키 입력) 그대로
+  const lines=[];
+  if(SN)lines.push(`저장본(모든 기기 공유) · 조회 ${fmt(SN.ts)} · ${SN.found||Object.keys(SN.data||{}).length}곳 · 사진 ${SN.photos||0}장`);
+  if(devN)lines.push(`이 기기 조회 · ${fmt(devT)} · ${devN}곳${SN?' · 저장본보다 새 항목만 우선':''}`);
+  if(!has)lines.push('아직 조회한 적 없음. 아래 버튼을 누르면 한 번 조회해서 이 기기에 저장합니다.');
+  panel.innerHTML=`<b style="display:block">구글 평점·리뷰 사진</b>
+    <p style="margin:4px 0 0;font-size:12.5px;color:var(--tx2)">${lines.join('<br>')}<br>리뷰 ${MIN_REVIEWS}개 미만 · 평점 ${MIN_RATING} 미만은 숨깁니다. 자동으로 다시 조회하지 않습니다.</p>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
+      ${key?`<button class="chip" id="gre">🔄 다시 조회 (이 기기에서)</button>`:''}
+      ${devN?`<button class="chip" id="gclear">이 기기 조회 결과 지우기</button>`:''}
+      ${!ADMIN_KEY&&key?`<button class="chip" id="gkeyclear">키 지우기</button>`:''}
+    </div><p id="gstat" style="margin:6px 0 0;font-size:12.5px;color:var(--tx2)"></p>`;
+  const on=(id,fn)=>{const e=document.getElementById(id);if(e)e.addEventListener('click',fn);};
+  on('gre',async()=>{if(!confirm(`구글에 ${R.length}곳을 다시 조회합니다 (약 ${R.length*2}회 호출). 진행할까요?`))return;try{await genrich(key);}catch(e){gstatus('실패: '+e.message);}});
+  on('gclear',()=>{DEV={};gsave();merge();renderPanel();render();});
+  on('gkeyclear',()=>{try{localStorage.removeItem(GK);}catch(e){}location.reload();});}
+/* 처음 키 넣기(저장본도 조회 결과도 없고 관리자 키도 없을 때만 보이는 원래 패널) */
 (document.getElementById('gload')||document.createElement('b')).addEventListener('click',async()=>{const key=document.getElementById('gkey').value.trim();if(!key)return gstatus('키를 넣어 주세요.');
-  try{localStorage.setItem(GK,key);}catch(e){} try{await genrich(key);}catch(e){gstatus('실패: '+e.message);}});
-(document.getElementById('gclear')||document.createElement('b')).addEventListener('click',()=>{try{localStorage.removeItem(GK);localStorage.removeItem(GC);}catch(e){}G={};document.getElementById('gkey').value='';gstatus('키와 캐시를 지웠습니다.');document.getElementById('gnote').style.display='';render();});
-/* 관리자 키: 배포 시 meta 에 주입된다. 있으면 아무 기기에서나 바로 불러온다.
-   개인 키를 넣어 두었으면 그것을 우선한다. */
-const ADMIN_KEY=(()=>{const m=document.querySelector('meta[name="maps-key"]');const v=m&&m.getAttribute('content')||'';return (v&&!v.startsWith('__'))?v:'';  /* 자리표시자(__…__)는 없는 것으로 */})();
-(function(){let k=null;try{k=localStorage.getItem(GK);}catch(e){}
-  if(!k&&ADMIN_KEY){k=ADMIN_KEY;
-    const panel=document.getElementById('gpanel');panel.innerHTML='<b style="display:block">구글 평점·리뷰 사진 — 관리자 키로 자동 연결됨</b><p style="margin:4px 0 0;font-size:12.5px;color:var(--tx2)">리뷰 10개 미만 · 평점 4.3 미만은 자동으로 숨깁니다. 결과는 이 기기에 24시간 캐시됩니다.</p><p id="gstat" style="margin:6px 0 0;font-size:12.5px;color:var(--tx2)"></p>';}
-  else if(k){document.getElementById('gkey').value=k;}
-  if(!k)return;
-  if(Object.keys(G).length){gstatus('저장된 결과를 보여 줍니다.'+(ADMIN_KEY&&!localStorage.getItem(GK)?'':' 최신으로 하려면 불러오기.'));document.getElementById('gnote').style.display='none';}
-  else genrich(k).catch(e=>gstatus('실패: '+e.message));})();
+  try{localStorage.setItem(GK,key);}catch(e){} renderPanel(); try{await genrich(key);}catch(e){gstatus('실패: '+e.message);}});
+(document.getElementById('gclear')||document.createElement('b')).addEventListener('click',()=>{try{localStorage.removeItem(GK);localStorage.removeItem(GC);}catch(e){}DEV={};merge();document.getElementById('gkey').value='';gstatus('키와 캐시를 지웠습니다.');render();});
+/* 시작: 저장본을 읽고(같은 출처에서만), 화면을 그린다. 구글 호출은 없다. */
+merge(); renderPanel();
+fetch(SNAP,{cache:'no-cache'}).then(r=>r.ok?r.json():null).then(j=>{if(j&&j.data){SN=j;merge();renderPanel();render();}}).catch(()=>{});
 const gm=x=>{const g=gget(x);return (g&&g.url)||`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent('沖縄 '+(x.j||x.n))}`;};
 const nav=x=>`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent('沖縄 '+(x.j||x.n))}&travelmode=driving`;
 function render(){

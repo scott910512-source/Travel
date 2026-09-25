@@ -14,7 +14,7 @@ on:
   workflow_dispatch:        # 수동 실행 버튼
     inputs:
       probe:
-        description: "검토용 프로브 (cabin = 비즈니스석 데이터 유무만 잰다 · 스캔·배포 안 함)"
+        description: "프로브 (cabin = 비즈니스석 데이터 유무만 잰다 / food = 식당 구글 평점·사진을 한 번 조회해 저장본으로 커밋·배포)"
         required: false
         default: ""
   pull_request:             # PR 은 검증만 (배포 안 함)
@@ -181,6 +181,29 @@ jobs:
           TP_TOKEN: ${{ secrets.TP_TOKEN }}
         run: python tools/probe_cabin.py
 
+      # 사람이 누를 때만. 식당 49곳의 평점·리뷰 수·사진을 한 번 받아 레포에 저장한다.
+      # 이후 모든 기기는 이 저장본을 읽고, 구글을 다시 부르지 않는다.
+      - name: 프로브 · 식당 구글 저장본 만들기
+        if: github.event.inputs.probe == 'food'
+        env:
+          MAPS_SERVER_KEY: ${{ secrets.MAPS_SERVER_KEY }}
+          MAPS_BROWSER_KEY: ${{ secrets.MAPS_BROWSER_KEY }}
+        run: node tools/probe_food.mjs
+      - name: 식당 저장본 커밋
+        if: github.event.inputs.probe == 'food'
+        run: |
+          git config user.name  "flight-scanner"
+          git config user.email "actions@github.com"
+          git add web/okinawa-2026-10-food.json web/food-photos
+          if git diff --staged --quiet; then echo "변경 없음"; exit 0; fi
+          git commit -m "food: 구글 평점·사진 저장본 $(TZ=Asia/Seoul date +'%Y-%m-%d %H:%M KST')"
+          for i in 1 2 3; do
+            if git push; then echo "push 성공 (${i}회차)"; exit 0; fi
+            git pull --rebase origin "${GITHUB_REF_NAME}" || break
+            sleep $((i * 3))
+          done
+          echo "::warning::저장본을 푸시하지 못했습니다. 배포는 계속합니다"
+
       - name: 스캔 실행
         if: steps.mode.outputs.scan == 'true'
         env:
@@ -291,6 +314,9 @@ jobs:
              web/icon-192.png web/icon-512.png public/
           cp web/manifest.webmanifest public/
           cp flight-deals/state/deals.json public/deals.json
+          # 식당 구글 저장본(있을 때만) — 사진까지 같이 나가므로 기기는 구글을 안 부른다
+          [ -f web/okinawa-2026-10-food.json ] && cp web/okinawa-2026-10-food.json public/ || echo "::notice::식당 저장본 없음 — probe=food 를 한 번 돌리면 생깁니다"
+          [ -d web/food-photos ] && cp -r web/food-photos public/ || true
           cp flight-deals/state/brief.json public/brief.json
           ls -la public
           echo "deals.json $(du -h public/deals.json | cut -f1)"
