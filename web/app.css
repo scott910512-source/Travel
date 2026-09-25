@@ -673,3 +673,19 @@ a.mrow{text-decoration:none;color:inherit}
 .stay ul.con{color:var(--tx2)}
 .stay ul.con li::marker{content:"– "}
 .stay .frow{margin-top:10px}
+
+/* ── 10월 여행 허브: 내 여행 중심 ────────────────── */
+.mytrip{background:var(--card);border:1px solid var(--pri-line);border-radius:var(--r);padding:14px;margin-bottom:14px}
+.mt-hd{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.mt-hd b{font-size:17px;font-weight:800;display:block;letter-spacing:-.02em}
+.mt-hd small{display:block;font-size:12px;color:var(--tx2);font-weight:600;margin-top:2px}
+.mt-hd .chip{min-height:40px}
+.mt-body{display:flex;gap:12px;align-items:center;margin-top:12px}
+.charprev{width:132px;height:72px;flex:0 0 auto;border-radius:12px;display:block}
+.charprev.ph{background:var(--line2);display:grid;place-items:center;font-size:11px;color:var(--tx3);text-align:center;padding:6px;font-weight:700}
+.mt-txt{flex:1;min-width:0}
+.mt-txt b{display:block;font-size:14.5px;font-weight:800;margin-top:4px;line-height:1.35}
+.mt-txt small{display:block;font-size:12px;color:var(--tx3);font-weight:600;margin-top:3px;line-height:1.4}
+.mt-open{margin-top:12px;text-align:center;font-size:15px;min-height:52px;display:flex;align-items:center;justify-content:center}
+.hub .sec{margin-top:14px}
+.hub .sec-hd h2{font-size:14px;color:var(--tx2)}

@@ -12,15 +12,17 @@ def chk(c, m):
     if not c: fails += 1
 
 hub = re.search(r"function viewTrip\(\) \{(.*?)\n\}", JS, re.S).group(1)
-chk(hub.count("tile(") == 7, "허브가 큰 메뉴 7개만 보여 준다")
-chk("tripConceptHTML()" not in hub and "tripDateChips()" not in hub, "허브에는 컨셉 카드·출발일 칩이 없다 (각 화면 안에 있다)")
+chk("mt-open" in hub and "tripSummary" in JS, "허브는 '내 여행 열기' 중심이고 저장된 여행 요약(일차·다음 장소)을 보여 준다")
+chk("이어서 보기" in hub and "여행 미리보기" in hub, "저장한 여행이 있으면 이어서 보기, 없으면 여행 미리보기")
+chk("data-depchips" in hub and "tripDateChips()" in hub, "날짜 변경 버튼으로 출발일 칩을 펼친다")
 for v in ("tripflights", "tripstay", "tripprep", "tripall"):
     chk(f"'{v}'" in hub, f"허브에 {v} 가 있다")
     chk(f"S.view === '{v}'" in JS, f"render 가 {v} 를 그린다")
     chk(f"'{v}'" in TS, f"공유 링크 허용 목록에 {v} 가 있다")
 for page in ("okinawa-2026-10.html", "okinawa-2026-10-show.html", "okinawa-2026-10-food.html"):
     chk(page in JS, f"허브가 {page} 로 연결한다")
-
+chk("loadTripAssets" in JS and "'trip-data.js', 'trip-chars.js'" in JS, "여행 자료·캐릭터는 10월 여행 탭에서만 불러온다")
+chk("trip-data.js" not in open(os.path.join(ROOT, "web/index.html"), encoding="utf-8").read(), "index.html 은 여행 자료를 미리 싣지 않는다")
 trip = re.search(r"const TRIP = \{(.*?)\n\};", JS, re.S).group(1)
 chk("dep: 'CJJ'" in trip and "arr: 'OKA'" in trip and "nights: 3" in trip, "컨셉이 청주 → 오키나와 3박으로 고정돼 있다")
 chk(re.findall(r"'2026-10-0[345]'", trip) == ["'2026-10-03'", "'2026-10-04'", "'2026-10-05'"], "출발일 후보가 10/3·4·5 다")

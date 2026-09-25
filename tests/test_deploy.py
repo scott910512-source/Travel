@@ -32,7 +32,7 @@ app = open(os.path.join(ROOT, "web/app.js"), encoding="utf-8").read()
 
 # ── 1. Pages 산출물에 필요한 파일이 전부 들어가는가 ────
 for f in ("web/index.html", "web/app.css", "web/app.js",
-          "web/travel-state.js", "web/compare.js", "web/trip-state.js", "web/trip-data.js", "web/brief-2026-10.json", "web/brief-2026-10.pdf", "web/okinawa-2026-10.html", "web/okinawa-2026-10-show.html", "web/okinawa-2026-10-food.html",
+          "web/travel-state.js", "web/compare.js", "web/trip-state.js", "web/trip-data.js", "web/trip-chars.js", "web/trip-stage.js", "web/brief-2026-10.json", "web/brief-2026-10.pdf", "web/okinawa-2026-10.html", "web/okinawa-2026-10-show.html", "web/okinawa-2026-10-food.html",
           "deals.json", "brief.json", "manifest.webmanifest"):
     chk(f in wf, "산출물에 %s 가 들어간다" % f)
 
@@ -56,7 +56,7 @@ food_out = open(os.path.join(tmp, "okinawa-2026-10-food.html"), encoding="utf-8"
 chk('<meta name="maps-key" content="AIzaTESTKEY">' in food_out, "Secret 이 있으면 식당 리스트에 지도 키가 들어간다")
 chk('src="trip-data.js?v=abc1234"' in food_out and 'src="trip-state.js?v=abc1234"' in food_out, "식당 페이지의 공용 모듈에 빌드 버전이 붙는다")
 plan_out = open(os.path.join(tmp, "okinawa-2026-10.html"), encoding="utf-8").read()
-chk('src="trip-data.js?v=abc1234"' in plan_out and 'src="trip-state.js?v=abc1234"' in plan_out, "일정 페이지의 공용 모듈에 빌드 버전이 붙는다")
+chk('src="trip-data.js?v=abc1234"' in plan_out and 'src="trip-state.js?v=abc1234"' in plan_out and 'src="trip-chars.js?v=abc1234"' in plan_out and 'src="trip-stage.js?v=abc1234"' in plan_out, "일정 페이지의 공용 모듈 4개에 빌드 버전이 붙는다")
 chk(food_out.count("AIzaTESTKEY") == 1, "주입된 키는 meta 한 곳에만 들어간다")
 open(os.path.join(tmp, "okinawa-2026-10-food.html"), "w", encoding="utf-8").write(food_src)
 r2 = subprocess.run(["bash", "-c", script], cwd=tmp, capture_output=True, text=True,

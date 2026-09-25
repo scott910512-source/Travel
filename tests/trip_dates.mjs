@@ -27,7 +27,7 @@ assert.equal(new Date('2026-10-03T00:00:00').getTimezoneOffset(), -540, 'TZ 가 
 
 await test('한국 시간대에서 숙소 화면이 얼지 않고 10/3 체크인 → 10/6 체크아웃을 보여 준다', async () => {
   const { d } = await boot('#t=trip');
-  assert(d.querySelector('.hub .tile'), '허브 타일');
+  assert(d.querySelector('.hub .mt-open'), '허브 내 여행 열기');
   const t0 = Date.now();
   d.querySelector('[data-view="tripstay"]').click();
   assert(Date.now() - t0 < 2000, '화면 전환이 2초 안에 끝난다');

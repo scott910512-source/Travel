@@ -20,6 +20,7 @@ const S = {
   tab: 'home',         // home | find | swiss | more
   view: null,          // 탭 위에 얹히는 화면 (analysis | settings | error | weekend | seed)
   tripDep: (() => { try { return localStorage.getItem('trip.dep'); } catch (_) { return null; } })(),  // 10월 여행 출발일 후보
+  depOpen: false,      // 10월 여행 허브의 '날짜 변경' 펼침
   detail: null,        // 열려 있는 상세 offer
   compared: [],
   range: 30,           // 그래프 구간(일)
@@ -1392,28 +1393,73 @@ function tripExact() {
     .map(o => Object.assign({}, o, { _block: o.duration_min || TRIP.block, _blockSrc: o.duration_min ? 'data' : 'table' }))
     .sort((a, b) => effective(a) - effective(b));
 }
+/* 여행 자료(trip-data.js)·캐릭터(trip-chars.js)는 이 탭에서만 필요하므로 그때 불러온다. 다른 탭은 건드리지 않는다. */
+let TRIP_ASSETS = null;   // null 미시작 · 'loading' · 'ok' · 'fail'
+function loadTripAssets() {
+  if (TRIP_ASSETS) return; TRIP_ASSETS = 'loading';
+  let left = 2; const done = ok => { if (!ok) TRIP_ASSETS = 'fail'; if (--left === 0) { if (TRIP_ASSETS !== 'fail') TRIP_ASSETS = 'ok'; if (S.tab === 'trip') render(); } };
+  ['trip-data.js', 'trip-chars.js'].forEach(f => { const el = document.createElement('script'); el.src = bust(f); el.onload = () => done(true); el.onerror = () => done(false); document.head.appendChild(el); });
+}
+/* 저장된 내 여행 요약: 마지막 본 일차와 그 날의 다음(아직 완료 안 한) 장소. 자료가 없으면 null. */
+function tripSummary() {
+  if (typeof TRIP_DATA === 'undefined' || typeof TripState === 'undefined') return null;
+  let store; try { store = localStorage; } catch (_) { return null; }
+  const r = TripState.load(store, TRIP_DATA); let ui = null; try { ui = JSON.parse(store.getItem('trip.ui') || 'null'); } catch (_) {}
+  const saved = !!store.getItem(TripState.PLAN_KEY);
+  const day = ui && ui.day >= 1 && ui.day <= 4 ? ui.day : 1;
+  const items = r.plan.days[day].items.filter(x => !x.excluded && x.kind !== 'move');
+  const next = items.find(x => !r.plan.done[x.uid]) || items[items.length - 1] || null;
+  const name = next ? (next.ref ? TripState.resolve(next.ref, TRIP_DATA).name : (TRIP_DATA.template.find(d => d.k === day).items.find(t => t.uid === next.tpl) || {}).n) : null;
+  const doneN = items.filter(x => r.plan.done[x.uid]).length;
+  return { saved, day, next: name, uid: next && next.uid, doneN, total: items.length, view: ui && ui.view };
+}
 function viewTrip() {
-  /* 허브는 큰 메뉴만 보여 준다. 컨셉·출발일 칩은 각 화면 안에 있다. */
+  if (!TRIP_ASSETS || TRIP_ASSETS === 'loading') loadTripAssets();
+  const dep = tripDep(), ret = addDays(dep, TRIP.nights);
+  const sum = TRIP_ASSETS === 'ok' ? tripSummary() : null;
   const exact = tripExact();
-  // ext === 'same' 은 같은 탭에서 연다(일정·식당은 서로 오가므로 탭이 늘지 않게). 나머지는 새 탭.
-  const tile = (attr, val, ico, title, sub, ext) => ext
-    ? `<a class="tile" href="${esc(val)}"${ext === 'same' ? '' : ' target="_blank" rel="noopener"'}><span class="ico">${ico}</span><b>${title}</b><small>${esc(sub)}</small></a>`
-    : `<button class="tile" data-${attr}="${esc(val)}"><span class="ico">${ico}</span><b>${title}</b><small>${esc(sub)}</small></button>`;
-  return `${plainHeader('10월 여행 · 오키나와', '청주 출발 · 10/3~5 출발 · 3박 4일 · 렌터카 · 임산부')}
+  const link = (href, ico, title, sub, ext) => `<a class="mrow" href="${esc(href)}"${ext ? ' target="_blank" rel="noopener"' : ''}><span class="mt">${ico} ${title}</span><span class="ms">${esc(sub)}</span>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" width="16" height="16" aria-hidden="true"><path d="${ext ? 'M7 17L17 7M9 7h8v8' : 'M9 18l6-6-6-6'}"/></svg></a>`;
+  const row = (view, ico, title, sub) => `<button class="mrow" data-view="${view}"><span class="mt">${ico} ${title}</span><span class="ms">${esc(sub)}</span>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" width="16" height="16" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg></button>`;
+  const planHref = bust(TRIP.plan) + (sum ? `#d${sum.day}` : '');
+  const preview = typeof TRIP_CHARS !== 'undefined'
+    ? `<svg class="charprev" viewBox="0 0 220 120" aria-hidden="true"><defs>${TRIP_CHARS.defs}</defs><rect width="220" height="120" rx="14" fill="#8FD3F4"/><ellipse cx="110" cy="112" rx="120" ry="22" fill="#F1DDB0"/><use href="#pr-palm" x="10" y="20" width="44" height="60"/><use href="#pr-palm" x="170" y="28" width="40" height="54"/><g class="char man wait" transform="translate(66,18)"><use href="#ch-man" width="60" height="90"/></g><g class="char woman wait" transform="translate(112,26)"><use href="#ch-woman" width="54" height="81"/></g></svg>`
+    : `<div class="charprev ph">${TRIP_ASSETS === 'fail' ? '캐릭터 자료를 불러오지 못했습니다' : '불러오는 중…'}</div>`;
+  return `${plainHeader('10월 여행 · 오키나와 3박 4일', `${TS_FMT(dep)} 출발 → ${TS_FMT(ret)} 귀국 · 청주 · 렌터카 · 임산부`)}
   <div class="wrap trip hub">
-    <div class="bigmenu">
-      ${tile('view', 'tripflights', '✈️', '항공편', exact.length ? `${won(effective(exact[0]))}원~ · ${exact.length}건` : '캐시에 가격 없음 · 직접 검색')}
-      ${tile('view', 'tripstay', '🏨', '숙소 추천', `온나 3박 · 후보 ${TRIP_STAYS.length}곳`)}
-      ${tile('', bust(TRIP.plan), '🗺', '내 여행 일정', '날짜별 선택 · 지도', 'same')}
-      ${tile('', bust(TRIP.show), '▶', '사진 브리핑', '자동재생 · 배경음', true)}
-      ${tile('', bust(TRIP.food), '🍜', '식당 둘러보기', '평점 · 일정에 넣기', 'same')}
-      ${tile('view', 'tripprep', '🤰', '준비물 · 유의점', '임산부 체크 · 병원')}
-      ${tile('view', 'tripall', '📄', '다른 목적지', '11곳 비교 · PDF')}
-    </div>
+    <section class="mytrip">
+      <div class="mt-hd"><div><b>오키나와 3박 4일</b><small>${TS_FMT(dep)} 출발 → ${TS_FMT(ret)} 귀국 · 연차 ${leaveDays(dep, ret)}일</small></div>
+        <button class="chip" data-depchips aria-expanded="${S.depOpen ? 'true' : 'false'}">날짜 변경</button></div>
+      ${S.depOpen ? tripDateChips() : ''}
+      <div class="mt-body">
+        ${preview}
+        <div class="mt-txt">
+          <span class="bg ${sum && sum.saved ? 'pri' : ''}">${sum && sum.saved ? '이어서 보기' : '여행 미리보기'}</span>
+          <b>${sum ? `${sum.day}일차 · ${sum.next ? `다음: ${esc(sum.next)}` : '선택된 장소 없음'}` : TRIP_ASSETS === 'fail' ? '여행 자료를 불러오지 못했습니다' : '여행 자료 불러오는 중…'}</b>
+          <small>${sum ? `${TS_FMT(addDays(dep, sum.day - 1))} · 방문 완료 ${sum.doneN}/${sum.total} · 캐릭터 여행 · 일정표 · 실제 지도` : '캐릭터 여행 · 일정표 · 실제 지도'}</small>
+        </div>
+      </div>
+      <a class="btn-go pdf mt-open" href="${esc(planHref)}">🚶 내 여행 열기</a>
+    </section>
+    <section class="sec">
+      ${link(bust(TRIP.food), '🍜', '식당 둘러보기', '평점 · 리뷰 사진 · 일정에 넣기')}
+    </section>
+    <section class="sec"><div class="sec-hd"><div><h2>여행 준비</h2></div></div>
+      ${row('tripflights', '✈️', '항공편', exact.length ? `${won(effective(exact[0]))}원~ · ${exact.length}건` : '캐시에 가격 없음 · 직접 검색')}
+      ${row('tripstay', '🏨', '숙소 추천', `온나 3박 · 후보 ${TRIP_STAYS.length}곳`)}
+      ${row('tripprep', '🤰', '준비물 · 유의점', '임산부 체크 · 병원')}
+    </section>
+    <section class="sec"><div class="sec-hd"><div><h2>더보기</h2></div></div>
+      ${link(bust(TRIP.show), '▶', '사진 브리핑', '자동재생 · 배경음', true)}
+      ${row('tripall', '📄', '다른 목적지 비교 · PDF', '11곳 · 브리핑 PDF')}
+    </section>
     ${footerHTML()}
   </div>
 `;
 }
+const TS_FMT = d => `${md(d)}(${dow(d)})`;
+
 function tripSearchLinks(d) {
   const r = addDays(d, TRIP.nights);
   const dm = x => x.slice(8, 10) + x.slice(5, 7);
@@ -3337,7 +3383,7 @@ const CLICK_ATTRS = [
   'longstops', 'reset', 'reset-prefs', 'reload', 'retry',
   'tier', 'change', 'cap', 'weekend', 'nights', 'apply', 'sheetopen',
   'clear', 'chip-off', 'more', 'alt', 'biz', 'compare', 'compare-clear', 'longnights', 'leave',
-  'tripdep'];
+  'tripdep', 'depchips'];
 const CLICK_SEL = CLICK_ATTRS.map(a => `[data-${a}]`).join(',');
 
 document.addEventListener('click', ev => {
@@ -3422,6 +3468,7 @@ document.addEventListener('click', ev => {
     push(); return render();
   }
 
+  if (t.hasAttribute('data-depchips')) { S.depOpen = !S.depOpen; return render(); }
   const td = t.getAttribute('data-tripdep');
   if (td) { S.tripDep = td; try { localStorage.setItem('trip.dep', td); } catch (_) {} return render(); }
   const view = t.getAttribute('data-view');

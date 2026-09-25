@@ -248,7 +248,7 @@ document.addEventListener('click',e=>{const ad=e.target.closest('[data-add]');if
   if(t.closest('[data-asave]')){const r=TS.setMeal(PLAN,addFor.day,addFor.slot,{type:'r',id:addFor.id},TRIP_DATA);
     if(!r.uid){toast('저장할 수 없습니다.');return;}
     const ok=TS.save(store,r.plan);const day=addFor.day,slot=addFor.slot;if(ok)PLAN=r.plan;closeAdd();render();
-    toast(ok?`${day}일차 ${TS.SLOT_LABEL[slot]}에 넣었습니다 · <a href="okinawa-2026-10.html#d${day}" style="color:#fff;font-weight:800">일정 보기 →</a>`:'저장 실패 — 브라우저 저장공간을 확인하세요');}});
+    toast(ok?`${day}일차 ${TS.SLOT_LABEL[slot]}에 넣었습니다 · <a href="okinawa-2026-10.html#d${day}/${encodeURIComponent(r.uid)}" style="color:#fff;font-weight:800">일정 보기 →</a>`:'저장 실패 — 브라우저 저장공간을 확인하세요');}});
 document.addEventListener('click',e=>{const a=e.target.closest('[data-area]');if(a){area=a.dataset.area;render();return;}const t=e.target.closest('[data-type]');if(t){type=t.dataset.type;render();return;}const so=e.target.closest('[data-sort]');if(so){sort=so.dataset.sort;try{localStorage.setItem('okinawa-food.sort',sort);}catch(e){}render();}});
 document.getElementById('q').addEventListener('input',e=>{q=e.target.value;render();});
 render();
