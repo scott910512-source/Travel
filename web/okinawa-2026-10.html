@@ -197,14 +197,16 @@ footer{color:var(--tx3);font-size:11.5px;text-align:center;padding:20px 0 0;line
 .prep{margin-top:18px;border-top:1px solid var(--line);padding-top:6px}
 @media(min-width:700px){.stage{height:560px}}
 </style>
+<link rel="stylesheet" href="trip-design.css?v=coast1">
 </head>
-<body>
+<body class="trip-redesign">
 <header class="hdr-mini"><div class="wrap">
   <a class="back" href="index.html#t=trip" aria-label="10월 여행으로">‹ 10월 여행</a>
-  <h1>내 여행 · 오키나와 3박 4일<span class="sub" id="hdsub"></span></h1>
+  <h1>또또네 오키나와<span class="sub" id="hdsub"></span></h1>
 </div></header>
 
 <main class="wrap">
+<div class="journey-heading"><span>OUR LITTLE JOURNEY</span><h2>천천히, 함께 떠나는 여행</h2></div>
 <div id="tripbar" class="tripbar"></div>
 <div id="notice" class="note" hidden></div>
 
@@ -212,7 +214,7 @@ footer{color:var(--tx3);font-size:11.5px;text-align:center;padding:20px 0 0;line
 <section id="v-chars" class="view">
   <div class="stagewrap">
     <svg id="stage" class="stage" viewBox="0 0 1000 600" preserveAspectRatio="xMidYMin meet" aria-label="캐릭터 여행 맵"></svg>
-    <span class="stagenote">순서를 보여 주는 그림 지도 · 실제 거리·도로 아님</span>
+    <span class="stagenote">우리 둘의 여행 장면</span>
     <button class="fitbtn" data-fit>전체보기</button>
   </div>
   <div id="ctl" class="ctl">
@@ -222,10 +224,10 @@ footer{color:var(--tx3);font-size:11.5px;text-align:center;padding:20px 0 0;line
       <button class="ico" data-prev aria-label="이전 스텝">‹</button>
       <button class="play" data-play>▶ 재생</button>
       <button class="ico" data-next aria-label="다음 스텝">›</button>
-      <select data-speed aria-label="속도"><option value="0.5">느리게</option><option value="1" selected>보통</option><option value="2">빠르게</option></select>
+      <select data-speed aria-label="속도"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option></select>
       <button class="det" data-cur>상세</button>
     </div>
-    <p class="mapnote" style="margin:6px 0 0">미리보기용 재생입니다. 실제 시간·GPS 와 무관하고 방문 완료로 기록되지 않습니다.</p>
+    <p class="mapnote" style="margin:6px 0 0">여행 장면은 연출입니다 · 실제 위치는 지도에서 확인</p>
   </div>
 </section>
 
@@ -402,9 +404,9 @@ function stageSteps(k) {
 function renderShell() {
   const dep = plan.dep;
   document.getElementById('tripbar').innerHTML = `
-    <div class="deps" role="group" aria-label="출발일">${TS.DEPS.map(d => `<button data-dep="${d}" aria-pressed="${d === dep}">${TS.fmt(d)} 출발<small>${TS.fmt(TS.addDays(d, TS.NIGHTS))} 귀국</small></button>`).join('')}</div>
+    <details class="date-picker"><summary>${TS.fmt(dep)} — ${TS.fmt(TS.addDays(dep, TS.NIGHTS))} <span>날짜 변경⌄</span></summary><div class="deps" role="group" aria-label="출발일">${TS.DEPS.map(d => `<button data-dep="${d}" aria-pressed="${d === dep}">${TS.fmt(d)} 출발<small>${TS.fmt(TS.addDays(d, TS.NIGHTS))} 귀국</small></button>`).join('')}</div></details>
     <div class="tabs" role="tablist">${[1, 2, 3, 4].map(n => `<button role="tab" aria-selected="${n === cur}" data-day="${n}">${n}일차<small>${TS.fmt(TS.dayDate(dep, n))}</small></button>`).join('')}</div>
-    <div class="viewsw" role="group" aria-label="보기">${[['chars', '🚶 캐릭터 여행'], ['list', '📋 일정표'], ['map', '🗺 실제 지도']].map(([v, l]) => `<button data-view="${v}" aria-pressed="${ui.view === v}">${l}</button>`).join('')}</div>`;
+    <div class="viewsw" role="group" aria-label="보기">${[['chars', '여행 장면'], ['list', '일정표'], ['map', '실제 지도']].map(([v, l]) => `<button data-view="${v}" aria-pressed="${ui.view === v}">${l}</button>`).join('')}</div>`;
   ['chars', 'list', 'map'].forEach(v => document.getElementById('v-' + v).classList.toggle('on', ui.view === v));
   document.getElementById('hdsub').textContent = `${TS.fmt(dep)} 출발 → ${TS.fmt(TS.addDays(dep, TS.NIGHTS))} 귀국 · ${cur}일차 ${TS.fmt(TS.dayDate(dep, cur))}`;
 }
@@ -534,7 +536,7 @@ function renderDetail() {
   const it = plan.days[cur].items.find(x => x.uid === detail.uid);
   if (!it) { closeDetail(); return; }
   const v = view(it, cur), f = TS.timeFlags(plan, cur, D)[it.uid] || {}, r = v.res.r, p = v.res.poi, g = gsOf(r);
-  const photo = g && g.photos && g.photos[0] ? `<div class="ph"><img src="${esc(g.photos[0].url)}" alt=""></div><p class="phcap">구글 이용자 사진 · ${esc(g.photos[0].attr || '')} · 확인 ${esc(gsDate())}</p>` : `<div class="ph">사진 미확인</div>`;
+  const photo = g && g.photos && g.photos[0] ? `<div class="ph"><img src="${esc(g.photos[0].url)}" alt=""></div><p class="phcap">구글 이용자 사진 · ${esc(g.photos[0].attr || '')} · 확인 ${esc(gsDate())}</p>` : `<div class="ph illustration"><img src="assets/trip/coast.webp" alt="오키나와 여행 일러스트"></div><p class="phcap">여행 일러스트 · 실제 장소 사진이 아닙니다</p>`;
   const todo = r ? `${r.p === 'ok' ? '익힌 메뉴 위주 (참고)' : r.p === 'care' ? '생것 메뉴가 섞여 있어 익힌 것을 고르세요' : '임산부에게 권하지 않습니다'}` : p ? (p.d || '') : v.res.kind === 'hotel' ? D.hotel.d : v.res.kind === 'custom' ? '직접 입력한 장소입니다.' : v.res.kind === 'tbd' ? '아직 정하지 않았습니다.' : (v.tpl.d || '');
   const kv = [];
   kv.push(['방문', `${cur}일차 ${TS.fmt(TS.dayDate(plan.dep, cur))}`]);
@@ -562,7 +564,7 @@ function renderDetail() {
       <h4>소개 · 여기서 할 일</h4><p style="margin:0;font-size:13.5px;color:var(--tx2)">${esc(todo || '미확인')}${v.desc && v.desc !== todo ? ` ${esc(v.desc)}` : ''}</p>
       ${v.preg ? `<div class="preg" style="margin-top:6px;font-size:12.5px;color:#8A4B00;background:var(--warn-soft);padding:6px 8px;border-radius:8px">🤰 ${esc(v.preg)}</div>` : ''}
       <h4>방문 정보</h4><div class="kvs">${kv.map(([a, b]) => `<span>${esc(a)}</span> <span>${esc(b)}</span>`).join('\n')}</div>
-      ${links}${acts}
+      ${links}${acts}<button class="continue-trip" data-close>닫고 여행 계속하기 →</button>
       <p style="font-size:11.5px;color:var(--tx3);margin-top:12px">미확인 항목은 자료가 없는 것입니다. 시안의 예시 문구를 정보로 쓰지 않았습니다.</p>
     </div></div>`;
 }

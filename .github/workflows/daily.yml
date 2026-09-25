@@ -301,10 +301,12 @@ jobs:
           MAPS_BROWSER_KEY: ${{ secrets.MAPS_BROWSER_KEY }}
         run: |
           mkdir -p public
-          cp web/index.html web/app.css web/app.js public/
+          cp web/index.html web/app.css web/app.js web/trip-design.css public/
+          cp -R web/assets public/
           cp web/travel-state.js web/compare.js web/trip-state.js web/trip-data.js web/trip-chars.js web/trip-stage.js public/
           cp web/brief-2026-10.json web/brief-2026-10.pdf web/okinawa-2026-10.html web/okinawa-2026-10-show.html web/okinawa-2026-10-food.html public/   # 여행 브리핑 자료 + PDF + 오키나와 일정 (사람이 쓴 참고)
           BUILD="${GITHUB_SHA::7}"
+          sed -i "s|trip-design.css?v=coast1|trip-design.css?v=${BUILD}|" public/okinawa-2026-10.html
           sed -i "s|href=\"app.css\"|href=\"app.css?v=${BUILD}\"|" public/index.html
           sed -i "s|src=\"app.js\"|src=\"app.js?v=${BUILD}\"|"   public/index.html
           sed -i "s|src=\"travel-state.js\"|src=\"travel-state.js?v=${BUILD}\"|" public/index.html

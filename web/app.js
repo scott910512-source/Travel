@@ -1423,9 +1423,7 @@ function viewTrip() {
   const row = (view, ico, title, sub) => `<button class="mrow" data-view="${view}"><span class="mt">${ico} ${title}</span><span class="ms">${esc(sub)}</span>
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" width="16" height="16" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg></button>`;
   const planHref = bust(TRIP.plan) + (sum ? `#d${sum.day}` : '');
-  const preview = typeof TRIP_CHARS !== 'undefined'
-    ? `<svg class="charprev" viewBox="0 0 220 120" aria-hidden="true"><defs>${TRIP_CHARS.defs}</defs><rect width="220" height="120" rx="14" fill="#8FD3F4"/><ellipse cx="110" cy="112" rx="120" ry="22" fill="#F1DDB0"/><use href="#pr-palm" x="10" y="20" width="44" height="60"/><use href="#pr-palm" x="170" y="28" width="40" height="54"/><g class="char man wait" transform="translate(66,18)"><use href="#ch-man" width="60" height="90"/></g><g class="char woman wait" transform="translate(112,26)"><use href="#ch-woman" width="54" height="81"/></g></svg>`
-    : `<div class="charprev ph">${TRIP_ASSETS === 'fail' ? '캐릭터 자료를 불러오지 못했습니다' : '불러오는 중…'}</div>`;
+  const preview = `<div class="charprev scene-preview" aria-hidden="true"><svg viewBox="0 512 512 512"><image href="assets/trip/couple.webp" width="1536" height="1024"/></svg></div>`;
   return `${plainHeader('10월 여행 · 오키나와 3박 4일', `${TS_FMT(dep)} 출발 → ${TS_FMT(ret)} 귀국 · 청주 · 렌터카 · 임산부`)}
   <div class="wrap trip hub">
     <section class="mytrip">

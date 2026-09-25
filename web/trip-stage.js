@@ -39,48 +39,40 @@ const TripStage = (() => {
     const clearTimers = () => { if (raf) cancelAnimationFrame(raf); if (timer) clearTimeout(timer); raf = 0; timer = 0; moving = null; };
     const state = () => ({ idx, playing, speed, phase, n: steps.length, step: steps[idx] || null });
     const emit = () => o.onState(state());
+    let spriteFrame = 3, travelStart = 0;
     function build() {
-      const h = H(steps.length); pts = layout(steps.length);
-      svg.setAttribute('viewBox', `0 0 ${W} ${h}`); svg.dataset.h = h;
-      svg.innerHTML = `<defs>${TRIP_CHARS.defs}</defs><g class="cam">${background(h)}
-        <path class="route" d="${pathD(pts)}" fill="none" stroke="#fff" stroke-width="5" stroke-dasharray="2 14" stroke-linecap="round" opacity=".9"/>
-        <g class="nodes">${steps.map((s, i) => node(s, i)).join('')}</g>
-        <g class="car pr-car" style="display:none"><use href="#pr-car" x="-60" y="-70" width="120" height="60"/></g>
-        <g class="chars"><g class="pair"><g class="char man" transform="translate(-52,-96)"><use href="#ch-man" width="64" height="96"/></g><g class="char woman" transform="translate(-8,-86)"><use href="#ch-woman" width="58" height="86"/></g></g>
-          <g class="bubble" style="display:none"><rect x="-80" y="-150" width="160" height="34" rx="12" fill="#fff" stroke="#5B4BE0" stroke-width="2"/><path d="M-6 -116l6 10 6-10z" fill="#fff"/><text x="0" y="-127" text-anchor="middle" font-size="17" font-weight="800" fill="#16181F"></text></g></g></g>`;
-      cam = svg.querySelector('.cam'); chars = svg.querySelector('.chars'); car = svg.querySelector('.car');
+      pts = layout(steps.length);
+      svg.setAttribute('viewBox', '0 0 600 700');
+      svg.setAttribute('preserveAspectRatio', 'xMidYMid slice');
+      svg.innerHTML = `<defs>${TRIP_CHARS.defs}</defs>
+        <image href="assets/trip/coast.webp" width="600" height="700" preserveAspectRatio="xMidYMid slice"/>
+        <path d="M180 600 Q270 550 370 400" fill="none" stroke="#d77350" stroke-width="5" stroke-dasharray="4 16" stroke-linecap="round" opacity=".75"/>
+        <g class="nodes">${steps.map((s,i)=>node(s,i)).join('')}</g>
+        <g class="car pr-car" style="display:none"><use href="#pr-car" x="-65" y="-70" width="130" height="65"/></g>
+        <g class="chars"><ellipse cx="0" cy="-5" rx="79" ry="13" fill="#29352b" opacity=".16"/>
+          <g class="pair"><g class="char man"><svg class="sprite" x="-136" y="-270" width="272" height="272" viewBox="0 512 512 512" overflow="hidden"><image href="assets/trip/couple.webp" width="1536" height="1024"/></svg></g></g>
+          <g class="bubble" style="display:none"><rect x="-80" y="-302" width="160" height="34" rx="17" fill="#fffdf8"/><text x="0" y="-279" text-anchor="middle" font-size="17" font-weight="700" fill="#173c40"></text></g></g>`;
+      chars=svg.querySelector('.chars'); car=svg.querySelector('.car');
     }
-    function node(s, i) {
-      const p = pts[i]; const name = s.name.length > 16 ? s.name.slice(0, 15) + '…' : s.name;
-      const w = Math.min(280, Math.max(120, name.length * 15 + 40));
-      const ly = 40;   // 이름표는 항상 아이콘 아래(캐릭터가 위에 서므로)
-      return `<g class="node k-${s.k}${s.done ? ' done' : ''}" data-i="${i}" transform="translate(${p.x},${p.y})" tabindex="0" role="button" aria-label="${esc(s.name)} 상세">
-        <ellipse cx="0" cy="8" rx="30" ry="10" fill="#000" opacity=".12"/>
-        <use href="#${ICON[s.k] || 'ic-poi'}" x="-24" y="-24" width="48" height="48"/>
-        <g class="lbl" transform="translate(0,${ly})"><rect x="${-w / 2}" y="-16" width="${w}" height="34" rx="12" fill="#fff" stroke="#D9D3FA" stroke-width="2"/>
-          <text x="${-w / 2 + 14}" y="7" font-size="17" font-weight="800" fill="#16181F">${esc(name)}</text>
-          <g class="info" transform="translate(${w / 2 - 20},0)"><circle r="12" fill="#5B4BE0"/><text y="5" text-anchor="middle" font-size="14" font-weight="800" fill="#fff">i</text></g></g>
-        ${s.done ? '<circle cx="18" cy="-18" r="9" fill="#0F9D58"/><path d="M13 -18l4 4 7-8" stroke="#fff" stroke-width="2.5" fill="none"/>' : ''}
-      </g>`;
+    function node(s,i) {
+      return `<g class="node k-${s.k}${s.done?' done':''}" data-i="${i}" tabindex="0" role="button" aria-label="${esc(s.name)} 상세">
+        <rect x="-126" y="-26" width="252" height="64" rx="18" fill="#fffdf8" stroke="#e6e5da"/>
+        <circle cx="-104" cy="5" r="10" fill="#d66e4d"/>
+        <text x="-84" y="0" font-size="16" font-weight="700" fill="#173c40">${esc(s.name.length>12?s.name.slice(0,12)+'…':s.name)}</text>
+        <text class="nodehint" x="-84" y="23" font-size="13" fill="#697e7c">장소 자세히 보기 ↗</text></g>`;
     }
-    function place(i) { const p = pts[i]; if (!p) return; chars.setAttribute('transform', `translate(${p.x - 44},${p.y + 4})`); car.style.display = 'none'; chars.style.display = ''; }
-    function face(dir) { const pair = svg.querySelector('.pair'); if (pair) pair.setAttribute('transform', dir < 0 ? 'scale(-1,1)' : ''); }
-    function pose(cls) { svg.querySelectorAll('.char').forEach(c => { c.classList.remove('walk', 'wait', 'look', 'eat', 'rest'); if (cls) c.classList.add(cls); }); }
-    function bubble(text) { const b = svg.querySelector('.bubble'); if (!b) return; if (!text) { b.style.display = 'none'; return; } b.style.display = ''; b.querySelector('text').textContent = text; const w = Math.max(120, text.length * 17 + 30); b.querySelector('rect').setAttribute('x', -w / 2); b.querySelector('rect').setAttribute('width', w); }
-    function highlight(i) { svg.querySelectorAll('.node').forEach(n => n.classList.toggle('cur', Number(n.dataset.i) === i)); }
-    /* 카메라: 스텝이 4개 넘으면 캐릭터를 따라간다. 전체보기면 그대로. */
-    function camera(y, instant) {
-      const h = Number(svg.dataset.h) || H(steps.length);
-      const box = svg.getBoundingClientRect ? svg.getBoundingClientRect() : { width: 400, height: 500 };
-      const vh = box.width && box.height ? (box.height / box.width) * W : 600;   // 화면 비율에 맞춘 보이는 높이(뷰박스 단위) · 크기를 모르면 600
-      if (fitAllMode) { const fh = Math.max(h, vh); svg.setAttribute('viewBox', `0 ${(h - fh) / 2} ${W} ${fh}`); return; }
-      if (h <= vh + 40) { svg.setAttribute('viewBox', `0 ${(h - vh) / 2} ${W} ${vh}`); return; }   // 짧은 맵: 세로 가운데, 폭은 꽉
-      const top = Math.max(0, Math.min(h - vh, y - vh * 0.55));
-      if (instant || reduced()) { svg.setAttribute('viewBox', `0 ${top} ${W} ${vh}`); return; }
-      const from = (svg.getAttribute('viewBox') || '0 0').split(' ').map(Number)[1] || 0; const t0 = performance.now();
-      const step = now => { const k = Math.min(1, (now - t0) / 500); const e = 1 - Math.pow(1 - k, 3); svg.setAttribute('viewBox', `0 ${from + (top - from) * e} ${W} ${vh}`); if (k < 1 && !destroyed) requestAnimationFrame(step); };
-      requestAnimationFrame(step);
-    }
+    function frame(n){const e=svg.querySelector('.sprite');if(e)e.setAttribute('viewBox',`${(n%3)*512} ${Math.floor(n/3)*512} 512 512`);}
+    function place(i){if(!steps[i])return;chars.setAttribute('transform','translate(285,605)');chars.style.display='';car.style.display='none';}
+    function face(dir) { /* Perspective stays consistent with the scene. */ }
+    function pose(cls){const c=svg.querySelector('.char');if(c){c.setAttribute('class','char man '+(cls||''));}spriteFrame=cls==='eat'?4:cls==='rest'?5:3;frame(spriteFrame);}
+    function bubble(text){const b=svg.querySelector('.bubble');if(!b)return;b.style.display=text?'':'none';b.querySelector('text').textContent=text||'';const w=Math.max(140,(text||'').length*17+30);b.querySelector('rect').setAttribute('x',-w/2);b.querySelector('rect').setAttribute('width',w);}
+    function highlight(i){svg.querySelectorAll('.node').forEach(n=>n.classList.toggle('cur',Number(n.dataset.i)===i));positionNodes();}
+    function positionNodes(){svg.querySelectorAll('.node').forEach((n,i)=>{
+      n.style.display=fitAllMode||i===idx||i===idx+1?'':'none';
+      n.setAttribute('transform',fitAllMode?`translate(${i%2?445:155},${90+Math.floor(i/2)*82})`:`translate(${i===idx?151:447},${i===idx?180:320})`);
+      n.querySelector('.nodehint').textContent=fitAllMode?`${i+1}번째 장소 · 상세 ↗`:i===idx?'현재 장소 · 상세 ↗':'다음 장소 · 상세 ↗';
+    });if(chars)chars.style.opacity=fitAllMode?'.25':'1';}
+    function camera(y,instant){positionNodes();}
     function arrive(i, opt) {
       idx = i; phase = 'at'; place(i); highlight(i);
       const s = steps[i]; pose(POSE[s.k] || 'wait'); bubble(BUBBLE[s.k] || '');
@@ -97,13 +89,14 @@ const TripStage = (() => {
       paused = null; phase = 'moving'; const byCar = !!steps[to].car; highlight(-1);
       face(b.x < a.x ? -1 : 1); bubble(byCar ? GO.car : GO.walk); pose('walk');
       if (byCar) { chars.style.display = 'none'; car.style.display = ''; car.querySelector('use').setAttribute('transform', b.x < a.x ? 'scale(-1,1)' : ''); }
-      const dur = (reduced() ? 1 : 1800) / speed, t0 = performance.now(); emit();
+      const dur = (reduced() ? 1 : 1800) / speed, t0 = performance.now(); travelStart=t0; emit();
       const tick = now => {
         if (destroyed) return;
         const k = Math.min(1, (now - t0) / dur); const e = k < .5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
         const x = a.x + (b.x - a.x) * e, y = a.y + (b.y - a.y) * e;
         moving.x = x; moving.y = y;
-        (byCar ? car : chars).setAttribute('transform', `translate(${x - (byCar ? 0 : 44)},${y + (byCar ? -6 : 4)})`);
+        (byCar ? car : chars).setAttribute('transform', `translate(${245+e*105},${615-e*75})`);
+        if(!byCar)frame(Math.floor((now-travelStart)/150)%3);
         if (k < 1) raf = requestAnimationFrame(tick); else { raf = 0; moving = null; arrive(to); }
       };
       moving = { to, x: a.x, y: a.y }; raf = requestAnimationFrame(tick);

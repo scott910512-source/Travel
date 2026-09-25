@@ -689,3 +689,9 @@ a.mrow{text-decoration:none;color:inherit}
 .mt-open{margin-top:12px;text-align:center;font-size:15px;min-height:52px;display:flex;align-items:center;justify-content:center}
 .hub .sec{margin-top:14px}
 .hub .sec-hd h2{font-size:14px;color:var(--tx2)}
+
+/* October trip hero only */
+.trip.hub{--pri:#075b65;--pri-soft:#e7f0ed;--pri-line:#c6dcd6}
+.trip.hub .mytrip{background:#faf8f3;border:1px solid #e7e5dc;border-radius:24px;overflow:hidden;box-shadow:0 10px 30px #173d3510}
+.trip.hub .mt-body{display:block}.trip.hub .scene-preview{width:100%;height:270px;background:url('assets/trip/coast.webp') center 48%/cover;border-radius:18px;position:relative;overflow:hidden}.trip.hub .scene-preview svg{width:190px;height:190px;position:absolute;bottom:0;left:calc(50% - 95px)}
+.trip.hub .mt-txt{padding:15px 0 0}.trip.hub .mt-open{background:#075b65;border-color:#075b65;border-radius:24px}.trip.hub .mrow{border-radius:16px}.trip.hub .mt-hd b{letter-spacing:-.04em}
