@@ -77,7 +77,7 @@ SLIDES = [
 ]
 
 css = """
-*{box-sizing:border-box}html,body{margin:0;height:100%;background:#0f1120;color:#fff;
+*{box-sizing:border-box}html,body{margin:0;height:100%;background:#0f1120;color:#fff;touch-action:manipulation;-webkit-user-select:none;user-select:none;
 font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo",Pretendard,"Noto Sans KR",system-ui,sans-serif;overflow:hidden}
 #stage{position:fixed;inset:0}
 .sl{position:absolute;inset:0;opacity:0;transition:opacity .9s;pointer-events:none}
@@ -110,6 +110,7 @@ font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo",Pretendard,"N
 /* .sl .tx (0,2,0) 이 기본 패딩을 잡고 있어 .tx 만으로는 못 이긴다 — 같은 특이도로 쓴다 */
 /* ── 보기(뷰) 모드: 같은 장면들을 세로로 펼쳐 읽는다. DOM 을 재사용하므로 파일이 두 배가 되지 않는다. */
 #modebar{position:fixed;top:calc(10px + env(safe-area-inset-top));right:12px;z-index:7;display:flex;gap:6px}
+#modebar a{font:inherit;text-decoration:none;display:inline-flex;align-items:center;font-weight:800;font-size:13px;color:#fff;background:rgba(0,0,0,.45);border:1px solid rgba(255,255,255,.35);border-radius:999px;min-height:38px;padding:0 13px}
 #modebar button{font:inherit;font-weight:800;font-size:13px;color:#fff;background:rgba(0,0,0,.45);border:1px solid rgba(255,255,255,.35);
  border-radius:999px;min-height:38px;padding:0 13px;cursor:pointer;backdrop-filter:blur(8px)}
 #modebar button[aria-pressed="true"]{background:#fff;color:#5B4BE0;border-color:#fff}
@@ -160,10 +161,14 @@ function show(n){i=(n+sls.length)%sls.length;sls.forEach((s,k)=>s.classList.togg
 function tick(now){if(playing){const p=Math.min(1,(now-t0)/DUR);bar.style.width=(p*100)+'%';if(p>=1){if(i===sls.length-1){setPlay(false);}else show(i+1);}}raf=requestAnimationFrame(tick);}
 function setPlay(v){playing=v;btn.textContent=v?'⏸ 멈춤':'▶ 재생';if(v)t0=performance.now()-(parseFloat(bar.style.width)||0)/100*DUR;
  hint.textContent=v?'자동 재생':'멈춤 — 화면을 누르면 재생';hint.classList.add('on');setTimeout(()=>hint.classList.remove('on'),900);}
-document.getElementById('stage').addEventListener('click',()=>{if(!document.body.classList.contains('view'))setPlay(!playing);});
+// 더블탭·연타 방지: 한 번 처리한 뒤 400ms 안의 탭은 무시한다 (두 번 눌러 멈췄다 바로 재생되는 일 방지).
+const once=(fn,gap=400)=>{let last=0;return ev=>{const now=performance.now();if(now-last<gap)return;last=now;fn(ev);};};  // 요소마다 따로 센다
+document.getElementById('stage').addEventListener('click',once(()=>{if(!document.body.classList.contains('view'))setPlay(!playing);}));
+document.getElementById('stage').addEventListener('dblclick',ev=>ev.preventDefault());
 btn.addEventListener('click',ev=>{ev.stopPropagation();setPlay(!playing);});
-document.getElementById('prev').addEventListener('click',ev=>{ev.stopPropagation();show(i-1);});
-document.getElementById('next').addEventListener('click',ev=>{ev.stopPropagation();show(i+1);});
+const prevOnce=once(()=>show(i-1),300),nextOnce=once(()=>show(i+1),300);
+document.getElementById('prev').addEventListener('click',ev=>{ev.stopPropagation();prevOnce(ev);});
+document.getElementById('next').addEventListener('click',ev=>{ev.stopPropagation();nextOnce(ev);});
 let sx=null;document.addEventListener('touchstart',e=>{sx=e.touches[0].clientX});
 document.addEventListener('touchend',e=>{if(sx==null||document.body.classList.contains('view'))return;const dx=e.changedTouches[0].clientX-sx;sx=null;if(Math.abs(dx)>50)show(dx<0?i+1:i-1);});
 document.addEventListener('keydown',e=>{if(e.key==='ArrowRight')show(i+1);else if(e.key==='ArrowLeft')show(i-1);else if(e.key===' '){e.preventDefault();setPlay(!playing);}});
@@ -225,7 +230,7 @@ doc = f"""<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8">
 <title>오키나와 3박 4일 · 청주 출발 시뮬레이션</title><style>{css}</style></head><body>
 <div id="bar"><i></i></div>
 <div id="stage">{''.join(sl_html)}</div>
-<div id="modebar"><button id="m-play" aria-pressed="true">▶ 자동재생</button><button id="m-view" aria-pressed="false">📖 보기</button></div>
+<div id="modebar"><a href="okinawa-2026-10.html" id="m-plan">📋 일정·지도</a><button id="m-play" aria-pressed="true">▶ 자동재생</button><button id="m-view" aria-pressed="false">📖 보기</button></div>
 <div id="hint"></div>
 <div id="ctl"><button id="prev">‹ 이전</button><span class="n"><span id="num"></span> · 7초마다 넘어감 · 화면 탭 = 멈춤/재생</span><button id="next">다음 ›</button><button id="play">⏸ 멈춤</button><button id="bgm" title="배경음">🔇 음악</button><button id="fs" title="전체화면">⛶</button></div>
 <script>{js}</script></body></html>"""

@@ -1,7 +1,7 @@
 <!DOCTYPE html><html lang="ko"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="color-scheme" content="dark">
 <title>오키나와 3박 4일 · 청주 출발 시뮬레이션</title><style>
-*{box-sizing:border-box}html,body{margin:0;height:100%;background:#0f1120;color:#fff;
+*{box-sizing:border-box}html,body{margin:0;height:100%;background:#0f1120;color:#fff;touch-action:manipulation;-webkit-user-select:none;user-select:none;
 font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo",Pretendard,"Noto Sans KR",system-ui,sans-serif;overflow:hidden}
 #stage{position:fixed;inset:0}
 .sl{position:absolute;inset:0;opacity:0;transition:opacity .9s;pointer-events:none}
@@ -34,6 +34,7 @@ font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo",Pretendard,"N
 /* .sl .tx (0,2,0) 이 기본 패딩을 잡고 있어 .tx 만으로는 못 이긴다 — 같은 특이도로 쓴다 */
 /* ── 보기(뷰) 모드: 같은 장면들을 세로로 펼쳐 읽는다. DOM 을 재사용하므로 파일이 두 배가 되지 않는다. */
 #modebar{position:fixed;top:calc(10px + env(safe-area-inset-top));right:12px;z-index:7;display:flex;gap:6px}
+#modebar a{font:inherit;text-decoration:none;display:inline-flex;align-items:center;font-weight:800;font-size:13px;color:#fff;background:rgba(0,0,0,.45);border:1px solid rgba(255,255,255,.35);border-radius:999px;min-height:38px;padding:0 13px}
 #modebar button{font:inherit;font-weight:800;font-size:13px;color:#fff;background:rgba(0,0,0,.45);border:1px solid rgba(255,255,255,.35);
  border-radius:999px;min-height:38px;padding:0 13px;cursor:pointer;backdrop-filter:blur(8px)}
 #modebar button[aria-pressed="true"]{background:#fff;color:#5B4BE0;border-color:#fff}
@@ -130,7 +131,7 @@ body.view #ctl,body.view #bar{display:none}
   <p style="font-size:12.5px;line-height:1.6">모두 Wikimedia Commons 의 크리에이티브 커먼즈 사진입니다.</p>
   <ul style="font-size:12px;line-height:1.55;padding-left:18px;margin:8px 0 0;max-height:60vh;overflow:auto"><li>나하공항 도착 · 렌터카 — x768 · CC BY-SA 2.0</li><li>우미카지 테라스 (세나가지마) — Naha Mama Pavilionz · CC0</li><li>온나 리조트 체크인 — CEphoto, Uwe Aranas · CC BY-SA 3.0</li><li>만자모 — CEphoto, Uwe Aranas · CC BY-SA 3.0</li><li>나카무라소바 — ayustety from Naha, Okinawa · CC BY-SA 2.0</li><li>츄라우미 수족관 — Jordy Meow · CC BY-SA 3.0</li><li>기시모토 식당 (모토부) — kikmoyoo · CC BY-SA 2.0</li><li>비세 후쿠기 가로수길 — Abasaa · Public domain</li><li>코우리 대교 · 카페 — CEphoto, Uwe Aranas · CC BY-SA 3.0</li><li>잔파곶 — Kugel~commonswiki · CC BY-SA 4.0</li><li>류큐무라 — Yuet Man Lee · CC BY-SA 4.0</li><li>A&amp;W 미하마점 · 타코라이스 — Nelo Hotsuma · CC BY 2.0</li><li>아메리칸 빌리지 (실내) — Toshihiro Matsui · CC BY-SA 3.0</li><li>선셋비치 — そらみみ · CC BY-SA 4.0</li><li>슈리성 공원 — 663highland · CC BY 2.5</li><li>국제거리 · 마키시 시장 — 663highland · CC BY 2.5</li></ul>
   <p style="font-size:12px;margin-top:10px;opacity:.8">일정·식당은 참고 자료입니다. 영업시간과 항공사 임산부 규정은 예약 전 확인하세요.</p></div></section></div>
-<div id="modebar"><button id="m-play" aria-pressed="true">▶ 자동재생</button><button id="m-view" aria-pressed="false">📖 보기</button></div>
+<div id="modebar"><a href="okinawa-2026-10.html" id="m-plan">📋 일정·지도</a><button id="m-play" aria-pressed="true">▶ 자동재생</button><button id="m-view" aria-pressed="false">📖 보기</button></div>
 <div id="hint"></div>
 <div id="ctl"><button id="prev">‹ 이전</button><span class="n"><span id="num"></span> · 7초마다 넘어감 · 화면 탭 = 멈춤/재생</span><button id="next">다음 ›</button><button id="play">⏸ 멈춤</button><button id="bgm" title="배경음">🔇 음악</button><button id="fs" title="전체화면">⛶</button></div>
 <script>
@@ -140,10 +141,14 @@ function show(n){i=(n+sls.length)%sls.length;sls.forEach((s,k)=>s.classList.togg
 function tick(now){if(playing){const p=Math.min(1,(now-t0)/DUR);bar.style.width=(p*100)+'%';if(p>=1){if(i===sls.length-1){setPlay(false);}else show(i+1);}}raf=requestAnimationFrame(tick);}
 function setPlay(v){playing=v;btn.textContent=v?'⏸ 멈춤':'▶ 재생';if(v)t0=performance.now()-(parseFloat(bar.style.width)||0)/100*DUR;
  hint.textContent=v?'자동 재생':'멈춤 — 화면을 누르면 재생';hint.classList.add('on');setTimeout(()=>hint.classList.remove('on'),900);}
-document.getElementById('stage').addEventListener('click',()=>{if(!document.body.classList.contains('view'))setPlay(!playing);});
+// 더블탭·연타 방지: 한 번 처리한 뒤 400ms 안의 탭은 무시한다 (두 번 눌러 멈췄다 바로 재생되는 일 방지).
+const once=(fn,gap=400)=>{let last=0;return ev=>{const now=performance.now();if(now-last<gap)return;last=now;fn(ev);};};  // 요소마다 따로 센다
+document.getElementById('stage').addEventListener('click',once(()=>{if(!document.body.classList.contains('view'))setPlay(!playing);}));
+document.getElementById('stage').addEventListener('dblclick',ev=>ev.preventDefault());
 btn.addEventListener('click',ev=>{ev.stopPropagation();setPlay(!playing);});
-document.getElementById('prev').addEventListener('click',ev=>{ev.stopPropagation();show(i-1);});
-document.getElementById('next').addEventListener('click',ev=>{ev.stopPropagation();show(i+1);});
+const prevOnce=once(()=>show(i-1),300),nextOnce=once(()=>show(i+1),300);
+document.getElementById('prev').addEventListener('click',ev=>{ev.stopPropagation();prevOnce(ev);});
+document.getElementById('next').addEventListener('click',ev=>{ev.stopPropagation();nextOnce(ev);});
 let sx=null;document.addEventListener('touchstart',e=>{sx=e.touches[0].clientX});
 document.addEventListener('touchend',e=>{if(sx==null||document.body.classList.contains('view'))return;const dx=e.changedTouches[0].clientX-sx;sx=null;if(Math.abs(dx)>50)show(dx<0?i+1:i-1);});
 document.addEventListener('keydown',e=>{if(e.key==='ArrowRight')show(i+1);else if(e.key==='ArrowLeft')show(i-1);else if(e.key===' '){e.preventDefault();setPlay(!playing);}});
