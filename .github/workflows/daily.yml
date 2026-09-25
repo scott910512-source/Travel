@@ -14,7 +14,11 @@ on:
   workflow_dispatch:        # 수동 실행 버튼
     inputs:
       probe:
-        description: "프로브 (cabin = 비즈니스석 데이터 유무만 잰다 / food = 식당 구글 평점·사진을 한 번 조회해 저장본으로 커밋·배포)"
+        description: "프로브 (cabin = 비즈니스석 데이터 유무 / food = 식당 구글 저장본 커밋·배포 / fare = 특정 노선·날짜 최저가 훑기 · 로그만)"
+        required: false
+        default: ""
+      q:
+        description: "fare 프로브 질의: 출발지-도착지 출발일 귀국일 (예: CJJ-OKA 2026-10-06 2026-10-09)"
         required: false
         default: ""
   pull_request:             # PR 은 검증만 (배포 안 함)
@@ -189,6 +193,13 @@ jobs:
 
       # 사람이 누를 때만. 식당 49곳의 평점·리뷰 수·사진을 한 번 받아 레포에 저장한다.
       # 이후 모든 기기는 이 저장본을 읽고, 구글을 다시 부르지 않는다.
+      - name: 프로브 · 특정 노선·날짜 최저가 훑기
+        if: github.event.inputs.probe == 'fare'
+        env:
+          TP_TOKEN: ${{ secrets.TP_TOKEN }}
+          FARE_Q: ${{ github.event.inputs.q }}
+        run: python tools/probe_fare.py
+
       - name: 프로브 · 식당 구글 저장본 만들기
         if: github.event.inputs.probe == 'food'
         env:
