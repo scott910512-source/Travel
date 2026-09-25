@@ -34,3 +34,7 @@
 @media(min-width:800px){.trip-redesign .stage{height:600px}}
 
 .trip-redesign .stage .node{pointer-events:visiblePainted}
+
+.trip-redesign .stage .node,.trip-redesign .stage .node *{pointer-events:none}
+.trip-redesign .stage .node .landmark-hit{pointer-events:all;stroke:none!important;cursor:pointer}
+.trip-redesign .stage .node:focus-within .lbl rect{stroke:#075b65;stroke-width:3}
