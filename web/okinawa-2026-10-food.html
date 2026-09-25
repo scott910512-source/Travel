@@ -25,8 +25,16 @@ header h1{margin:0;font-size:22px;letter-spacing:-.03em}header p{margin:6px 0 0;
 .chip[aria-pressed="true"]{background:var(--pri);border-color:var(--pri);color:#fff}
 input.q{width:100%;min-height:44px;border:1px solid var(--line);border-radius:12px;padding:0 14px;font:inherit;font-size:15px;margin-bottom:8px;background:var(--card)}
 .info{font-size:12.5px;color:var(--tx2);margin:8px 0 6px;font-weight:700}
-.list{display:grid;gap:10px;margin-top:6px}
-.r{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+.list{display:grid;grid-template-columns:minmax(0,1fr);gap:10px;margin-top:6px}
+/* ★ 사진 줄이 카드 폭을 넘어 페이지 전체가 옆으로 늘어나던 문제.
+   grid 항목은 min-width:auto 라 안의 가로 스크롤 줄이 카드를 밀어 넓힌다. min-width:0 + overflow 로 잠근다. */
+.r{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;min-width:0;overflow:hidden}
+.r .ph{display:flex;gap:6px;overflow-x:auto;margin-top:8px;scrollbar-width:none;-webkit-overflow-scrolling:touch;max-width:100%;padding-bottom:2px}
+.r .ph::-webkit-scrollbar{display:none}
+.r .ph figure{margin:0;flex:0 0 auto;scroll-snap-align:start}
+.r .ph img{height:110px;width:auto;border-radius:10px;display:block}
+.r .ph figcaption{font-size:9.5px;color:var(--tx3);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+html,body{overflow-x:hidden}
 .r h3{margin:0;font-size:15.5px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .r h3 small{font-size:12px;color:var(--tx3);font-weight:600}
 .k{font-size:10.5px;padding:2px 7px;border-radius:6px;background:var(--pri-soft);color:var(--pri);font-weight:800}
@@ -155,7 +163,7 @@ function gd(x){const g=gget(x);if(!g)return '';
   if(g.err)return `<p style="font-size:12px;color:var(--tx3)">구글: 찾지 못함 (${g.err})</p>`;
   const stars='★'.repeat(Math.round(g.rating))+'☆'.repeat(5-Math.round(g.rating));
   return `<div style="margin-top:6px;font-size:13px"><b style="color:#B7791F">${stars}</b> <b>${g.rating}</b> <span style="color:var(--tx3)">· 리뷰 ${(g.total||0).toLocaleString()}개${g.open===true?' · 영업 중':g.open===false?' · 지금 영업 안 함':''}</span></div>
-    ${g.photos&&g.photos.length?`<div style="display:flex;gap:6px;overflow-x:auto;margin-top:8px;scrollbar-width:none">${g.photos.map(p=>`<figure style="margin:0;flex:0 0 auto"><img src="${p.url}" alt="" loading="lazy" style="height:110px;width:auto;border-radius:10px;display:block"><figcaption style="font-size:9.5px;color:var(--tx3);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.attr||'이용자 사진'}</figcaption></figure>`).join('')}</div>`:''}`;}
+    ${g.photos&&g.photos.length?`<div class="ph">${g.photos.map(p=>`<figure><img src="${p.url}" alt="" loading="lazy"><figcaption>${p.attr||'이용자 사진'}</figcaption></figure>`).join('')}</div>`:''}`;}
 function gsave(){try{localStorage.setItem(GC,JSON.stringify(DEV));}catch(e){}}
 function gstatus(t){const e=document.getElementById('gstat');if(e)e.textContent=t;}
 const ADMIN_KEY=(()=>{const m=document.querySelector('meta[name="maps-key"]');const v=m&&m.getAttribute('content')||'';return (v&&!v.startsWith('__'))?v:'';  /* 자리표시자(__…__)는 없는 것으로 */})();
