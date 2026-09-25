@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="light">
+<title>오키나와 3박 4일 · 임산부 렌터카 일정</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+:root{--pri:#5B4BE0;--pri-soft:#EFEDFD;--pri-line:#D9D3FA;--tx:#16181F;--tx2:#5B6072;--tx3:#9096A8;
+  --line:#E9EAF0;--card:#fff;--bg:#F6F7FB;--warn:#D07C12;--warn-soft:#FDF3E5;--hot:#E0452C;
+  --sans:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo",Pretendard,"Noto Sans KR",system-ui,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,monospace}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font-family:var(--sans);font-size:15px;line-height:1.55;
+  padding-bottom:calc(24px + env(safe-area-inset-bottom))}
+.wrap{max-width:820px;margin:0 auto;padding:0 16px}
+header{background:var(--pri);color:#fff;padding:calc(18px + env(safe-area-inset-top)) 0 18px}
+header h1{margin:0;font-size:22px;letter-spacing:-.03em}
+header p{margin:6px 0 0;font-size:13px;opacity:.9}
+.tag{display:inline-block;background:rgba(255,255,255,.18);padding:3px 9px;border-radius:8px;font-size:12px;
+  margin:0 4px 6px 0}
+h2{font-size:17px;margin:22px 0 8px;letter-spacing:-.02em}
+h2 .n{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:8px;background:var(--pri);
+  color:#fff;font-size:13px;margin-right:8px;vertical-align:middle;font-family:var(--mono)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-top:10px}
+.note{border-left:3px solid var(--warn);background:var(--warn-soft);border-radius:10px;padding:10px 12px;
+  font-size:13.5px;margin-top:10px}
+.note b{display:block;margin-bottom:3px}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th,td{padding:8px 6px;border-top:1px solid var(--line);text-align:left;vertical-align:top}
+th{color:var(--tx3);font-weight:700;font-size:12px}
+tr:first-child th,tr:first-child td{border-top:0}
+td.v{font-family:var(--mono);font-weight:700;white-space:nowrap}
+.win{color:var(--pri);font-weight:800}
+.tabs{display:flex;gap:6px;position:sticky;top:0;z-index:20;background:var(--bg);padding:10px 0 8px;border-bottom:1px solid var(--line)}
+.tabs button{flex:1;min-height:44px;border:1px solid var(--line);background:var(--card);border-radius:12px;
+  font:inherit;font-weight:800;font-size:13.5px;color:var(--tx2);cursor:pointer}
+.tabs button[aria-selected="true"]{background:var(--pri);border-color:var(--pri);color:#fff}
+/* 지도(와 그 팝업)는 붙박이 탭 아래에 깔린다. 안 그러면 팝업이 탭을 덮는다. */
+#map{height:300px;border-radius:14px;border:1px solid var(--line);margin-top:10px;background:#e8ecf3;position:relative;z-index:0}
+.mapnote{font-size:11.5px;color:var(--tx3);margin:6px 2px 0}
+.day-hd{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-top:14px}
+.day-hd h3{margin:0;font-size:16px}
+.day-hd small{color:var(--tx3);font-size:12px;font-weight:700}
+.stop{display:grid;grid-template-columns:54px 1fr;gap:10px;padding:12px 0;border-top:1px solid var(--line)}
+.stop:first-of-type{border-top:0}
+.stop .t{font-family:var(--mono);font-size:13px;font-weight:800;color:var(--pri);padding-top:2px}
+.stop .t small{display:block;color:var(--tx3);font-weight:600;font-size:10.5px;margin-top:2px}
+.stop h4{margin:0;font-size:15px;font-weight:800;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.stop h4 .k{font-size:10.5px;padding:2px 7px;border-radius:6px;background:var(--pri-soft);color:var(--pri);font-weight:800}
+.stop h4 .k.meal{background:#FDEDE9;color:var(--hot)}
+.stop h4 .k.drive{background:#E9F7EF;color:#0F9D58}
+.stop h4 .k.rest{background:var(--warn-soft);color:var(--warn)}
+.stop p{margin:4px 0 0;font-size:13.5px;color:var(--tx2)}
+.stop .preg{margin-top:5px;font-size:12.5px;color:#8A4B00;background:var(--warn-soft);padding:5px 8px;border-radius:8px}
+.stop .links{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.stop .links a,.stop .links label{font-size:12px;font-weight:700;padding:7px 10px;border-radius:999px;
+  border:1px solid var(--line);background:var(--card);color:var(--tx2);text-decoration:none;min-height:34px;
+  display:inline-flex;align-items:center;gap:5px}
+.stop .links label input{margin:0}
+.stop.done h4{color:var(--tx3);text-decoration:line-through}
+.sum{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+.sum div{background:var(--pri-soft);border-radius:10px;padding:8px 10px}
+.sum b{display:block;font-family:var(--mono);font-size:15px}
+.sum small{color:var(--tx2);font-size:11.5px}
+.btns{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.btns a,.btns button{font:inherit;font-size:12.5px;font-weight:700;padding:9px 12px;border-radius:999px;
+  border:1px solid var(--pri-line);background:var(--pri-soft);color:var(--pri);text-decoration:none;cursor:pointer;
+  min-height:38px}
+ul{margin:6px 0 0;padding-left:18px;font-size:13.5px}li{margin:3px 0}
+footer{color:var(--tx3);font-size:11.5px;text-align:center;padding:20px 0 0;line-height:1.6}
+.leaflet-container{font:inherit}
+.leaflet-popup-content{font-size:13px;line-height:1.5;margin:10px 12px}
+.pin{width:26px;height:26px;border-radius:50%;background:var(--pri);color:#fff;font-weight:800;font-size:12px;
+  display:grid;place-items:center;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.35);font-family:var(--mono)}
+.pin.meal{background:var(--hot)}
+@media(min-width:700px){#map{height:420px}.sum{grid-template-columns:repeat(4,1fr)}}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <span class="tag">2026 · 10/3~10/10 안 3박 4일</span><span class="tag">임산부</span><span class="tag">렌터카</span>
+  <h1>오키나와 3박 4일 일정</h1>
+  <p>청주 vs 인천 출발 비교 · 날마다 지도 · 식사 포함 · 임산부 페이스</p>
+</div></header>
+
+<main class="wrap">
+
+<h2><span class="n">1</span>청주 출발 vs 인천 출발</h2>
+<div class="card">
+  <table>
+    <tr><th></th><th>청주 (CJJ)</th><th>인천 (ICN)</th></tr>
+    <tr><td>집 → 공항</td><td class="v win">20~30분</td><td class="v">2시간~2시간 30분</td></tr>
+    <tr><td>비행시간(통상)</td><td class="v">약 2시간 30분</td><td class="v">약 2시간 25분</td></tr>
+    <tr><td>공항 왕복 이동비 (앱 설정값)</td><td class="v win">0원</td><td class="v">44,000원</td></tr>
+    <tr><td>수속·대기</td><td class="win">작은 공항 — 짧다</td><td>크고 붐빈다</td></tr>
+    <tr><td>편수</td><td>적음 (요일 확인)</td><td class="win">매일 여러 편 · 항공사 여러 곳</td></tr>
+    <tr><td>임산부 관점</td><td class="win">이동 총 2시간 이상 절약 · 새벽 인천행 불필요</td><td>날짜·시간 선택 폭이 넓음</td></tr>
+  </table>
+  <div class="note"><b>결론</b>날짜에 맞는 청주편이 있으면 <b>청주 출발</b>이 낫습니다. 비행시간은 거의 같고, 임산부에게 부담인 건 비행이 아니라 집→인천 왕복 4~5시간이기 때문입니다. 청주편이 원하는 날짜에 없을 때만 인천으로.</div>
+  <div class="note"><b>지금 캐시에 있는 값 (참고 · <span id="dataTs">—</span>)</b>
+    <span id="cacheRows">이 앱이 6시간마다 모으는 캐시에는 <b>10/3~10/10 · 3박 · 오키나와</b> 조건에 딱 맞는 편이 아직 없습니다. 청주→오키나와는 캐시 자체가 비어 있고(아무도 검색하지 않으면 안 들어옵니다), 인천은 근접값만 있습니다: 이스타 10/5→10/7 2박 352,916원(직항), 진에어 10/3→10/7 4박 518,259원(1회 경유). 아래 버튼으로 직접 검색하면 다음 갱신부터 캐시에 들어옵니다.</span>
+  </div>
+  <p style="font-size:12.5px;color:var(--tx2);margin:10px 0 4px"><b>3박 4일 날짜 조합으로 바로 검색</b> — 청주·인천 각각</p>
+  <div class="btns" id="searchBtns"></div>
+  <p class="mapnote">검색 페이지는 aviasales 입니다. 결과가 뜰 때까지 기다렸다 닫으면 다음 갱신(6시간)부터 앱에 값이 들어옵니다.</p>
+</div>
+
+<h2><span class="n">2</span>날마다 일정 · 지도</h2>
+<div class="tabs" role="tablist" id="tabs"></div>
+<div id="map"></div>
+<p class="mapnote">핀을 누르면 이름과 메모가 뜹니다. 위치는 대략값이라 내비게이션은 각 항목의 '지도 열기' 로 하세요. 지도 타일: © OpenStreetMap 기여자.</p>
+<div id="day"></div>
+
+<h2><span class="n">3</span>렌터카 · 임산부 체크</h2>
+<div class="card">
+  <h4 style="margin:0 0 4px">렌터카</h4>
+  <ul>
+    <li><b>국제운전면허증</b>(1949 제네바협약, 경찰서·운전면허시험장 당일 발급) + 한국 면허증 + 여권. 셋 다 없으면 인수 불가.</li>
+    <li>나하공항 → 렌터카 영업소는 <b>셔틀 10~15분</b>. 인수 30~40분 걸리니 도착 후 1시간은 잡으세요.</li>
+    <li><b>좌측통행 · 우핸들</b>. 처음 10분은 공항 주변에서 천천히. 방향지시등이 오른쪽 레버라 와이퍼를 자주 켜게 됩니다.</li>
+    <li><b>ETC 카드</b> 대여(고속도로 통행료 자동). 오키나와 자동차도 나하~나고 편도 약 ¥1,000.</li>
+    <li>보험은 <b>면책 보상(CDW) + NOC 면제</b>까지. 임산부 동승이라 사고 시 자기부담을 없애는 쪽으로.</li>
+    <li>반납 시 <b>만탱크</b>. 공항 근처 주유소를 마지막 날 일정에 넣어 뒀습니다.</li>
+    <li>차종은 <b>컴팩트(피트·야리스급)</b>면 충분. 좌석이 낮은 차보다 SUV·미니밴이 타고 내리기 편합니다.</li>
+  </ul>
+  <h4 style="margin:12px 0 4px">임산부</h4>
+  <ul>
+    <li>항공사 규정: 국적사 대부분 32주 미만 제한 없음, 32~36주 진단서(탑승 7일 이내), 37주 이후 불가. <b>예약 전 해당 항공사 확인.</b></li>
+    <li>운전은 <b>1시간마다 휴게</b>. 이 일정은 한 번에 60분 넘는 구간이 없습니다. 안전벨트는 배 아래로.</li>
+    <li>10월 초 오키나와는 27~30도, 자외선 강함. 오전 8~11시·오후 4시 이후에 밖, 한낮은 실내(수족관·쇼핑몰·카페).</li>
+    <li>물 자주. 편의점(패밀리마트·로손) 어디에나 있습니다.</li>
+    <li>음식: 생선회·생굴·날달걀은 피하고 익힌 것만. 이 일정의 식사는 전부 익힌 메뉴 기준입니다.</li>
+    <li>수영·스노클링·다이빙·온천은 뺐습니다. 해변은 발 담그기까지만.</li>
+    <li>병원: 나하 <b>오키나와 적십자병원</b>(那覇市与儀 1-3-1), 중부 <b>나카가미 병원</b>(北谷町) — 산부인과 있음. 여행자보험은 임신 관련 진료 보장 여부 확인.</li>
+  </ul>
+</div>
+
+<h2><span class="n">4</span>예산 (대략 · 2인)</h2>
+<div class="card">
+  <table>
+    <tr><td>항공권 2인 왕복</td><td class="v">앱 캐시 확인</td><td>청주편은 캐시 없음 · 인천 근접값 35만~52만/1인</td></tr>
+    <tr><td>렌터카 컴팩트 3일 + 보험</td><td class="v">¥22,000~30,000</td><td>성수기 아님. 공항점 기준</td></tr>
+    <tr><td>고속도로 · 주유</td><td class="v">¥5,000~6,000</td><td>ETC 왕복 2회 + 주유 1회</td></tr>
+    <tr><td>츄라우미 수족관 2인</td><td class="v">¥4,360</td><td>16시 이후 입장권은 할인</td></tr>
+    <tr><td>식비 (아침 제외 · 3일)</td><td class="v">¥30,000~40,000</td><td>점심 ¥1,000~1,500 · 저녁 ¥3,000~5,000/1인</td></tr>
+    <tr><td>숙소 3박 (온나 리조트 기준)</td><td class="v">숙소별</td><td>한 곳에 3박 — 짐 싸고 푸는 일을 없앴습니다</td></tr>
+  </table>
+</div>
+
+<footer>지도 © OpenStreetMap 기여자 · 식당·시설의 영업시간과 휴무는 방문 전 확인하세요 · 이 문서는 참고 자료이며 의학적 조언이 아닙니다<br>
+체크 표시는 이 기기에만 저장됩니다.</footer>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script>
+/* ── 데이터 ─────────────────────────────────────────────
+   좌표는 대략값(핀 위치 안내용). 내비게이션은 각 항목의 지도 링크로. */
+const DAYS = [
+ { k: 1, title: '1일차 · 도착 → 온나 리조트', km: 55, drive: '약 1시간 10분', stops: [
+   { t: '도착', lbl: '항공편 기준', k: '이동', name: '나하공항 도착 · 렌터카 셔틀', ll: [26.1958, 127.6459],
+     p: '도착 → 수하물 → 렌터카 회사 셔틀 10~15분 → 인수 30~40분. 이 한 시간은 앉아서 쉬는 시간으로 치세요.',
+     preg: '공항 화장실·수유실은 도착층에. 인수 서류는 동행자가, 임산부는 대기실에서.' },
+   { t: '+1:00', k: '식사', name: '점심 · 우미카지 테라스 (세나가지마)', ll: [26.1817, 127.6465],
+     p: '공항에서 차로 15분. 바다 보이는 계단식 카페 거리. 타코라이스·오키나와 소바·포케(익힌 재료)로. 그늘 자리에.',
+     preg: '계단이 있으니 아래층 가게로. 생선 포케는 익힌 참치·연어 메뉴를 고르세요.' },
+   { t: '+2:30', k: '이동', name: '오키나와 자동차도 → 온나손 (약 50분)', ll: [26.4483, 127.7917],
+     p: '나하 IC → 이시카와 IC. 통행료 ETC. 이시카와 IC 근처 편의점에서 물·간식.',
+     preg: '중간 휴게(이게이 PA)에서 한 번 내려 걷기.' },
+   { t: '+3:30', k: '휴식', name: '호텔 체크인 · 휴식', ll: [26.4880, 127.8420],
+     p: '온나손 리조트(예: ANA 만자, 리잔 시파크, 카푸 등 중 예약한 곳). 3박 한 곳. 바다 보이는 방으로 요청.',
+     preg: '낮 이동이 끝났으니 1~2시간 눕기. 오후 4시 전에는 밖에 나가지 않기.' },
+   { t: '16:30', k: '관광', name: '만자모 — 코끼리 바위 산책', ll: [26.5049, 127.8502],
+     p: '호텔에서 10분. 절벽 위 평탄한 데크 한 바퀴 15~20분. 석양 명소.',
+     preg: '난간 있는 데크만. 바람이 세니 얇은 겉옷.' },
+   { t: '18:00', k: '식사', name: '저녁 · 나카무라소바 (온나)', ll: [26.4462, 127.7935],
+     p: '오키나와 소바 노포. 소키(돼지갈비)소바·아사(해초)소바. 국물까지 익힌 음식. 19시 전 마감인 날이 있으니 일찍.',
+     preg: '짠 편이라 국물은 반만. 대안: 호텔 레스토랑.' },
+ ]},
+ { k: 2, title: '2일차 · 북부 (츄라우미 · 모토부)', km: 105, drive: '약 2시간 20분 (4구간)', stops: [
+   { t: '08:00', k: '식사', name: '아침 · 호텔 조식', ll: [26.4880, 127.8420],
+     p: '든든히. 오늘은 밖에서 걷는 시간이 가장 깁니다.', preg: '' },
+   { t: '09:00', k: '이동', name: '→ 츄라우미 수족관 (약 55분)', ll: [26.6941, 127.8780],
+     p: '해안도로(58호선) 또는 자동차도 나고 IC 경유. 개장 8:30, 10시 전 도착이면 한산합니다.', preg: '나고 근처에서 한 번 휴게.' },
+   { t: '10:00', k: '관광', name: '츄라우미 수족관 · 해양박공원', ll: [26.6941, 127.8780],
+     p: '고래상어 대수조 앞 벤치에서 오래 쉴 수 있습니다. 전부 실내·엘리베이터. 2시간.',
+     preg: '오키짱 극장(돌고래쇼)은 야외 계단석이라 그늘 자리로. 원내 이동은 전기차(무료).' },
+   { t: '12:30', k: '식사', name: '점심 · 기시모토 식당 본점 (모토부)', ll: [26.6566, 127.8968],
+     p: '1905년 오키나와 소바 원조. 줄이 길면 근처 야치문 거리 분점. 소바 + 주시(오키나와식 밥).',
+     preg: '줄 서는 동안 임산부는 차에서 대기, 동행자가 순번.' },
+   { t: '14:00', k: '관광', name: '비세 후쿠기 가로수길', ll: [26.7047, 127.8785],
+     p: '평탄한 흙길 그늘 산책 20~30분. 소달구지·자전거도 있음. 끝에 작은 해변.',
+     preg: '길이 좋아 임산부 산책에 가장 맞는 곳. 해변은 발만.' },
+   { t: '15:00', k: '휴식', name: '코우리 대교 · 코우리 섬 카페', ll: [26.6976, 128.0156],
+     p: '바다 위 2km 다리. 섬 초입 카페(예: 코우리 오션타워 카페, L LOTA)에서 커피 대신 주스·빙수.',
+     preg: '카페인은 하루 1잔 이내. 오션타워 계단은 생략해도 됩니다.' },
+   { t: '16:30', k: '이동', name: '→ 호텔 (약 50분)', ll: [26.4880, 127.8420], p: '나고 시내 통과. 편의점 한 번.', preg: '' },
+   { t: '18:30', k: '식사', name: '저녁 · 류큐노우시 (온나 · 야키니쿠)', ll: [26.4964, 127.8617],
+     p: '오키나와 소·아구 돼지 구이. 잘 익혀서. 예약 권장(18시 전 오픈 대기).',
+     preg: '고기는 완전히 익혀서. 대안: 호텔 뷔페.' },
+ ]},
+ { k: 3, title: '3일차 · 중부 (요미탄 · 차탄)', km: 60, drive: '약 1시간 20분 (4구간)', stops: [
+   { t: '08:30', k: '식사', name: '아침 · 호텔 조식', ll: [26.4880, 127.8420], p: '', preg: '' },
+   { t: '09:30', k: '관광', name: '잔파곶 등대 · 잔디광장', ll: [26.4407, 127.7139],
+     p: '호텔에서 25분. 등대 아래 잔디와 산책로만(등대 계단은 생략). 30분.', preg: '' },
+   { t: '10:30', k: '관광', name: '류큐무라 (전통 마을)', ll: [26.4353, 127.7923],
+     p: '옛 민가·에이사 공연·사탕수수 주스. 평지, 1시간. 그늘 많음.', preg: '한낮 전에 나오세요.' },
+   { t: '12:30', k: '식사', name: '점심 · A&W 미하마점 (아메리칸 빌리지)', ll: [26.3150, 127.7570],
+     p: '오키나와에만 있는 드라이브인 버거. 루트비어는 카페인 없음. 대안: 포케 카페·타코스.',
+     preg: '' },
+   { t: '13:30', k: '휴식', name: '아메리칸 빌리지 · 실내 쇼핑', ll: [26.3167, 127.7565],
+     p: '한낮은 실내. 아기용품(니시마츠야·아카짱혼포는 이온몰), 관람차, 카페. 2~3시간 느긋하게.',
+     preg: '이온몰 라이카무(차로 10분)는 통째로 실내라 더위 피하기에 더 좋습니다.' },
+   { t: '17:00', k: '관광', name: '선셋비치 산책', ll: [26.3176, 127.7534],
+     p: '아메리칸 빌리지 바로 옆. 석양 18시 전후. 발만 담그기.', preg: '' },
+   { t: '18:30', k: '식사', name: '저녁 · 킨노쿠라 or 이온몰 푸드코트', ll: [26.3232, 127.7893],
+     p: '킨노쿠라(차탄): 오키나와 가정식 정식. 푸드코트는 메뉴 폭이 넓고 대기 없음.',
+     preg: '' },
+   { t: '19:30', k: '이동', name: '→ 호텔 (약 35분)', ll: [26.4880, 127.8420], p: '58호선 북상. 야간 운전이라 천천히.', preg: '' },
+ ]},
+ { k: 4, title: '4일차 · 나하 (슈리성 · 국제거리) → 출국', km: 45, drive: '약 1시간 10분 (3구간)', stops: [
+   { t: '09:00', k: '이동', name: '체크아웃 → 슈리성 (약 55분)', ll: [26.2170, 127.7195],
+     p: '자동차도 이시카와 IC → 나하 IC. 슈리성 공원 주차장.', preg: '' },
+   { t: '10:00', k: '관광', name: '슈리성 공원', ll: [26.2170, 127.7195],
+     p: '슈레이몬·성벽 산책. 정전은 재건 중이라 외부 위주. 경사가 있으니 40분 이내.',
+     preg: '컨디션이 별로면 이 항목은 빼고 국제거리로 바로.' },
+   { t: '11:30', k: '식사', name: '점심 · 슈리소바', ll: [26.2185, 127.7161],
+     p: '슈리성 근처 노포 소바. 12시 전 도착.', preg: '' },
+   { t: '12:30', k: '휴식', name: '국제거리 · 마키시 공설시장', ll: [26.2144, 127.6870],
+     p: '기념품(친스코·자색고구마 타르트·시콰사). 시장 2층 식당은 익힌 요리만.',
+     preg: '사람이 많으니 1시간 이내. 아케이드 안은 그늘.' },
+   { t: '14:00', k: '이동', name: '주유 → 렌터카 반납 (공항 근처)', ll: [26.1985, 127.6610],
+     p: '반납 영업소 근처 주유소에서 만탱크. 반납 20분 + 셔틀 15분.', preg: '항공편 2시간 전 공항 도착 기준으로 역산.' },
+   { t: '출발', lbl: '항공편 기준', k: '이동', name: '나하공항 출국', ll: [26.1958, 127.6459],
+     p: '국제선 터미널. 출국 후 면세점은 작습니다.', preg: '' },
+ ]},
+];
+const KIND = { '식사': 'meal', '이동': 'drive', '휴식': 'rest', '관광': '' };
+
+/* ── 항공 검색 버튼 ── */
+const pairs = [['0310', '0610', '10/3→10/6'], ['0410', '0710', '10/4→10/7'], ['0510', '0810', '10/5→10/8'],
+               ['0610', '0910', '10/6→10/9'], ['0710', '1010', '10/7→10/10']];
+document.getElementById('searchBtns').innerHTML = pairs.map(([a, b, l]) =>
+  ['CJJ', 'ICN'].map(o => `<a href="https://www.aviasales.com/search/${o}${a}OKA${b}1" target="_blank" rel="noopener">${o === 'CJJ' ? '청주' : '인천'} ${l}</a>`).join('')).join('');
+
+/* ── 앱 데이터가 있으면 캐시값을 실시간으로 (같은 사이트에 있을 때만) ── */
+fetch('deals.json', { cache: 'no-cache' }).then(r => r.ok ? r.json() : null).then(d => {
+  if (!d) return;
+  document.getElementById('dataTs').textContent = d.meta.ts || '';
+  const acc = d.access_cost_default || {};
+  const rows = d.offers.filter(o => o.arr === 'OKA' && ['CJJ', 'ICN'].includes(o.dep)
+    && o.depart_date >= '2026-10-03' && o.return_date <= '2026-10-10');
+  if (!rows.length) return;
+  const won = n => Number(n).toLocaleString('ko-KR');
+  document.getElementById('cacheRows').innerHTML = '지금 캐시에 있는 10/3~10/10 오키나와 편:<br>' + rows
+    .sort((a, b) => (a.price_krw + (acc[a.dep] || 0)) - (b.price_krw + (acc[b.dep] || 0)))
+    .map(o => `${o.dep === 'CJJ' ? '청주' : '인천'} ${o.depart_date.slice(5)}→${o.return_date.slice(5)} ${o.nights}박 · ${o.airline_kr || o.airline} · ${o.stops === 0 ? '직항' : o.stops + '회 경유'} · 항공권 ${won(o.price_krw)}원 + 이동비 ${won(acc[o.dep] || 0)} = <b>${won(o.price_krw + (acc[o.dep] || 0))}원</b>${o.nights === 3 ? ' ✅ 3박' : ''}`)
+    .join('<br>') + '<br><small>캐시 가격은 참고값입니다. 판매처에서 최종 금액을 확인하세요.</small>';
+}).catch(() => {});
+
+/* ── 지도 ──
+   Leaflet 이 안 내려오면(오프라인·차단) 지도만 비우고 일정은 그대로 보여 준다.
+   비행기 안에서 열어도 목록·체크는 되게. */
+const HAS_MAP = typeof L !== 'undefined';
+let map = null, layer = null;
+if (HAS_MAP) {
+  map = L.map('map', { scrollWheelZoom: false, tap: true });
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18,
+    attribution: '&copy; OpenStreetMap' }).addTo(map);
+  layer = L.layerGroup().addTo(map);
+} else {
+  document.getElementById('map').innerHTML = '<div style="display:grid;place-items:center;height:100%;color:#5B6072;font-size:13px;padding:16px;text-align:center">지도를 불러오지 못했습니다 (오프라인?). 각 항목의 \'구글 지도 · 애플 지도\' 버튼은 그대로 됩니다.</div>';
+}
+const gmaps = ll => `https://www.google.com/maps/dir/?api=1&destination=${ll[0]},${ll[1]}&travelmode=driving`;
+const amaps = ll => `https://maps.apple.com/?daddr=${ll[0]},${ll[1]}&dirflg=d`;
+
+function drawDay(day) {
+  if (!HAS_MAP) return;
+  layer.clearLayers();
+  const pts = [];
+  day.stops.forEach((s, i) => {
+    const icon = L.divIcon({ className: '', html: `<div class="pin ${KIND[s.k] === 'meal' ? 'meal' : ''}">${i + 1}</div>`, iconSize: [26, 26], iconAnchor: [13, 13] });
+    L.marker(s.ll, { icon }).bindPopup(`<b>${i + 1}. ${s.name}</b><br>${s.p || ''}<br><a href="${gmaps(s.ll)}" target="_blank">구글 지도</a> · <a href="${amaps(s.ll)}" target="_blank">애플 지도</a>`).addTo(layer);
+    pts.push(s.ll);
+  });
+  L.polyline(pts, { color: '#5B4BE0', weight: 3, opacity: .7, dashArray: '6 6' }).addTo(layer);
+  map.fitBounds(L.latLngBounds(pts).pad(0.15));
+}
+
+/* ── 일정 렌더 ── */
+let cur = 1;
+const DONE_KEY = 'okinawa-2026-10.done';
+let done = {};
+try { done = JSON.parse(localStorage.getItem(DONE_KEY) || '{}'); } catch (e) {}
+function save() { try { localStorage.setItem(DONE_KEY, JSON.stringify(done)); } catch (e) {} }
+
+function render() {
+  const day = DAYS.find(d => d.k === cur);
+  document.getElementById('tabs').innerHTML = DAYS.map(d =>
+    `<button role="tab" aria-selected="${d.k === cur}" data-day="${d.k}">${d.k}일차</button>`).join('');
+  const meals = day.stops.filter(s => s.k === '식사').length;
+  document.getElementById('day').innerHTML = `
+    <div class="day-hd"><h3>${day.title}</h3><small>운전 ${day.km}km · ${day.drive}</small></div>
+    <div class="sum"><div><b>${day.stops.length}</b><small>항목</small></div><div><b>${meals}</b><small>식사</small></div>
+      <div><b>${day.km}km</b><small>운전</small></div><div><b>≤60분</b><small>연속 운전</small></div></div>
+    <div class="card">${day.stops.map((s, i) => {
+      const id = `${day.k}-${i}`;
+      return `<div class="stop${done[id] ? ' done' : ''}" id="s${id}">
+        <div class="t">${s.t}${s.lbl ? `<small>${s.lbl}</small>` : ''}</div>
+        <div><h4><span class="k ${KIND[s.k] || ''}">${s.k}</span>${i + 1}. ${s.name}</h4>
+          ${s.p ? `<p>${s.p}</p>` : ''}${s.preg ? `<div class="preg">🤰 ${s.preg}</div>` : ''}
+          <div class="links">
+            <a href="${gmaps(s.ll)}" target="_blank" rel="noopener">구글 지도</a>
+            <a href="${amaps(s.ll)}" target="_blank" rel="noopener">애플 지도</a>
+            <a href="#map" data-focus="${i}">핀 보기</a>
+            <label><input type="checkbox" data-done="${id}" ${done[id] ? 'checked' : ''}> 완료</label>
+          </div></div></div>`; }).join('')}</div>`;
+  drawDay(day);
+}
+document.addEventListener('click', ev => {
+  const b = ev.target.closest('[data-day]');
+  if (b) { cur = Number(b.dataset.day); render(); window.scrollTo({ top: document.getElementById('tabs').offsetTop - 4, behavior: 'smooth' }); return; }
+  const f = ev.target.closest('[data-focus]');
+  if (f && HAS_MAP) { const s = DAYS.find(d => d.k === cur).stops[Number(f.dataset.focus)]; map.setView(s.ll, 14);
+    layer.eachLayer(l => { if (l.getLatLng && l.getLatLng().lat === s.ll[0] && l.getLatLng().lng === s.ll[1]) l.openPopup(); }); }
+});
+document.addEventListener('change', ev => {
+  const c = ev.target.closest('[data-done]');
+  if (c) { done[c.dataset.done] = c.checked; save(); document.getElementById('s' + c.dataset.done).classList.toggle('done', c.checked); }
+});
+render();
+</script>
+</body>
+</html>

@@ -92,8 +92,11 @@ t('변화 조건 + 직항을 동시에 걸 수 있다', () => {
       { f: Object.assign(ctx.defaultF(), { change: k }) })) > 0);
   if (!ch) throw new Error('오늘 데이터에 신규도 하락도 없다');
   const q1 = Object.assign({}, ctx.queryNow(), { f: Object.assign(ctx.defaultF(), { change: ch }) });
-  const q2 = Object.assign({}, ctx.queryNow(), { stops: 'direct' });
-  const both = Object.assign({}, q1, { stops: 'direct' });
+  // ★ 환승 축은 근거리(stops)와 장거리(longStops)가 따로다 — 조건 시트도
+  //   '장거리 조건' 을 따로 보여 준다. 둘 다 직항으로 걸어야 "직항만" 이다.
+  //   한쪽만 걸고 유럽 1회 경유가 섞였다고 실패한 적이 있다 (2026-09-25).
+  const q2 = Object.assign({}, ctx.queryNow(), { stops: 'direct', longStops: 'direct' });
+  const both = Object.assign({}, q1, { stops: 'direct', longStops: 'direct' });
   const n1 = ctx.countOf(q1), n2 = ctx.countOf(q2), nb = ctx.countOf(both);
   if (!(nb <= n1 && nb <= n2)) throw new Error(`조합 ${nb} > 단일 ${n1}/${n2}`);
   if (n1 >= base && n2 >= base) throw new Error('조건이 아무것도 안 거른다');

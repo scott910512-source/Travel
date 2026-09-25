@@ -1263,6 +1263,7 @@ function viewTrip() {
       <h3>${esc(d.city)} <small>${esc(d.region)}${d.cjj_direct ? ' · 청주 직항' : ''}${byArr[d.arr] ? ` · ${won(effective(byArr[d.arr][0]))}원~` : ''}</small></h3>
       <div class="ph-row">${(d.photos || []).slice(0, 2).map(p => photoHTML(p, d.city)).join('')}</div>
       <p class="why">${esc(d.why)}</p>
+      ${d.plan ? `<a class="btn-go pdf" href="${esc(d.plan.url)}" target="_blank" rel="noopener">${esc(d.plan.label)}</a>` : ''}
       <h4>볼거리</h4><ul>${d.spots.map(([t, x]) => `<li><b>${esc(t)}</b> — ${esc(x)}</li>`).join('')}</ul>
       <h4>음식</h4><ul>${d.foods.map(([t, x]) => `<li><b>${esc(t)}</b> — ${esc(x)}</li>`).join('')}</ul>
       ${d.caution ? `<p class="live-note">⚠ ${esc(d.caution)}</p>` : ''}

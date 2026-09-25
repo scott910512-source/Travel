@@ -464,7 +464,11 @@
           "license": "CC0",
           "page": "https://commons.wikimedia.org/wiki/File:Okinawa_soba_in_Yamabare_2.jpg"
         }
-      ]
+      ],
+      "plan": {
+        "url": "okinawa-2026-10.html",
+        "label": "🗺 3박 4일 상세 일정 · 지도 (렌터카 · 식사 포함)"
+      }
     },
     {
       "arr": "HIJ",
