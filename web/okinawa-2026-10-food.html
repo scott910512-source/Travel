@@ -35,6 +35,18 @@ input.q{width:100%;min-height:44px;border:1px solid var(--line);border-radius:12
 .r .ph img{height:110px;width:auto;border-radius:10px;display:block}
 .r .ph figcaption{font-size:9.5px;color:var(--tx3);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 html,body{overflow-x:hidden}
+.links .add{font:inherit;font-size:12.5px;font-weight:800;min-height:44px;padding:0 12px;border-radius:999px;border:1px solid var(--pri);background:var(--pri);color:#fff;cursor:pointer}
+.links .add small{font-weight:600;opacity:.9}
+.sheet{position:fixed;inset:0;z-index:50;background:rgba(20,22,30,.45);display:flex;align-items:flex-end;justify-content:center}
+.sheet[hidden]{display:none}
+.sheet .panel{background:var(--card);width:100%;max-width:640px;max-height:88vh;border-radius:18px 18px 0 0;display:flex;flex-direction:column;padding-bottom:env(safe-area-inset-bottom)}
+@media(min-width:700px){.sheet{align-items:center}.sheet .panel{border-radius:18px}}
+.sheet .hd{display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid var(--line)}.sheet .hd b{font-size:15px;flex:1}
+.sheet .hd button{width:44px;height:44px;border-radius:12px;border:1px solid var(--line);background:var(--card);font-size:18px;cursor:pointer}
+.sheet .flt{padding:8px 14px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:6px}
+.sheet .body{overflow-y:auto;padding:8px 14px 14px}
+.toast{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom));transform:translateX(-50%);background:#16181F;color:#fff;padding:10px 14px;border-radius:12px;font-size:13px;z-index:60;max-width:92vw}
+.toast[hidden]{display:none}
 .r h3{margin:0;font-size:15.5px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .r h3 small{font-size:12px;color:var(--tx3);font-weight:600}
 .k{font-size:10.5px;padding:2px 7px;border-radius:6px;background:var(--pri-soft);color:var(--pri);font-weight:800}
@@ -53,6 +65,7 @@ footer{color:var(--tx3);font-size:11.5px;text-align:center;padding:20px 0 0;line
 <header><div class="wrap">
   <h1>오키나와 식당 리스트</h1>
   <p>임산부 기준 · 익힌 메뉴 위주 · 지역별 · 구글 평점은 링크로 확인</p>
+  <p style="margin-top:10px"><a href="okinawa-2026-10.html" style="display:inline-block;background:#fff;color:#5B4BE0;font-weight:800;padding:9px 14px;border-radius:999px;text-decoration:none;font-size:13.5px">🗺 내 여행 일정 보기</a></p>
 </div></header>
 <main class="wrap">
   <div class="card" id="gpanel" style="background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-top:12px">
@@ -81,64 +94,15 @@ footer{color:var(--tx3);font-size:11.5px;text-align:center;padding:20px 0 0;line
   <footer>익힌 메뉴 기준 표시: <span class="k ok">무난</span> 익힌 요리 위주 · <span class="k care">주의</span> 생것·날것 메뉴가 섞여 있어 고를 때 주의 · <span class="k no">비추</span> 임산부에겐 권하지 않음<br>
   영업시간·휴무·가격은 방문 전 구글 지도에서 확인하세요. 이 문서는 참고 자료이며 의학적 조언이 아닙니다.</footer>
 </main>
+<script src="trip-data.js"></script>
+<script src="trip-state.js"></script>
 <script>
 /* 지역: naha 나하·남부 / mid 중부(차탄·요미탄·온나) / north 북부(나고·모토부) / south 남부(난조·이토만)
    preg: ok 무난 / care 주의 / no 비추 */
-const R = [
- // ── 나하 ──
- {n:'슈리소바', j:'首里そば', a:'naha', t:'소바', p:'ok', d:'슈리성 옆 노포 오키나와 소바. 면이 굵고 담백. 12시 전 도착 권장, 재료 소진 시 마감.'},
- {n:'다이토소바', j:'大東そば', a:'naha', t:'소바', p:'ok', d:'마키시 시장 근처. 굵은 면과 가쓰오 국물. 다이토 스시(익힌 재료 초밥)도 유명.'},
- {n:'슈리 호리카와', j:'首里ほりかわ', a:'naha', t:'소바', p:'ok', d:'슈리 골목 조용한 소바집. 소키소바·주시.'},
- {n:'얏빠리 스테이크 국제거리점', j:'やっぱりステーキ 国際通り', a:'naha', t:'스테이크', p:'ok', d:'가성비 스테이크 체인 본가. 뜨거운 철판에 나와 굽기 조절 가능 — 잘 익혀 달라고.'},
- {n:'잭스 스테이크 하우스', j:'ジャッキーステーキハウス', a:'naha', t:'스테이크', p:'ok', d:'1953년 노포 스테이크. 테더로인 미디엄웰 요청 가능. 대기 있음.'},
- {n:'샘즈 앵커 인 국제거리점', j:"Sam's Anchor Inn 国際通り", a:'naha', t:'스테이크', p:'ok', d:'철판 퍼포먼스 스테이크·시푸드. 익혀서 나옴.'},
- {n:'아구 샤브샤브 야마모토', j:'あぐー しゃぶしゃぶ 山本', a:'naha', t:'아구돼지', p:'ok', d:'아구 돼지 샤브샤브 전문. 끓여 먹는 요리라 무난. 예약 권장.'},
- {n:'유우난기', j:'ゆうなんぎい', a:'naha', t:'오키나와 가정식', p:'ok', d:'국제거리 근처 노포 정식집. 라후테·고야참프루·지마미도후. 줄 김.'},
- {n:'하테루마', j:'波照間', a:'naha', t:'오키나와 요리', p:'care', d:'민요 라이브 있는 오키나와 요리 이자카야. 익힌 메뉴 많지만 회도 있음 — 고를 때 주의.'},
- {n:'포크타마고오니기리 본점', j:'ポークたまごおにぎり本店', a:'naha', t:'아침·간식', p:'ok', d:'마키시 시장 옆. 스팸·달걀 주먹밥. 아침 7시부터, 줄 김.'},
- {n:'C&C 브렉퍼스트 오키나와', j:'C&C BREAKFAST OKINAWA', a:'naha', t:'아침·카페', p:'ok', d:'마키시 근처 팬케이크·에그베네딕트. 달걀은 완숙 요청.'},
- {n:'하나가사 식당', j:'花笠食堂', a:'naha', t:'오키나와 가정식', p:'ok', d:'국제거리 골목 정식집. 양 많고 저렴. 소바·정식.'},
- {n:'타코스야 국제거리점', j:'タコス屋 国際通り', a:'naha', t:'타코스', p:'ok', d:'오키나와식 타코스·타코라이스. 익힌 고기.'},
- {n:'블루실 국제거리점', j:'ブルーシール 国際通り', a:'naha', t:'디저트', p:'ok', d:'오키나와 아이스크림. 자색고구마·시콰사. 살균 유제품.'},
- {n:'후쿠기야 국제거리점', j:'ふくぎや 国際通り', a:'naha', t:'디저트', p:'ok', d:'바움쿠헨(자색고구마·흑당). 선물용.'},
- {n:'오하코르테 미나토가와', j:'oHacorte 港川', a:'naha', t:'디저트·카페', p:'ok', d:'미나토가와 외국인주택가 과일 타르트. 조용한 카페 거리.'},
- {n:'하마야', j:'浜屋', a:'mid', t:'소바', p:'ok', d:'차탄·미야기 해안. 하마야소바(뼈째 소키). 현지인 인기.'},
- {n:'아구야 나하', j:'あぐー屋', a:'naha', t:'아구돼지', p:'ok', d:'아구 돼지 구이·정식. 익혀서.'},
- // ── 남부 ──
- {n:'하마베노차야', j:'浜辺の茶屋', a:'south', t:'카페', p:'ok', d:'난조 바닷가 카페. 만조 때 창가 자리. 주스·토스트.'},
- {n:'야마노차야 라쿠스이', j:'山の茶屋 楽水', a:'south', t:'카페·식사', p:'ok', d:'하마베노차야 자매점. 언덕 위, 계단 있음. 채소 정식.'},
- {n:'카페 쿠루쿠마', j:'カフェくるくま', a:'south', t:'카페·식사', p:'ok', d:'난조 절벽 위 태국풍 카페. 뷰 명소. 커리(매운 정도 조절).'},
- {n:'나카모토 센교 텐푸라', j:'中本鮮魚てんぷら店', a:'south', t:'튀김', p:'care', d:'오지마 튀김 가게. 생선·모즈쿠 튀김은 익힌 것 — 옆 회는 피하기.'},
- {n:'우미카지 테라스 · 타코라이스 카페 키진무', j:'瀬長島ウミカジテラス タコライスカフェ きじむなぁ', a:'south', t:'타코라이스', p:'ok', d:'공항 15분. 오믈렛 타코라이스. 바다 뷰.'},
- {n:'우미카지 테라스 · 시아와세노 팬케이크', j:'幸せのパンケーキ 沖縄ウミカジテラス', a:'south', t:'디저트·카페', p:'ok', d:'수플레 팬케이크. 대기 김, 예약 앱.'},
- {n:'타마야 하에바루점', j:'玉家 南風原', a:'south', t:'소바', p:'ok', d:'현지인 소바 노포. 소키·삼겹 소바.'},
- {n:'이토만 어협 오사카나 센터 (익힌 것)', j:'糸満漁協 お魚センター', a:'south', t:'해산물', p:'care', d:'이토만 수산시장. 튀김·구이는 괜찮고 회·생굴은 피하기.'},
- // ── 중부 ──
- {n:'나카무라소바', j:'なかむらそば', a:'mid', t:'소바', p:'ok', d:'온나손 노포. 아사(해초)소바·소키소바. 19시 전 마감 잦음.'},
- {n:'류큐노우시 온나점', j:'琉球の牛 恩納', a:'mid', t:'야키니쿠', p:'ok', d:'오키나와 소·아구 구이. 잘 익혀서. 예약 필수급.'},
- {n:'킨치치소바', j:'金月そば 読谷', a:'mid', t:'소바', p:'ok', d:'요미탄. 자가제면 소바, 츠케소바도. 점심만.'},
- {n:'A&W 미하마점', j:'A&W 美浜', a:'mid', t:'버거', p:'ok', d:'오키나와 드라이브인 버거. 루트비어 카페인 없음. 아메리칸 빌리지.'},
- {n:'킹타코스 킨 본점', j:'キングタコス 金武本店', a:'mid', t:'타코라이스', p:'ok', d:'타코라이스 발상지. 양 많음. 킨초(북쪽으로 조금).'},
- {n:'트랜짓 카페', j:'Transit Cafe 北谷', a:'mid', t:'카페·식사', p:'ok', d:'미야기 해안 뷰 카페. 파스타·피자.'},
- {n:'얏빠리 스테이크 아메리칸빌리지점', j:'やっぱりステーキ 美浜', a:'mid', t:'스테이크', p:'ok', d:'아메리칸 빌리지 안. 국제거리점과 같은 체인.'},
- {n:'하나우이 소바', j:'花織そば 読谷', a:'mid', t:'소바', p:'ok', d:'요미탄. 야채소바가 인기.'},
- {n:'오키나와 소바 · 이시구후 온나점', j:'いしぐふー 恩納', a:'mid', t:'소바', p:'ok', d:'소키·아부라미소 소바 체인(본점 나하). 아침 소바도.'},
- {n:'블루실 마키미나토 본점', j:'ブルーシール 牧港本店', a:'mid', t:'디저트', p:'ok', d:'우라소에 본점. 드라이브인. 살균 유제품.'},
- {n:'이온몰 오키나와 라이카무 푸드코트', j:'イオンモール沖縄ライカム', a:'mid', t:'푸드코트', p:'ok', d:'통째로 실내. 대기 없음. 한낮 피난처.'},
- // ── 북부 ──
- {n:'기시모토 식당 본점', j:'きしもと食堂 本店', a:'north', t:'소바', p:'ok', d:'1905년 모토부 원조 소바. 줄 김, 야치문 거리 분점(八重岳店) 있음.'},
- {n:'야마하라 소바', j:'山原そば', a:'north', t:'소바', p:'ok', d:'모토부 산쪽. 소키·삼겹 소바, 재료 소진 시 마감. 점심 일찍.'},
- {n:'미야자토소바', j:'宮里そば', a:'north', t:'소바', p:'ok', d:'나고 현지인 소바. 저렴·양 많음.'},
- {n:'카진호우 (피자)', j:'花人逢', a:'north', t:'피자·카페', p:'ok', d:'모토부 산 위 전망 피자집. 대기 김, 오후 일찍. 계단 있음.'},
- {n:'카페 코쿠', j:'カフェこくう', a:'north', t:'카페·식사', p:'ok', d:'모토부 언덕 위 채소 정식. 조용함.'},
- {n:'오리온 해피파크', j:'オリオンハッピーパーク', a:'north', t:'견학·식사', p:'care', d:'나고 맥주공장. 임산부는 무알코올·소프트드링크. 식당 있음.'},
- {n:'카진호우 옆 · 야치문 킷사 시사엔', j:'やちむん喫茶 シーサー園', a:'north', t:'카페', p:'ok', d:'모토부 산속 히라야치(오키나와 팬케이크) 카페. 계단 있음.'},
- {n:'코우리 섬 · L LOTA', j:'L LOTA 古宇利島', a:'north', t:'카페', p:'ok', d:'코우리 대교 옆 언덕 카페. 파스타·주스.'},
- {n:'코우리 오션타워 카페', j:'古宇利オーシャンタワー', a:'north', t:'카페', p:'ok', d:'전망대 카페. 카트로 올라감(계단 생략 가능).'},
- {n:'모토부 우시 야키니쿠', j:'焼肉もとぶ牧場 もとぶ店', a:'north', t:'야키니쿠', p:'ok', d:'모토부 소 직영 야키니쿠. 잘 익혀서.'},
- {n:'나고 · 얏빠리 스테이크', j:'やっぱりステーキ 名護', a:'north', t:'스테이크', p:'ok', d:'체인. 북부에서 저녁 대안.'},
- {n:'파인애플 파크 카페', j:'ナゴパイナップルパーク', a:'north', t:'디저트', p:'ok', d:'파인애플 디저트·주스. 카트 관람.'},
-];
+/* 식당 자료는 trip-data.js 에 있다 (내 여행 일정과 같은 id 를 쓴다). */
+const R = TRIP_DATA.restaurants;
+const esc=v=>String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
 const AREAS=[['all','전체'],['naha','나하'],['south','남부'],['mid','중부'],['north','북부']];
 const TYPES=['전체','소바','스테이크','야키니쿠','아구돼지','오키나와 가정식','타코라이스','카페','디저트','아침·간식','튀김','해산물','버거','피자·카페','푸드코트'];
 const PLBL={ok:'무난',care:'주의',no:'비추'};
@@ -171,7 +135,7 @@ function gd(x){const g=gget(x);if(!g)return '';
   if(g.err)return `<p style="font-size:12px;color:var(--tx3)">구글: 찾지 못함 (${g.err})</p>`;
   const stars='★'.repeat(Math.round(g.rating))+'☆'.repeat(5-Math.round(g.rating));
   const low=thr(x)<MIN_RATING&&(g.rating||0)<MIN_RATING;
-  return `<div style="margin-top:6px;font-size:13px"><b style="color:#B7791F">${stars}</b> <b>${g.rating}</b> <span style="color:var(--tx3)">· 리뷰 ${(g.total||0).toLocaleString()}개${g.open===true?' · 영업 중':g.open===false?' · 지금 영업 안 함':''}</span>${low?` <span class="k" title="이 메뉴에는 4.3 이상이 없어 4.0 기준으로 보여 줍니다">${MIN_RATING_FALLBACK.toFixed(1)} 기준</span>`:''}</div>
+  return `<div style="margin-top:6px;font-size:13px"><b style="color:#B7791F">${stars}</b> <b>${g.rating}</b> <span style="color:var(--tx3)">· 리뷰 ${(g.total||0).toLocaleString()}개 · 확인 ${g.t?fmt(g.t):(SN?fmt(SN.ts):'미상')}${g.open===true?' · 조회 시점엔 영업 중':g.open===false?' · 조회 시점엔 영업 안 함':''} · 방문일 영업 확인 필요</span>${low?` <span class="k" title="이 메뉴에는 4.3 이상이 없어 4.0 기준으로 보여 줍니다">${MIN_RATING_FALLBACK.toFixed(1)} 기준</span>`:''}</div>
     ${g.photos&&g.photos.length?`<div class="ph">${g.photos.map(p=>`<figure><img src="${p.url}" alt="" loading="lazy"><figcaption>${p.attr||'이용자 사진'}</figcaption></figure>`).join('')}</div>`:''}`;}
 function gsave(){try{localStorage.setItem(GC,JSON.stringify(DEV));}catch(e){}}
 function gstatus(t){const e=document.getElementById('gstat');if(e)e.textContent=t;}
@@ -242,7 +206,7 @@ function render(){
   const AL=Object.fromEntries(AREAS);
   const card=x=>`<div class="r"><h3>${x.n} <small>${x.j}</small><span class="k">${x.t}</span><span class="k ${x.p}">${PLBL[x.p]}</span>${sort!=='rec'?`<span class="k">${AL[x.a]||x.a}</span>`:''}</h3>
       ${gd(x)}<p>${x.d}</p>${x.p!=='ok'?`<div class="preg">🤰 ${x.p==='care'?'생것·날것 메뉴가 섞여 있습니다. 익힌 것으로 고르세요.':'임산부에겐 권하지 않습니다.'}</div>`:''}
-      <div class="links"><a class="g" href="${gm(x)}" target="_blank" rel="noopener">구글 지도 · 평점 확인</a><a href="${nav(x)}" target="_blank" rel="noopener">길찾기</a></div></div>`;
+      <div class="links"><button class="add" data-add="${x.id}">📅 일정에 넣기${inPlan(x.id).length?` <small>(${inPlan(x.id).join(', ')})</small>`:''}</button><a class="g" href="${gm(x)}" target="_blank" rel="noopener">구글 지도 · 평점 확인</a><a href="${nav(x)}" target="_blank" rel="noopener">길찾기</a></div></div>`;
   if(sort==='rec'){
     const byArea={};rows.forEach(x=>(byArea[x.a]=byArea[x.a]||[]).push(x));
     document.getElementById('list').innerHTML=AREAS.filter(([k])=>byArea[k]).map(([k,l])=>`<div class="area">${l} <small style="color:var(--tx3);font-size:12px">${byArea[k].length}곳</small></div>
@@ -256,6 +220,35 @@ function render(){
       <div class="list">${sorted.map(s=>card(s.x)).join('')}</div>`;
   }
 }
+/* ── 일정에 넣기 ── 내 여행 일정과 같은 저장 상태(trip-state.js)를 쓴다. */
+const TS=TripState, store=(()=>{try{return window.localStorage;}catch(e){return {getItem:()=>null,setItem:()=>{throw new Error('no storage');}};}})();
+let PLAN=TS.load(store,TRIP_DATA).plan;
+function inPlan(id){const out=[];for(let k=1;k<=4;k++)PLAN.days[k].items.forEach(it=>{if(!it.excluded&&it.kind==='meal'&&it.ref&&it.ref.type==='r'&&it.ref.id===id)out.push(`${k}일차 ${TS.SLOT_LABEL[it.slot]||'식사'}`);});return out;}
+let addFor=null, addOpener=null;
+function openAdd(id,opener){const x=R.find(r=>r.id===id);if(!x)return;PLAN=TS.load(store,TRIP_DATA).plan;addFor={id,day:1,slot:'lunch'};addOpener=opener;
+  let sh=document.getElementById('addsheet');if(!sh){sh=document.createElement('div');sh.id='addsheet';sh.className='sheet';document.body.appendChild(sh);}
+  sh.hidden=false;document.body.style.overflow='hidden';renderAdd();const f=sh.querySelector('button');if(f)f.focus();}
+function closeAdd(){const sh=document.getElementById('addsheet');if(sh){sh.hidden=true;sh.innerHTML='';}document.body.style.overflow='';addFor=null;if(addOpener&&document.body.contains(addOpener))addOpener.focus();addOpener=null;}
+function renderAdd(){const a=addFor;if(!a)return;const x=R.find(r=>r.id===a.id);const cur=TS.mealOf(PLAN,a.day,a.slot);const curName=cur?TS.resolve(cur,TRIP_DATA).name:null;const same=cur&&cur.type==='r'&&cur.id===a.id;
+  document.getElementById('addsheet').innerHTML=`<div class="panel" role="dialog" aria-modal="true" aria-label="일정에 넣기">
+    <div class="hd"><b>📅 ${esc(x.n)} → 일정에 넣기</b><button data-aclose aria-label="닫기">✕</button></div>
+    <div class="flt"><div class="row">${[1,2,3,4].map(k=>`<button class="chip" data-aday="${k}" aria-pressed="${a.day===k}">${k}일차 ${TS.fmt(TS.dayDate(PLAN.dep,k))}</button>`).join('')}</div>
+      <div class="row">${TRIP_DATA.slots.map(([k,l])=>`<button class="chip" data-aslot="${k}" aria-pressed="${a.slot===k}">${l}</button>`).join('')}</div></div>
+    <div class="body"><p style="font-size:13.5px;color:var(--tx2);margin:6px 0 10px">${same?'이미 이 자리에 들어 있습니다.':curName?`현재 <b>${esc(curName)}</b> → <b>${esc(x.n)}</b> 으로 교체합니다.`:`${a.day}일차 ${TS.SLOT_LABEL[a.slot]} 자리가 비어 있어 새로 넣습니다.`}</p>
+      <div class="pick"><button class="chip" data-asave ${same?'disabled':''} style="background:var(--pri);border-color:var(--pri);color:#fff;min-height:44px">${same?'이미 선택됨':curName?'교체하고 저장':'일정에 저장'}</button></div>
+      <p style="font-size:11.5px;color:var(--tx3);margin-top:10px">저장은 이 기기 브라우저에만 됩니다. 방문일 영업 여부는 확인되지 않았습니다.</p></div></div>`;}
+function toast(html){let t=document.getElementById('toast');if(!t){t=document.createElement('div');t.id='toast';t.className='toast';document.body.appendChild(t);}t.innerHTML=html;t.hidden=false;clearTimeout(toast._t);toast._t=setTimeout(()=>{t.hidden=true;},6000);}
+window.addEventListener('storage',ev=>{if(ev.key===TS.PLAN_KEY||ev.key===TS.DEP_KEY||ev.key===null){PLAN=TS.load(store,TRIP_DATA).plan;render();}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&addFor)closeAdd();});
+document.addEventListener('click',e=>{const ad=e.target.closest('[data-add]');if(ad){openAdd(ad.dataset.add,ad);return;}
+  if(!addFor)return;const t=e.target;
+  if(t.closest('[data-aclose]')||t===document.getElementById('addsheet')){closeAdd();return;}
+  const d=t.closest('[data-aday]');if(d){addFor.day=Number(d.dataset.aday);renderAdd();return;}
+  const sl=t.closest('[data-aslot]');if(sl){addFor.slot=sl.dataset.aslot;renderAdd();return;}
+  if(t.closest('[data-asave]')){const r=TS.setMeal(PLAN,addFor.day,addFor.slot,{type:'r',id:addFor.id},TRIP_DATA);
+    if(!r.uid){toast('저장할 수 없습니다.');return;}
+    const ok=TS.save(store,r.plan);const day=addFor.day,slot=addFor.slot;if(ok)PLAN=r.plan;closeAdd();render();
+    toast(ok?`${day}일차 ${TS.SLOT_LABEL[slot]}에 넣었습니다 · <a href="okinawa-2026-10.html#d${day}" style="color:#fff;font-weight:800">일정 보기 →</a>`:'저장 실패 — 브라우저 저장공간을 확인하세요');}});
 document.addEventListener('click',e=>{const a=e.target.closest('[data-area]');if(a){area=a.dataset.area;render();return;}const t=e.target.closest('[data-type]');if(t){type=t.dataset.type;render();return;}const so=e.target.closest('[data-sort]');if(so){sort=so.dataset.sort;try{localStorage.setItem('okinawa-food.sort',sort);}catch(e){}render();}});
 document.getElementById('q').addEventListener('input',e=>{q=e.target.value;render();});
 render();

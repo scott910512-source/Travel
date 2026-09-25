@@ -33,8 +33,8 @@ chk("JSON.stringify(out).includes(key)" in probe, "결과 JSON 에 키가 들어
 # 식당 배열 추출이 실제 페이지에서 된다 (Node 로 확인)
 r = subprocess.run(["node", "--input-type=module", "-e",
     "import fs from 'node:fs'; const m=await import('%s'); const R=m.extractList(fs.readFileSync('%s','utf8')); console.log(R.length, R.every(x=>x.n&&x.a));"
-    % (os.path.join(ROOT, "tools/probe_food.mjs").replace("\\", "/"), os.path.join(ROOT, "web/okinawa-2026-10-food.html").replace("\\", "/"))],
+    % (os.path.join(ROOT, "tools/probe_food.mjs").replace("\\", "/"), os.path.join(ROOT, "web/trip-data.js").replace("\\", "/"))],
     capture_output=True, text=True, env={**os.environ, "MAPS_SERVER_KEY": "x"})
-chk(r.returncode == 0 and r.stdout.split()[:2] == ["49", "true"], "프로브가 페이지에서 식당 49곳을 읽어 낸다 (%s)" % (r.stdout.strip() or r.stderr.strip()[:120]))
+chk(r.returncode == 0 and r.stdout.split()[:2] == ["49", "true"], "프로브가 trip-data.js 에서 식당 49곳을 읽어 낸다 (%s)" % (r.stdout.strip() or r.stderr.strip()[:120]))
 print("실패", fails)
 sys.exit(1 if fails else 0)

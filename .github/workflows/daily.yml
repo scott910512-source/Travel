@@ -72,6 +72,8 @@ jobs:
         run: |
           node --check web/app.js
           node --check web/travel-state.js
+          node --check web/trip-state.js
+          node --check web/trip-data.js
           node --check web/compare.js
           node -e "JSON.parse(require('fs').readFileSync('web/manifest.webmanifest','utf8'))"
 
@@ -98,6 +100,8 @@ jobs:
           node tests/worker_ux.mjs
           node tests/dom_ux.mjs
           node tests/trip_dates.mjs
+          node tests/trip_state.mjs
+          node tests/trip_plan_dom.mjs
 
       - name: 데이터 스키마 검증
         run: |
@@ -296,13 +300,18 @@ jobs:
         run: |
           mkdir -p public
           cp web/index.html web/app.css web/app.js public/
-          cp web/travel-state.js web/compare.js public/
+          cp web/travel-state.js web/compare.js web/trip-state.js web/trip-data.js public/
           cp web/brief-2026-10.json web/brief-2026-10.pdf web/okinawa-2026-10.html web/okinawa-2026-10-show.html web/okinawa-2026-10-food.html public/   # 여행 브리핑 자료 + PDF + 오키나와 일정 (사람이 쓴 참고)
           BUILD="${GITHUB_SHA::7}"
           sed -i "s|href=\"app.css\"|href=\"app.css?v=${BUILD}\"|" public/index.html
           sed -i "s|src=\"app.js\"|src=\"app.js?v=${BUILD}\"|"   public/index.html
           sed -i "s|src=\"travel-state.js\"|src=\"travel-state.js?v=${BUILD}\"|" public/index.html
           sed -i "s|src=\"compare.js\"|src=\"compare.js?v=${BUILD}\"|" public/index.html
+          sed -i "s|src=\"trip-state.js\"|src=\"trip-state.js?v=${BUILD}\"|" public/index.html
+          # 하위 페이지(일정·식당)가 읽는 공용 모듈에도 빌드 버전을 붙인다 — 옛 캐시와 섞이지 않게
+          for f in public/okinawa-2026-10.html public/okinawa-2026-10-food.html; do
+            sed -i "s|src=\"trip-data.js\"|src=\"trip-data.js?v=${BUILD}\"|; s|src=\"trip-state.js\"|src=\"trip-state.js?v=${BUILD}\"|" "$f"
+          done
           sed -i "s|__BUILD__|${BUILD}|"                            public/index.html
           # 식당 리스트의 구글 브라우저 키. Secret 이 없으면 빈칸 → 페이지가 직접 입력 패널을 보여 준다.
           # 레포 소스에는 자리표시자만 있고, 산출물(public/)은 커밋되지 않는다.

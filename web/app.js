@@ -1300,7 +1300,8 @@ const BUILD_ID = (() => {
 const bust = u => (BUILD_ID && !/^https?:/.test(u)) ? `${u}${u.indexOf('?') !== -1 ? '&' : '?'}v=${BUILD_ID}` : u;
 const TRIP = {
   dep: 'CJJ', arr: 'OKA', city: '오키나와', nights: 3, block: 150,
-  deps: ['2026-10-03', '2026-10-04', '2026-10-05'],
+  // 출발일 후보는 trip-state.js(하위 페이지와 공유)가 기준. 없으면(시험용 DOM) 같은 값.
+  deps: (typeof TripState !== 'undefined' && TripState.DEPS) || ['2026-10-03', '2026-10-04', '2026-10-05'],
   plan: 'okinawa-2026-10.html', show: 'okinawa-2026-10-show.html', food: 'okinawa-2026-10-food.html',
 };
 /* 숙소 후보. 요금은 예약 사이트를 이 환경에서 못 열어 *대략값(2인 1박, 성수기 끝자락)* 이다.
@@ -1394,17 +1395,18 @@ function tripExact() {
 function viewTrip() {
   /* 허브는 큰 메뉴만 보여 준다. 컨셉·출발일 칩은 각 화면 안에 있다. */
   const exact = tripExact();
+  // ext === 'same' 은 같은 탭에서 연다(일정·식당은 서로 오가므로 탭이 늘지 않게). 나머지는 새 탭.
   const tile = (attr, val, ico, title, sub, ext) => ext
-    ? `<a class="tile" href="${esc(val)}" target="_blank" rel="noopener"><span class="ico">${ico}</span><b>${title}</b><small>${esc(sub)}</small></a>`
+    ? `<a class="tile" href="${esc(val)}"${ext === 'same' ? '' : ' target="_blank" rel="noopener"'}><span class="ico">${ico}</span><b>${title}</b><small>${esc(sub)}</small></a>`
     : `<button class="tile" data-${attr}="${esc(val)}"><span class="ico">${ico}</span><b>${title}</b><small>${esc(sub)}</small></button>`;
   return `${plainHeader('10월 여행 · 오키나와', '청주 출발 · 10/3~5 출발 · 3박 4일 · 렌터카 · 임산부')}
   <div class="wrap trip hub">
     <div class="bigmenu">
       ${tile('view', 'tripflights', '✈️', '항공편', exact.length ? `${won(effective(exact[0]))}원~ · ${exact.length}건` : '캐시에 가격 없음 · 직접 검색')}
       ${tile('view', 'tripstay', '🏨', '숙소 추천', `온나 3박 · 후보 ${TRIP_STAYS.length}곳`)}
-      ${tile('', bust(TRIP.plan), '🗺', '일정 · 지도', '렌터카 동선 · 식사', true)}
+      ${tile('', bust(TRIP.plan), '🗺', '내 여행 일정', '날짜별 선택 · 지도', 'same')}
       ${tile('', bust(TRIP.show), '▶', '사진 브리핑', '자동재생 · 배경음', true)}
-      ${tile('', bust(TRIP.food), '🍜', '식당 리스트', '구글 평점 4.3↑', true)}
+      ${tile('', bust(TRIP.food), '🍜', '식당 둘러보기', '평점 · 일정에 넣기', 'same')}
       ${tile('view', 'tripprep', '🤰', '준비물 · 유의점', '임산부 체크 · 병원')}
       ${tile('view', 'tripall', '📄', '다른 목적지', '11곳 비교 · PDF')}
     </div>

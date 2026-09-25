@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /* 식당 리스트의 구글 평점·리뷰 수·리뷰 사진을 *한 번* 조회해 저장본으로 남긴다.
-   - 입력: web/okinawa-2026-10-food.html 안의 식당 배열 R
+   - 입력: web/trip-data.js 의 restaurants (식당 둘러보기·내 여행 일정이 같이 쓰는 목록)
    - 출력: web/okinawa-2026-10-food.json (평점·리뷰 수·지도 링크·사진 경로)
            web/food-photos/<id>-<n>.jpg (이용자 사진, 최대 2장, 폭 400)
    - 키: MAPS_SERVER_KEY (Places API 웹서비스용 · 리퍼러 제한 없는 키). 없으면
@@ -12,7 +12,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 
 const ROOT = path.dirname(path.dirname(new URL(import.meta.url).pathname));
-const HTML = path.join(ROOT, 'web/okinawa-2026-10-food.html');
+const DATA = path.join(ROOT, 'web/trip-data.js');   // 식당 목록 (id 고정)
 const OUT = path.join(ROOT, 'web/okinawa-2026-10-food.json');
 const PHOTO_DIR = path.join(ROOT, 'web/food-photos');
 const SITE = 'https://scott910512-source.github.io/Travel/';
@@ -28,12 +28,10 @@ const key = serverKey || browserKey;
 const headers = serverKey ? {} : { Referer: SITE };
 if (!serverKey) console.log('::notice::MAPS_SERVER_KEY 없음 — 브라우저 키로 시도합니다 (웹서비스는 리퍼러 제한 키를 거부할 수 있음)');
 
-export function extractList(html) {
-  const i = html.indexOf('const R = [');
-  if (i < 0) throw new Error('식당 배열(const R = [)을 못 찾았다');
-  const j = html.indexOf('\n];', i);
-  const lit = html.slice(i + 'const R = '.length, j + 2);
-  return new Function('return ' + lit)();
+export function extractList(src) {
+  // trip-data.js 를 그대로 평가한다 (module.exports 로 내보낸다).
+  const m = { exports: {} }; new Function('module', src)(m);
+  return m.exports.restaurants;
 }
 const idOf = k => crypto.createHash('md5').update(k).digest('hex').slice(0, 10);
 
@@ -51,7 +49,7 @@ async function gjson(url) {
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 async function main() {
-  const R = extractList(fs.readFileSync(HTML, 'utf8'));
+  const R = extractList(fs.readFileSync(DATA, 'utf8'));
   fs.mkdirSync(PHOTO_DIR, { recursive: true });
   const prev = fs.existsSync(OUT) ? JSON.parse(fs.readFileSync(OUT, 'utf8')) : null;
   const data = {}; let done = 0, fail = 0, photos = 0;
@@ -61,10 +59,11 @@ async function main() {
     const f = await gjson(`https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=${q}&inputtype=textquery&fields=place_id&language=ko&key=${key}`);
     const pid = f.candidates && f.candidates[0] && f.candidates[0].place_id;
     if (!pid) { data[k] = { err: f.status || 'ZERO_RESULTS' }; fail++; console.log(`  못 찾음  ${x.n}`); continue; }
-    const d = await gjson(`https://maps.googleapis.com/maps/api/place/details/json?place_id=${pid}&fields=name,rating,user_ratings_total,url,photos&language=ko&key=${key}`);
+    const d = await gjson(`https://maps.googleapis.com/maps/api/place/details/json?place_id=${pid}&fields=name,rating,user_ratings_total,url,photos,geometry&language=ko&key=${key}`);
     const p = d.result;
     if (!p) { data[k] = { err: d.status || 'NO_RESULT' }; fail++; console.log(`  상세 실패 ${x.n}`); continue; }
     const rec = { rating: p.rating || 0, total: p.user_ratings_total || 0, url: p.url || '', gname: p.name || '', photos: [] };
+    if (p.geometry && p.geometry.location) rec.ll = [Number(p.geometry.location.lat.toFixed(5)), Number(p.geometry.location.lng.toFixed(5))];
     for (const [n, ph] of (p.photos || []).slice(0, MAX_PHOTOS).entries()) {
       try {
         const r = await fetch(`https://maps.googleapis.com/maps/api/place/photo?maxwidth=${PHOTO_W}&photo_reference=${ph.photo_reference}&key=${key}`, { headers });

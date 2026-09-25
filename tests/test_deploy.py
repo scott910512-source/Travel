@@ -32,7 +32,7 @@ app = open(os.path.join(ROOT, "web/app.js"), encoding="utf-8").read()
 
 # ── 1. Pages 산출물에 필요한 파일이 전부 들어가는가 ────
 for f in ("web/index.html", "web/app.css", "web/app.js",
-          "web/travel-state.js", "web/compare.js", "web/brief-2026-10.json", "web/brief-2026-10.pdf", "web/okinawa-2026-10.html", "web/okinawa-2026-10-show.html", "web/okinawa-2026-10-food.html",
+          "web/travel-state.js", "web/compare.js", "web/trip-state.js", "web/trip-data.js", "web/brief-2026-10.json", "web/brief-2026-10.pdf", "web/okinawa-2026-10.html", "web/okinawa-2026-10-show.html", "web/okinawa-2026-10-food.html",
           "deals.json", "brief.json", "manifest.webmanifest"):
     chk(f in wf, "산출물에 %s 가 들어간다" % f)
 
@@ -42,16 +42,21 @@ d = yaml.safe_load(wf)
 step = next(s for s in d["jobs"]["scan"]["steps"] if s.get("name") == "Pages 산출물 준비")
 tmp = tempfile.mkdtemp()
 open(os.path.join(tmp, "index.html"), "w", encoding="utf-8").write(html)
+plan_src = open(os.path.join(ROOT, "web/okinawa-2026-10.html"), encoding="utf-8").read()
+open(os.path.join(tmp, "okinawa-2026-10.html"), "w", encoding="utf-8").write(plan_src)
 food_src = open(os.path.join(ROOT, "web/okinawa-2026-10-food.html"), encoding="utf-8").read()
 open(os.path.join(tmp, "okinawa-2026-10-food.html"), "w", encoding="utf-8").write(food_src)
 script = "\n".join(l for l in step["run"].splitlines()
-                   if l.strip().startswith(("sed", "BUILD=")))
+                   if l.strip().startswith(("sed", "BUILD=", "for f in", "done")))
 script = 'GITHUB_SHA="abc1234567890"\n' + script.replace("public/", "")
 r = subprocess.run(["bash", "-c", script], cwd=tmp, capture_output=True, text=True,
                    env={**os.environ, "MAPS_BROWSER_KEY": "AIzaTESTKEY"})
 chk(r.returncode == 0, "sed 스크립트가 돈다 (%s)" % (r.stderr.strip()[:120] or "ok"))
 food_out = open(os.path.join(tmp, "okinawa-2026-10-food.html"), encoding="utf-8").read()
 chk('<meta name="maps-key" content="AIzaTESTKEY">' in food_out, "Secret 이 있으면 식당 리스트에 지도 키가 들어간다")
+chk('src="trip-data.js?v=abc1234"' in food_out and 'src="trip-state.js?v=abc1234"' in food_out, "식당 페이지의 공용 모듈에 빌드 버전이 붙는다")
+plan_out = open(os.path.join(tmp, "okinawa-2026-10.html"), encoding="utf-8").read()
+chk('src="trip-data.js?v=abc1234"' in plan_out and 'src="trip-state.js?v=abc1234"' in plan_out, "일정 페이지의 공용 모듈에 빌드 버전이 붙는다")
 chk(food_out.count("AIzaTESTKEY") == 1, "주입된 키는 meta 한 곳에만 들어간다")
 open(os.path.join(tmp, "okinawa-2026-10-food.html"), "w", encoding="utf-8").write(food_src)
 r2 = subprocess.run(["bash", "-c", script], cwd=tmp, capture_output=True, text=True,
@@ -61,7 +66,7 @@ chk(r2.returncode == 0 and '<meta name="maps-key" content="">' in food_out,
     "Secret 이 없으면 빈칸으로 남아 직접 입력 방식이 된다")
 out = open(os.path.join(tmp, "index.html"), encoding="utf-8").read()
 chk('src="app.js?v=abc1234"' in out, "app.js 에 빌드 버전이 붙는다")
-for name in ("travel-state", "compare"):
+for name in ("travel-state", "compare", "trip-state"):
     chk(f'src="{name}.js?v=abc1234"' in out, f"{name}.js 에 빌드 버전이 붙는다")
     chk(html.index(f'src="{name}.js"') < html.index('src="app.js"'),
         f"{name}.js 가 app.js 보다 먼저 로드된다")
