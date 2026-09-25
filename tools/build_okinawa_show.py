@@ -107,7 +107,8 @@ font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo",Pretendard,"N
 #hint{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,.6);padding:12px 18px;border-radius:14px;
  font-size:14px;z-index:6;pointer-events:none;opacity:0;transition:opacity .3s}
 #hint.on{opacity:1}
-@media(min-width:800px){.tx h1{font-size:40px}.tx p{font-size:18px}.tx{padding-left:8vw;padding-right:8vw}}
+@media(min-width:800px){.tx h1{font-size:40px}.tx p{font-size:18px}.tx{padding-left:6vw;padding-right:40vw}.cover .tx{padding-right:6vw}}
+@media(min-width:1400px){.tx h1{font-size:52px}.tx p{font-size:22px}.preg{font-size:17px}#ctl button{min-height:52px;font-size:16px;padding:0 20px}}
 """
 
 sl_html = []
@@ -147,6 +148,10 @@ document.getElementById('next').addEventListener('click',ev=>{ev.stopPropagation
 let sx=null;document.addEventListener('touchstart',e=>{sx=e.touches[0].clientX});
 document.addEventListener('touchend',e=>{if(sx==null)return;const dx=e.changedTouches[0].clientX-sx;sx=null;if(Math.abs(dx)>50)show(dx<0?i+1:i-1);});
 document.addEventListener('keydown',e=>{if(e.key==='ArrowRight')show(i+1);else if(e.key==='ArrowLeft')show(i-1);else if(e.key===' '){e.preventDefault();setPlay(!playing);}});
+// 전체화면 — 테슬라·PC 브라우저용. 못 하는 브라우저(iOS 사파리)면 버튼을 숨긴다.
+const fs=document.getElementById('fs');
+if(!document.documentElement.requestFullscreen) fs.style.display='none';
+fs.addEventListener('click',ev=>{ev.stopPropagation();document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen().catch(()=>{});});
 show(0);raf=requestAnimationFrame(tick);
 """
 
@@ -156,7 +161,7 @@ doc = f"""<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8">
 <div id="bar"><i></i></div>
 <div id="stage">{''.join(sl_html)}</div>
 <div id="hint"></div>
-<div id="ctl"><button id="prev">‹ 이전</button><span class="n"><span id="num"></span> · 7초마다 넘어감 · 화면 탭 = 멈춤/재생</span><button id="next">다음 ›</button><button id="play">⏸ 멈춤</button></div>
+<div id="ctl"><button id="prev">‹ 이전</button><span class="n"><span id="num"></span> · 7초마다 넘어감 · 화면 탭 = 멈춤/재생</span><button id="next">다음 ›</button><button id="play">⏸ 멈춤</button><button id="fs" title="전체화면">⛶</button></div>
 <script>{js}</script></body></html>"""
 open(OUT, "w", encoding="utf-8").write(doc)
 print("out", OUT, os.path.getsize(OUT) // 1024, "KB · 슬라이드", len(sl_html), "· 사진", len(credits))
