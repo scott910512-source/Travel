@@ -1264,6 +1264,7 @@ function viewTrip() {
       <div class="ph-row">${(d.photos || []).slice(0, 2).map(p => photoHTML(p, d.city)).join('')}</div>
       <p class="why">${esc(d.why)}</p>
       ${d.plan ? `<a class="btn-go pdf" href="${esc(d.plan.url)}" target="_blank" rel="noopener">${esc(d.plan.label)}</a>` : ''}
+      ${d.show ? `<a class="btn-go pdf" href="${esc(d.show.url)}" target="_blank" rel="noopener">${esc(d.show.label)}</a>` : ''}
       <h4>볼거리</h4><ul>${d.spots.map(([t, x]) => `<li><b>${esc(t)}</b> — ${esc(x)}</li>`).join('')}</ul>
       <h4>음식</h4><ul>${d.foods.map(([t, x]) => `<li><b>${esc(t)}</b> — ${esc(x)}</li>`).join('')}</ul>
       ${d.caution ? `<p class="live-note">⚠ ${esc(d.caution)}</p>` : ''}

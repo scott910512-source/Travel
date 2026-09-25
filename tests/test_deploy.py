@@ -32,7 +32,7 @@ app = open(os.path.join(ROOT, "web/app.js"), encoding="utf-8").read()
 
 # ── 1. Pages 산출물에 필요한 파일이 전부 들어가는가 ────
 for f in ("web/index.html", "web/app.css", "web/app.js",
-          "web/travel-state.js", "web/compare.js", "web/brief-2026-10.json", "web/brief-2026-10.pdf", "web/okinawa-2026-10.html",
+          "web/travel-state.js", "web/compare.js", "web/brief-2026-10.json", "web/brief-2026-10.pdf", "web/okinawa-2026-10.html", "web/okinawa-2026-10-show.html",
           "deals.json", "brief.json", "manifest.webmanifest"):
     chk(f in wf, "산출물에 %s 가 들어간다" % f)
 
