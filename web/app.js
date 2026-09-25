@@ -1264,9 +1264,9 @@ function viewTripAll() {
       <h3>${esc(d.city)} <small>${esc(d.region)}${d.cjj_direct ? ' · 청주 직항' : ''}${byArr[d.arr] ? ` · ${won(effective(byArr[d.arr][0]))}원~` : ''}</small></h3>
       <div class="ph-row">${(d.photos || []).slice(0, 2).map(p => photoHTML(p, d.city)).join('')}</div>
       <p class="why">${esc(d.why)}</p>
-      ${d.plan ? `<a class="btn-go pdf" href="${esc(d.plan.url)}" target="_blank" rel="noopener">${esc(d.plan.label)}</a>` : ''}
-      ${d.show ? `<a class="btn-go pdf" href="${esc(d.show.url)}" target="_blank" rel="noopener">${esc(d.show.label)}</a>` : ''}
-      ${d.food ? `<a class="btn-go pdf" href="${esc(d.food.url)}" target="_blank" rel="noopener">${esc(d.food.label)}</a>` : ''}
+      ${d.plan ? `<a class="btn-go pdf" href="${esc(bust(d.plan.url))}" target="_blank" rel="noopener">${esc(d.plan.label)}</a>` : ''}
+      ${d.show ? `<a class="btn-go pdf" href="${esc(bust(d.show.url))}" target="_blank" rel="noopener">${esc(d.show.label)}</a>` : ''}
+      ${d.food ? `<a class="btn-go pdf" href="${esc(bust(d.food.url))}" target="_blank" rel="noopener">${esc(d.food.label)}</a>` : ''}
       <h4>볼거리</h4><ul>${d.spots.map(([t, x]) => `<li><b>${esc(t)}</b> — ${esc(x)}</li>`).join('')}</ul>
       <h4>음식</h4><ul>${d.foods.map(([t, x]) => `<li><b>${esc(t)}</b> — ${esc(x)}</li>`).join('')}</ul>
       ${d.caution ? `<p class="live-note">⚠ ${esc(d.caution)}</p>` : ''}
@@ -1275,7 +1275,7 @@ function viewTripAll() {
 
   return `${plainHeader('다른 목적지 비교 · PDF', '항공편은 실시간 · 여행지 설명은 참고 자료', true)}
   <div class="wrap trip">
-    <a class="btn-go pdf" href="brief-2026-10.pdf" target="_blank" rel="noopener"
+    <a class="btn-go pdf" href="${bust('brief-2026-10.pdf')}" target="_blank" rel="noopener"
       >📄 브리핑 PDF 열기 · 저장 (여행지·음식·유의점, 항공편 제외)</a>
     <p class="live-note" style="margin-top:6px">아이폰: 열린 PDF 에서 공유 버튼 → '파일에 저장'. 항공편은 매 갱신마다 바뀌어 PDF 에 넣지 않았습니다.</p>
     <p class="live-note" style="margin-top:12px">${esc(b.note)}</p>
@@ -1291,6 +1291,13 @@ function viewTripAll() {
    허브(viewTrip)는 메뉴만 보여 주고, 항공편·숙소·준비물은 각각 한 화면이다.
    일정·지도 / 사진 브리핑 / 식당 리스트는 별도 페이지라 링크로 연다.
    예전의 목적지 비교 화면은 '다른 목적지 비교' 로 남겨 둔다. */
+/* 하위 페이지(일정·브리핑·식당)는 index.html 처럼 ?v=빌드 가 안 붙어 있어 폰이 옛 페이지를
+   계속 보여 줬다(GitHub Pages max-age=600, iOS 는 더 오래). 앱에서 여는 링크에 빌드를 붙인다. */
+const BUILD_ID = (() => {
+  try { const m = document.querySelector('meta[name="build"]'); const v = (m && typeof m.getAttribute === 'function' && m.getAttribute('content')) || ''; return /^__/.test(v) ? '' : v; }
+  catch (_) { return ''; }   // 시험용 가짜 DOM 에는 meta 가 없다
+})();
+const bust = u => (BUILD_ID && !/^https?:/.test(u)) ? `${u}${u.indexOf('?') !== -1 ? '&' : '?'}v=${BUILD_ID}` : u;
 const TRIP = {
   dep: 'CJJ', arr: 'OKA', city: '오키나와', nights: 3, block: 150,
   deps: ['2026-10-03', '2026-10-04', '2026-10-05'],
@@ -1395,9 +1402,9 @@ function viewTrip() {
     <div class="bigmenu">
       ${tile('view', 'tripflights', '✈️', '항공편', exact.length ? `${won(effective(exact[0]))}원~ · ${exact.length}건` : '캐시에 가격 없음 · 직접 검색')}
       ${tile('view', 'tripstay', '🏨', '숙소 추천', `온나 3박 · 후보 ${TRIP_STAYS.length}곳`)}
-      ${tile('', TRIP.plan, '🗺', '일정 · 지도', '렌터카 동선 · 식사', true)}
-      ${tile('', TRIP.show, '▶', '사진 브리핑', '자동재생 · 배경음', true)}
-      ${tile('', TRIP.food, '🍜', '식당 리스트', '구글 평점 4.3↑', true)}
+      ${tile('', bust(TRIP.plan), '🗺', '일정 · 지도', '렌터카 동선 · 식사', true)}
+      ${tile('', bust(TRIP.show), '▶', '사진 브리핑', '자동재생 · 배경음', true)}
+      ${tile('', bust(TRIP.food), '🍜', '식당 리스트', '구글 평점 4.3↑', true)}
       ${tile('view', 'tripprep', '🤰', '준비물 · 유의점', '임산부 체크 · 병원')}
       ${tile('view', 'tripall', '📄', '다른 목적지', '11곳 비교 · PDF')}
     </div>

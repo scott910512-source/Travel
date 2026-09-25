@@ -249,5 +249,6 @@ document.addEventListener('click',e=>{const a=e.target.closest('[data-area]');if
 document.getElementById('q').addEventListener('input',e=>{q=e.target.value;render();});
 render();
 </script>
+<script>/* 서로 여는 링크가 옛 캐시에 붙잡히지 않게 1시간 단위 버전을 붙인다 */document.querySelectorAll('a[href^="okinawa-2026-10"]').forEach(a=>{a.setAttribute('href',a.getAttribute('href')+'?v='+Math.floor(Date.now()/36e5));});</script>
 </body>
 </html>

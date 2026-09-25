@@ -203,4 +203,5 @@ document.getElementById('m-play').addEventListener('click',ev=>{ev.stopPropagati
 show(0);raf=requestAnimationFrame(tick);
 {let m=null;try{m=new URLSearchParams(location.search).get('mode')||localStorage.getItem(MODE_KEY);}catch(e){}
  if(m==='view')setMode('view');}
-</script></body></html>
+</script><script>/* 서로 여는 링크가 옛 캐시에 붙잡히지 않게 1시간 단위 버전을 붙인다 */document.querySelectorAll('a[href^="okinawa-2026-10"]').forEach(a=>{a.setAttribute('href',a.getAttribute('href')+'?v='+Math.floor(Date.now()/36e5));});</script>
+</body></html>

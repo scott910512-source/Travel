@@ -233,6 +233,7 @@ doc = f"""<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8">
 <div id="modebar"><a href="okinawa-2026-10.html" id="m-plan">📋 일정·지도</a><button id="m-play" aria-pressed="true">▶ 자동재생</button><button id="m-view" aria-pressed="false">📖 보기</button></div>
 <div id="hint"></div>
 <div id="ctl"><button id="prev">‹ 이전</button><span class="n"><span id="num"></span> · 7초마다 넘어감 · 화면 탭 = 멈춤/재생</span><button id="next">다음 ›</button><button id="play">⏸ 멈춤</button><button id="bgm" title="배경음">🔇 음악</button><button id="fs" title="전체화면">⛶</button></div>
-<script>{js}</script></body></html>"""
+<script>{js}</script><script>/* 서로 여는 링크가 옛 캐시에 붙잡히지 않게 1시간 단위 버전을 붙인다 */document.querySelectorAll('a[href^="okinawa-2026-10"]').forEach(a=>{a.setAttribute('href',a.getAttribute('href')+'?v='+Math.floor(Date.now()/36e5));});</script>
+</body></html>"""
 open(OUT, "w", encoding="utf-8").write(doc)
 print("out", OUT, os.path.getsize(OUT) // 1024, "KB · 슬라이드", len(sl_html), "· 사진", len(credits))
