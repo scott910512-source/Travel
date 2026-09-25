@@ -2,7 +2,9 @@
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
-const data = require('../web/trip-data.js');
+const currentData = require('../web/trip-data.js');
+// The existing scenarios exercise the saved pre-redesign itinerary.
+const data = {...currentData, template:currentData.legacyTemplate};
 const TS = require('../web/trip-state.js');
 let count = 0;
 function test(name, fn) { fn(); console.log('ok', name); count++; }
@@ -105,6 +107,6 @@ test('참조 풀기: 좌표 없는 식당·직접 입력은 ll 이 null', () => 
   const r = data.restaurants.find(x => !x.ll);
   assert.equal(TS.resolve({ type: 'r', id: r.id }, data).ll, null);
   assert.equal(TS.resolve({ type: 'custom', name: 'x' }, data).ll, null);
-  assert.ok(TS.resolve({ type: 'hotel' }, data).ll);
+  assert.equal(TS.resolve({ type: 'hotel' }, data).ll, null, 'unbooked hotel has no invented location');
 });
 console.log(`${count} trip state scenarios passed`);

@@ -209,14 +209,16 @@ footer{color:var(--tx3);font-size:11.5px;text-align:center;padding:20px 0 0;line
 <div class="journey-heading"><span>OUR LITTLE JOURNEY</span><h2>천천히, 함께 떠나는 여행</h2></div>
 <div id="tripbar" class="tripbar"></div>
 <div id="notice" class="note" hidden></div>
+<div id="journey-options"></div>
 
 <!-- 캐릭터 여행: 축약 일러스트 맵. 지리·거리를 나타내지 않는다. -->
 <section id="v-chars" class="view">
   <div class="stagewrap">
     <svg id="stage" class="stage" viewBox="0 0 1000 600" preserveAspectRatio="xMidYMin meet" aria-label="캐릭터 여행 맵"></svg>
-    <span class="stagenote">우리 둘의 여행 장면</span>
-    <button class="fitbtn" data-fit>전체보기</button>
+    <span class="stagenote">우리 둘의 여행 지도</span>
+    <button class="fitbtn" data-fit>따라가기</button><span class="compass" aria-hidden="true">↑ N</span>
   </div>
+  <div id="unknown-places"></div>
   <div id="ctl" class="ctl">
     <div class="now"></div>
     <div class="bar"><i></i></div>
@@ -227,7 +229,7 @@ footer{color:var(--tx3);font-size:11.5px;text-align:center;padding:20px 0 0;line
       <select data-speed aria-label="속도"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option></select>
       <button class="det" data-cur>상세</button>
     </div>
-    <p class="mapnote" style="margin:6px 0 0">여행 장면은 연출입니다 · 실제 위치는 지도에서 확인</p>
+    <p class="mapnote" style="margin:6px 0 0">일정 미리보기 · 개략 동선이며 실제 도로·GPS 위치와 달라요</p>
   </div>
 </section>
 
@@ -369,11 +371,12 @@ const gleg = (a, b) => `https://www.google.com/maps/dir/?api=1&origin=${a.ll ? a
 const amaps = ll => `https://maps.apple.com/?daddr=${ll[0]},${ll[1]}&dirflg=d`;
 
 /* ── 항목 풀기 ── */
-function tplOf(it, k) { return D.template.find(d => d.k === k).items.find(t => t.uid === it.tpl) || {}; }
+function tplOf(it, k) { return D.template.find(d => d.k === k).items.concat((D.legacyTemplate || []).find(d=>d.k===k)?.items || []).find(t => t.uid === it.tpl) || {}; }
 function view(it, k) {
   const tpl = tplOf(it, k);
   const res = it.ref ? TS.resolve(it.ref, D) : { name: tpl.n || '', a: null, ll: tpl.ll || null, kind: it.kind };
-  const name = tpl.n && (it.kind === 'flight' || it.kind === 'move' || (it.kind === 'rest' && it.ref && it.ref.type === 'hotel' && tpl.ref && tpl.ref.type === 'hotel')) ? tpl.n : res.name;
+  if(it.ref?.type==='hotel' && plan.hotel){res.name=plan.hotel.name;res.ll=plan.hotel.ll;}
+  const name = !plan.hotel && tpl.n && (it.kind === 'flight' || it.kind === 'move' || (it.kind === 'rest' && it.ref && it.ref.type === 'hotel' && tpl.ref && tpl.ref.type === 'hotel')) ? tpl.n : res.name;
   const changed = tpl.ref ? JSON.stringify(tpl.ref) !== JSON.stringify(it.ref) : !it.tpl;
   const desc = [changed ? '' : tpl.d, res.poi && res.poi.d, res.r && res.r.d, res.hotel && !changed ? '' : (res.hotel ? D.hotel.d : '')].filter(Boolean).join(' ');
   const preg = [changed ? '' : tpl.preg, res.poi && res.poi.preg].filter(Boolean).join(' ');
@@ -395,13 +398,30 @@ function stageSteps(k) {
     const v = view(it, k);
     const kk = it.kind === 'flight' ? 'flight' : it.kind === 'meal' ? (v.res.kind === 'tbd' ? 'tbd' : 'meal') : v.res.kind === 'hotel' ? 'hotel' : v.res.kind === 'custom' ? 'custom' : it.kind === 'rest' ? 'rest' : 'poi';
     const prevMove = items.slice(0, i).reverse().find(x => !x.excluded); const car = !!v.drive || !!(prevMove && prevMove.kind === 'move');
-    out.push({ uid: it.uid, k: kk, name: v.name, ref: JSON.stringify(it.ref), done: !!plan.done[it.uid], car });
+    const last=out[out.length-1];const ll=v.ll;const near=last?.ll&&ll&&Math.hypot(last.ll[0]-ll[0],last.ll[1]-ll[1])<.006;
+    out.push({ uid: it.uid, k: kk, name: v.name, ref: JSON.stringify(it.ref), placeId:it.ref?.id||it.ref?.type||it.uid, ll, done: !!plan.done[it.uid], car:!near });
   });
   return out;
 }
 
 /* ── 상단·보기 전환 ── */
+
+function renderUnknown(){
+ const rows=stageSteps(cur).filter(s=>!s.ll);document.getElementById('unknown-places').innerHTML=rows.length?`<div class="unknown-title">위치 미정 · 지도에 임의 배치하지 않았어요</div><div class="unknown-row">${rows.map(s=>`<button data-detail="${s.uid}">${esc(s.name)} ↗</button>`).join('')}</div>`:'';
+}
+function renderJourneyOptions(){
+ const legacy=plan.recommendation!==D.recommendation,day=(legacy?D.legacyTemplate:D.template).find(d=>d.k===cur);
+ document.getElementById('journey-options').innerHTML=`<div class="day-story"><span>DAY 0${cur}</span><b>${esc(day.title)}</b></div>
+ <details class="journey-edit"><summary>일정·숙소 설정 ${legacy?'· 새 추천 코스 도착':''}</summary>
+ <p>바다 드라이브 · 커플 체험 · 맛있는 저녁. 항공 시간과 컨디션에 맞게 바꿔요.</p>
+ <div class="journey-actions"><button data-apply-recommended>새 추천 코스 적용 (3박 4일)</button><button data-add-place>장소 추가</button><button data-view="list">일정 편집·복원</button><button data-undo ${undo.length?'':'disabled'}>실행 취소</button></div>
+ <p>${legacy?'기존 저장 일정을 보존했습니다. 새 코스는 버튼을 눌러 적용하세요.':'현재 추천 코스를 바탕으로 선택한 일정입니다.'}</p>
+ <div class="hotel-fields"><b>내 숙소 위치</b><input data-hotel-name aria-label="호텔 이름" placeholder="예약한 호텔 이름" value="${esc(plan.hotel?.name||'')}"><div><input data-hotel-lat aria-label="호텔 위도" inputmode="decimal" placeholder="위도 (예: 26.4)" value="${plan.hotel?.ll[0]||''}"><input data-hotel-lon aria-label="호텔 경도" inputmode="decimal" placeholder="경도 (예: 127.8)" value="${plan.hotel?.ll[1]||''}"></div><small>지도에서 숙소를 길게 눌러 확인한 위도·경도를 입력하면 모든 숙소 복귀에 반영돼요.</small><button data-hotel-save>숙소 위치 저장</button><span data-hotel-error role="status"></span></div></details>
+ ${cur===4?`<div class="lastday-options"><span>마지막 날은 한 곳만</span><button data-lastday="umikaji">바다 · 우미카지</button><button data-lastday="kokusai">쇼핑 · 국제거리</button><button data-lastday="none">바로 공항</button></div>`:''}`;
+}
+
 function renderShell() {
+  renderJourneyOptions();
   const dep = plan.dep;
   document.getElementById('tripbar').innerHTML = `
     <details class="date-picker"><summary>${TS.fmt(dep)} — ${TS.fmt(TS.addDays(dep, TS.NIGHTS))} <span>날짜 변경⌄</span></summary><div class="deps" role="group" aria-label="출발일">${TS.DEPS.map(d => `<button data-dep="${d}" aria-pressed="${d === dep}">${TS.fmt(d)} 출발<small>${TS.fmt(TS.addDays(d, TS.NIGHTS))} 귀국</small></button>`).join('')}</div></details>
@@ -429,7 +449,7 @@ function renderList() {
   const pl = placed(k), doneN = pl.filter(p => plan.done[p.it.uid]).length;
   let html = `<div class="day-hd"><h3>${k}일차 · ${esc(day.title)}</h3></div>
     <div class="dstat">
-      ${isDef ? `<span class="st">추천 일정 그대로</span><span>운전 약 ${day.km}km · ${esc(day.drive)} (추천 일정 기준)</span>` : `<span class="st warn">일정을 바꿨습니다</span><span>이동 거리·시간 미확인 — 구간별 길찾기로 확인</span>`}
+      ${isDef ? `<span class="st">추천 일정 그대로</span><span>${esc(day.drive)} · 항공 시간에 따라 조정</span>` : `<span class="st warn">일정을 바꿨습니다</span><span>이동 거리·시간 미확인 — 구간별 길찾기로 확인</span>`}
       <span>· 방문 완료 ${doneN}/${pl.length}</span>
       ${saveState === 'saved' ? '<span class="st">저장됨 · 이 기기</span>' : saveState === 'fail' ? '<span class="st fail">저장 실패 — 브라우저 저장공간을 확인하세요 (편집 내용은 화면에 남아 있습니다)</span>' : ''}
     </div>
@@ -469,19 +489,20 @@ function renderList() {
 function ensureStage() {
   if (stage) return;
   const svg = document.getElementById('stage');
-  stage = TripStage.create(svg, { onStep: renderCtl, onState: renderCtl, onOpen: i => { const s = stage.state(); const st = stageSteps(cur)[i]; if (st) openDetail(st.uid, svg.querySelector(`.node[data-i="${i}"]`)); void s; } });
+  stage = TripStage.create(svg, { onStep: renderCtl, onState: renderCtl, onMode: mode=>{document.querySelector('[data-fit]').textContent=mode===null?'캐릭터 따라가기':mode?'따라가기':'전체보기';}, onOpen: i => { const s = stage.state(); const st = stageSteps(cur)[i]; if (st) openDetail(st.uid, svg.querySelector(`.node[data-i="${i}"]`)); void s; } });
   stage.setSpeed(ui.speed);
 }
 function syncStage(reason) {
   if (ui.view !== 'chars') return;
   ensureStage();
   stage.setSteps(stageSteps(cur), { force: reason === 'day' });
+  renderUnknown();
   if (wantUid) { stage.gotoUid(wantUid); }
 }
 function renderCtl(st) {
   const c = document.getElementById('ctl'); if (!c || !st) return;
-  const s = st.step; const pct = st.n ? ((st.idx + (st.phase === 'moving' ? .5 : 0)) / Math.max(1, st.n - 1)) * 100 : 0;
-  c.querySelector('.now').innerHTML = `<span>${st.n ? `${st.idx + 1}/${st.n}` : '0/0'}</span><b>${s ? esc(s.name) : '이 날짜에 선택된 장소가 없습니다'}</b><span>${!st.playing ? '일시정지' : st.phase === 'moving' ? '이동 중' : '재생 중'}</span>`;
+  const s = st.step; const pct = st.n ? ((st.idx + (st.progress || 0)) / Math.max(1, st.n - 1)) * 100 : 0;
+  c.querySelector('.now').innerHTML = `<span>${st.n ? `${st.idx + 1}/${st.n}` : '0/0'}</span><b>${s ? esc(s.name)+(st.nextStep?' → '+esc(st.nextStep.name):'') : '이 날짜에 선택된 장소가 없습니다'}</b><span>${!st.playing ? '일시정지' : st.phase === 'unlocated' ? '위치 미정 구간' : st.phase === 'moving' ? '이동 중' : '재생 중'}</span>`;
   c.querySelector('.bar i').style.width = Math.min(100, Math.max(0, pct)) + '%';
   c.querySelector('[data-play]').textContent = st.playing ? '⏸ 일시정지' : '▶ 재생';
   c.querySelector('[data-prev]').disabled = st.idx <= 0; c.querySelector('[data-next]').disabled = st.idx >= st.n - 1;
@@ -508,13 +529,14 @@ function drawMap() {
   placed(cur).forEach((p, i) => {
     if (!p.v.ll) return;
     const icon = L.divIcon({ className: '', html: `<div class="pin ${p.it.kind === 'meal' ? 'meal' : ''}">${i + 1}</div>`, iconSize: [26, 26], iconAnchor: [13, 13] });
-    L.marker(p.v.ll, { icon }).bindPopup(`<b>${i + 1}. ${esc(p.v.name)}</b><br><a href="${gdir(p.v.ll, p.v.name)}" target="_blank" rel="noopener">구글 지도</a> · <a href="${amaps(p.v.ll)}" target="_blank" rel="noopener">애플 지도</a>`).addTo(layer);
+    L.marker(p.v.ll, { icon }).bindPopup(`<b>${i + 1}. ${esc(p.v.name)}</b><br><button data-detail="${p.it.uid}">장소 상세</button> · <a href="${gdir(p.v.ll, p.v.name)}" target="_blank" rel="noopener">구글 지도</a> · <a href="${amaps(p.v.ll)}" target="_blank" rel="noopener">애플 지도</a>`).addTo(layer);
     pts.push(p.v.ll);
   });
+  if(pts.length>1){let segment=[];placed(cur).forEach(p=>{if(p.v.ll)segment.push(p.v.ll);else{if(segment.length>1)L.polyline(segment,{color:'#bb6e50',dashArray:'5 9'}).addTo(layer);segment=[];}});if(segment.length>1)L.polyline(segment,{color:'#bb6e50',dashArray:'5 9'}).addTo(layer);}
   if (pts.length) map.fitBounds(L.latLngBounds(pts).pad(0.15));
   setTimeout(() => map.invalidateSize(), 50);
   const noll = placed(cur).filter(p => !p.v.ll).length;
-  document.getElementById('mapnote').textContent = `선택된 장소만 순서대로 번호 핀. 위치 미등록 ${noll}곳은 표시되지 않습니다. 핀 위치는 대략값 · 경로선은 그리지 않습니다. 타일 © OpenStreetMap 기여자.`;
+  document.getElementById('mapnote').textContent = `선택된 장소만 순서대로 번호 핀. 위치 미등록 ${noll}곳은 표시되지 않습니다. 핀 위치는 대략값 · 점선은 개략 동선이며 실제 도로가 아닙니다. 타일 © OpenStreetMap 기여자.`;
 }
 
 /* ── 상세 시트 (맵 노드·일정표·조작부에서 같은 것) ── */
@@ -536,15 +558,15 @@ function renderDetail() {
   const it = plan.days[cur].items.find(x => x.uid === detail.uid);
   if (!it) { closeDetail(); return; }
   const v = view(it, cur), f = TS.timeFlags(plan, cur, D)[it.uid] || {}, r = v.res.r, p = v.res.poi, g = gsOf(r);
-  const photo = g && g.photos && g.photos[0] ? `<div class="ph"><img src="${esc(g.photos[0].url)}" alt=""></div><p class="phcap">구글 이용자 사진 · ${esc(g.photos[0].attr || '')} · 확인 ${esc(gsDate())}</p>` : `<div class="ph illustration"><img src="assets/trip/coast.webp" alt="오키나와 여행 일러스트"></div><p class="phcap">여행 일러스트 · 실제 장소 사진이 아닙니다</p>`;
+  const photo = g && g.photos && g.photos[0] ? `<div class="ph"><img src="${esc(g.photos[0].url)}" alt=""></div><p class="phcap">구글 이용자 사진 · ${esc(g.photos[0].attr || '')} · 확인 ${esc(gsDate())}</p>` : `<div class="ph illustration landmark-detail"><svg viewBox="-110 -135 220 190" aria-label="장소 상징 일러스트">${TripStage.art(stageSteps(cur).find(x=>x.uid===it.uid)||{k:it.kind})}</svg></div><p class="phcap">여행 일러스트 · 실제 장소 사진이 아닙니다</p>`;
   const todo = r ? `${r.p === 'ok' ? '익힌 메뉴 위주 (참고)' : r.p === 'care' ? '생것 메뉴가 섞여 있어 익힌 것을 고르세요' : '임산부에게 권하지 않습니다'}` : p ? (p.d || '') : v.res.kind === 'hotel' ? D.hotel.d : v.res.kind === 'custom' ? '직접 입력한 장소입니다.' : v.res.kind === 'tbd' ? '아직 정하지 않았습니다.' : (v.tpl.d || '');
   const kv = [];
   kv.push(['방문', `${cur}일차 ${TS.fmt(TS.dayDate(plan.dep, cur))}`]);
   kv.push(['예정 시간', it.kind === 'flight' ? '항공권 확정 후' : f.check ? '시간 확인 필요 (순서를 바꿨습니다)' : f.t ? `${f.t} (추천 일정 기준 · 참고)` : '미정']);
   kv.push(['체류', p ? (p.stay || '미확인') : '미확인']);
-  kv.push(['주소', '미확인']);
-  kv.push(['영업시간·휴무', r ? '미확인 — 방문일 영업 확인 필요' : p ? '미확인' : '—']);
-  kv.push(['예약', '미확인']);
+  kv.push(['주소', (p||r)?.address || '미확인']);
+  kv.push(['영업시간·휴무', (p||r)?.hours || '미확인 — 방문일 확인 필요']);
+  kv.push(['예약', (p||r)?.booking || '미확인']);
   kv.push(['주차·화장실', '미확인']);
   if (p) { kv.push(['계단', p.stairs || '미확인']); kv.push(['걷는 양', p.walk || '미확인']); kv.push(['실내/실외', p.io || '미확인']); kv.push(['휴식 공간', '미확인']); }
   if (r) { kv.push(['메뉴', r.m || `${r.t} (대표 메뉴 미확인)`]); kv.push(['가격대', '미확인']); kv.push(['평점', g && !g.err ? `★ ${g.rating} · 리뷰 ${Number(g.total || 0).toLocaleString()}개 · 출처 Google · 확인 ${gsDate()}` : '미확인']); }
@@ -556,7 +578,7 @@ function renderDetail() {
       <button data-exclude="${it.uid}">일정에서 제외</button>
       <label><input type="checkbox" data-done="${it.uid}" ${plan.done[it.uid] ? 'checked' : ''}> 방문 완료</label>
     </div>`;
-  const links = `<div class="acts">${v.ll ? `<a class="pri" href="${gdir(v.ll, v.name)}" target="_blank" rel="noopener">🧭 길찾기</a><a href="${amaps(v.ll)}" target="_blank" rel="noopener">애플 지도</a>` : v.res.kind === 'tbd' ? '' : `<span class="noll">지도 위치 미등록</span><a href="${gdir(null, v.name)}" target="_blank" rel="noopener">이름으로 길찾기</a>`}${g && g.url ? `<a href="${esc(g.url)}" target="_blank" rel="noopener">구글 지도 페이지</a>` : ''}${v.res.kind === 'custom' && v.res.url ? `<a href="${esc(v.res.url)}" target="_blank" rel="noopener">입력한 링크</a>` : ''}</div>`;
+  const links = `<div class="acts">${TS.safeUrl((p||r)?.url)?`<a href="${esc((p||r).url)}" target="_blank" rel="noopener">공식 정보·예약 ↗</a>`:''}${v.ll ? `<a class="pri" href="${gdir(v.ll, v.name)}" target="_blank" rel="noopener">🧭 길찾기</a><a href="${amaps(v.ll)}" target="_blank" rel="noopener">애플 지도</a>` : v.res.kind === 'tbd' ? '' : `<span class="noll">지도 위치 미등록</span><a href="${gdir(null, v.name)}" target="_blank" rel="noopener">이름으로 길찾기</a>`}${g && g.url ? `<a href="${esc(g.url)}" target="_blank" rel="noopener">구글 지도 페이지</a>` : ''}${v.res.kind === 'custom' && v.res.url ? `<a href="${esc(v.res.url)}" target="_blank" rel="noopener">입력한 링크</a>` : ''}</div>`;
   document.getElementById('sheet').innerHTML = `<div class="panel det" role="dialog" aria-modal="true" aria-label="${esc(v.name)} 상세">
     <div class="hd"><b>${esc(v.name)}</b><button data-close aria-label="닫기">✕</button></div>
     <div class="body">
@@ -594,7 +616,7 @@ function optR(r, curRef) {
   return `<div class="opt${on ? ' on' : ''}"><h5>${esc(r.n)} <small>${esc(r.j)}</small>${on ? ' <span class="k" style="font-size:11px;padding:2px 7px;border-radius:6px;background:var(--pri);color:#fff">현재 선택</span>' : ''}</h5>
     <div class="kv"><b>대표 메뉴</b> ${esc(r.m || '미확인')} · <b>가격대</b> 미확인 · <b>지역</b> ${esc(AREA[r.a] || '미확인')} · <b>종류</b> ${esc(r.t)}<br>
       <b>평점</b> ${g && !g.err ? `★ ${esc(g.rating)} · 리뷰 ${Number(g.total || 0).toLocaleString()}개 · 확인 ${esc(gsDate())}` : '미확인'} · <b>방문일 영업</b> 확인 필요${g && g.open === true ? ' (조회 시점엔 영업 중)' : g && g.open === false ? ' (조회 시점엔 영업 안 함)' : ''}<br>
-      <b>익힌 음식</b> ${r.p === 'ok' ? '익힌 메뉴 위주 (참고)' : r.p === 'care' ? '생것 메뉴 섞임 — 익힌 것 선택 가능' : '임산부에게 권하지 않음'} · <b>지도</b> ${r.ll ? '위치 있음' : '위치 미등록'}<br>${esc(r.d)}</div>
+      <b>익힌 음식</b> ${r.p === 'ok' ? '익힌 메뉴 위주 (참고)' : r.p === 'care' ? '생것 메뉴 섞임 — 익힌 것 선택 가능' : '임산부에게 권하지 않음'} · <b>지도</b> ${r.ll ? '위치 있음' : '위치 미등록'} · 이동 시간은 선택 후 구간 길찾기로 확인<br>${esc(r.d)}</div>
     <div class="pick"><button data-choose='${esc(JSON.stringify({ type: 'r', id: r.id }))}' ${on ? 'disabled' : ''}>${on ? '선택됨' : '이 식당 선택'}</button><a href="${(g && g.url) || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent('沖縄 ' + (r.j || r.n))}`}" target="_blank" rel="noopener">구글 지도 ↗</a></div></div>`;
 }
 function renderPicker() {
@@ -615,7 +637,8 @@ function renderPicker() {
       <div class="row">${types.map(t => `<button class="chip" data-ptype="${esc(t)}" aria-pressed="${p.type === t}">${esc(t)}</button>`).join('')}</div>
       <div class="row"><span style="font-size:12px;color:var(--tx3);align-self:center;white-space:nowrap">가격대</span>${['전체', '미확인'].map(t => `<button class="chip" data-pprice="${t}" aria-pressed="${p.price === t}">${t}</button>`).join('')}<span style="font-size:11.5px;color:var(--tx3);align-self:center;white-space:nowrap">· 가격 자료가 없어 전부 미확인</span></div>`;
     quick = `<button data-qref='{"type":"hotel"}'>🏨 호텔에서 식사</button><button data-custom>✍️ 직접 입력</button><button data-qref='{"type":"tbd"}'>⏳ 나중에 정하기</button>`;
-    list = pinned + (rows.length ? rows.map(r => optR(r, curRef)).join('') : '<p style="color:var(--tx3);font-size:13px">조건에 맞는 식당이 없습니다. 지역이나 종류를 바꿔 보세요.</p>');
+    const picks=(D.mealPicks?.[cur]||[]).map(id=>D.restaurants.find(r=>r.id===id)).filter(Boolean);
+    list = (!p.q && p.type==='전체' ? `<p class="candidate-title">오늘 동선의 식사 후보 · 숙소 위치에 따라 확인</p>${picks.map(r=>optR(r,curRef)).join('')}<p class="candidate-title">전체 식당</p>` : '') + pinned + (rows.length ? rows.map(r => optR(r, curRef)).join('') : '<p style="color:var(--tx3);font-size:13px">조건에 맞는 식당이 없습니다. 지역이나 종류를 바꿔 보세요.</p>');
   } else {
     const rows = D.pois.filter(x => x.pick !== false && (p.area === 'all' || x.a === p.area));
     filters = `<div class="row">${areas.map(([k, l]) => `<button class="chip" data-parea="${k}" aria-pressed="${p.area === k}">${l}</button>`).join('')}</div>`;
@@ -658,6 +681,10 @@ document.addEventListener('click', ev => {
   const dep = t.closest('[data-dep]'); if (dep) { commit(TS.setDep(plan, dep.dataset.dep)); return; }
   const dayb = t.closest('[data-day]'); if (dayb) { setDay(Number(dayb.dataset.day)); return; }
   const vw = t.closest('[data-view]'); if (vw) { setView(vw.dataset.view); return; }
+  if(t.closest('[data-apply-recommended]')){const n=TS.defaultPlan(D,plan.dep);if(plan.hotel)n.hotel=TS.clone(plan.hotel);commit(n);showNotice('새 추천 코스를 적용했습니다. 실행 취소로 이전 일정에 돌아갈 수 있어요.');return;}
+  if(t.closest('[data-hotel-save]')){const name=document.querySelector('[data-hotel-name]').value.trim(),lat=Number(document.querySelector('[data-hotel-lat]').value),lon=Number(document.querySelector('[data-hotel-lon]').value);if(!name||lat<25||lat>28||lon<126||lon>130||!Number.isFinite(lat)||!Number.isFinite(lon)){document.querySelector('[data-hotel-error]').textContent='호텔 이름과 오키나와 지역 위도·경도를 확인해 주세요.';return;}const n=TS.clone(plan);n.hotel={name,ll:[lat,lon]};commit(n);return;}
+  const a4=t.closest('[data-lastday]');if(a4){let n=TS.clone(plan);const old=n.days[4].items.filter(it=>it.kind!=='flight'&&it.kind!=='move');old.forEach(it=>{it.excluded=true;});if(a4.dataset.lastday!=='none'){let it=n.days[4].items.find(it=>it.uid==='d4-choice');if(!it){it=TS.defaultPlan(D,plan.dep).days[4].items.find(it=>it.uid==='d4-choice');n.days[4].items.splice(1,0,it);}it.ref={type:'poi',id:a4.dataset.lastday};it.excluded=false;}commit(n);return;}
+  if(t.closest('[data-add-place]')){const n=TS.clone(plan),uid='p-'+Date.now().toString(36);const items=n.days[cur].items;items.splice(items.at(-1)?.kind==='flight'?items.length-1:items.length,0,{uid,kind:'poi',ref:{type:'tbd'},tpl:null,excluded:false});commit(n);openPicker('poi',uid,t);return;}
   if (t.closest('[data-reset]')) { commit(TS.resetDay(plan, cur, D)); return; }
   if (t.closest('[data-undo]')) { const u = TS.popUndo(undo); if (u.plan) { undo = u.stack; plan = u.plan; saveState = TS.save(store, plan) ? 'saved' : 'fail'; renderAll('edit'); } return; }
   const ed = t.closest('[data-edit]'); if (ed) { editOpen[ed.dataset.edit] = !editOpen[ed.dataset.edit]; renderList(); const b = document.querySelector(`[data-edit="${ed.dataset.edit}"]`); if (b) b.focus(); return; }
@@ -673,7 +700,7 @@ document.addEventListener('click', ev => {
   if (t.closest('[data-prev]')) { stage && stage.prev(); return; }
   if (t.closest('[data-next]')) { stage && stage.next(); return; }
   if (t.closest('[data-cur]')) { const s = stage && stage.state().step; if (s) openDetail(s.uid, t.closest('[data-cur]')); return; }
-  if (t.closest('[data-fit]')) { if (stage) { const on = stage.fitAll(); t.closest('[data-fit]').textContent = on ? '따라가기' : '전체보기'; } return; }
+  if (t.closest('[data-fit]')) { if (stage) { const on = stage.fitAll(stage.state().manual?false:undefined); t.closest('[data-fit]').textContent = on ? '따라가기' : '전체보기'; } return; }
   // 시트
   if (picker) {
     if (t.closest('[data-close]') || t === document.getElementById('sheet')) { closePicker(true); return; }

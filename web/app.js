@@ -1435,7 +1435,7 @@ function viewTrip() {
         <div class="mt-txt">
           <span class="bg ${sum && sum.saved ? 'pri' : ''}">${sum && sum.saved ? '이어서 보기' : '여행 미리보기'}</span>
           <b>${sum ? `${sum.day}일차 · ${sum.next ? `다음: ${esc(sum.next)}` : '선택된 장소 없음'}` : TRIP_ASSETS === 'fail' ? '여행 자료를 불러오지 못했습니다' : '여행 자료 불러오는 중…'}</b>
-          <small>${sum ? `${TS_FMT(addDays(dep, sum.day - 1))} · 방문 완료 ${sum.doneN}/${sum.total} · 캐릭터 여행 · 일정표 · 실제 지도` : '캐릭터 여행 · 일정표 · 실제 지도'}</small>
+          <small>${sum ? `${TS_FMT(addDays(dep, sum.day - 1))} · 방문 완료 ${sum.doneN}/${sum.total} · 랜드마크 여행 지도 · 일정표 · 실제 지도` : '랜드마크 여행 지도 · 일정표 · 실제 지도'}</small>
         </div>
       </div>
       <a class="btn-go pdf mt-open" href="${esc(planHref)}">🚶 내 여행 열기</a>

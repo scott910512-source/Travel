@@ -6,7 +6,7 @@
 'use strict';
 const TRIP_DATA = {
   city: '오키나와', nights: 3, days: 4,
-  hotel: { id: 'hotel', n: '호텔 (예약한 곳)', a: 'mid', ll: [26.4880, 127.8420], llNote: '온나 서해안 기준 대략 위치 — 예약한 호텔로 바꿔 보세요',
+  hotel: { id: 'hotel', n: '호텔 (예약한 곳)', a: 'mid', ll: null, llNote: '위치 미정 · 예약한 호텔의 이름과 좌표를 설정해 주세요',
     d: '온나손 리조트 3박 한 곳. 바다 보이는 방·저층 요청.' },
   /* stay 예상 체류 · walk 걷는 양 · io 실내/실외 · stairs 계단. 모르면 '미확인'. */
   pois: [
@@ -153,4 +153,50 @@ const TRIP_DATA = {
   areas: [['naha', '나하'], ['south', '남부'], ['mid', '중부'], ['north', '북부']],
   slots: [['breakfast', '아침'], ['lunch', '점심'], ['dinner', '저녁'], ['cafe', '카페·간식']],
 };
+
+(() => {
+/* September redesign: keep the original template for saved itinerary references. */
+TRIP_DATA.legacyTemplate = JSON.parse(JSON.stringify(TRIP_DATA.template));
+TRIP_DATA.recommendation = '2026-09-island';
+TRIP_DATA.pois.push({id:'shisa',n:'UMI · 커플 시사 색칠 체험',a:'mid',ll:[26.43134,127.77631],coordinateSource:'https://en.umi.okinawa.jp/access/',stay:'90~120분 (공식 안내)',walk:'적음',io:'실내',stairs:'확인 필요',address:'沖縄県国頭郡恩納村字山田2668-1',url:'https://en.umi.okinawa.jp/course/si-sa/',booking:'공식 예약 페이지에서 방문일 예약 확인',d:'시사 한 쌍을 직접 색칠해 당일 가져오는 체험. 체험만 단독 예약 가능. 2026-09-25 공식 안내 확인.'});
+TRIP_DATA.pois.push({id:'hotelbeach',n:'숙소 근처 바다 · 둘이 사진',a:'mid',ll:null,stay:'20~30분 (제안)',walk:'적음',io:'실외',stairs:'숙소 확정 후 확인',d:'숙소에서 가까운 접근 가능한 해변을 골라 사진을 남겨요. 위치는 숙소 확정 후 선택하고 늦게 도착하면 생략하세요.'});
+TRIP_DATA.restaurants.push({id:'sams-ginowan',n:'샘즈 앵커 인 기노완',j:'SAM’S ANCHOR INN GINOWAN',a:'mid',t:'철판요리',p:'ok',ll:[26.27097,127.73557],coordinateSource:'https://sams-ancaor-inn-ginowan.com/en_us/',address:'沖縄県宜野湾市真志喜624-1 2F',url:'https://sams-ancaor-inn-ginowan.com/en_us/',hours:'17:00~23:00 · 마지막 주문 22:00 (방문일 재확인)',booking:'공식 사이트 온라인 예약',d:'셰프 퍼포먼스를 보며 즐기는 철판요리. 차탄에서 기노완으로 추가 이동하는 저녁 후보. 2026-09-25 공식 안내 확인.'});
+const poiFix={
+churaumi:{d:'고래상어 대수조와 주요 전시 중심으로 관람해요. 공원 전체를 돌지 않아도 충분합니다.',preg:'관람 사이 앉아서 쉬고, 원내 이동 수단과 접근 경로는 방문 전 확인하세요.'},
+kouri:{n:'코우리섬 · 대교 드라이브',d:'코우리대교를 차로 건너 섬의 전망과 카페를 즐겨요. 다리 위 정차는 하지 않고 주차 가능한 장소를 이용하세요.',preg:'북부 이동이 부담되면 이 구간을 생략하고 숙소로 복귀하세요.'},
+amvillage:{n:'아메리칸빌리지 · 노을과 야경',io:'혼합 (야외 거리·실내 상점)',stay:'1~2시간 (제안)',d:'알록달록한 해안 거리, 상점, 식당과 노을을 즐겨요. 늦은 오후부터 원하는 구역만 둘러보세요.',preg:'긴 산책 대신 카페나 식당에서 중간 휴식.'},
+bise:{preg:'기본 일정 밖 선택 코스입니다. 컨디션과 날씨를 보고 짧게 걸어요.'}};
+for(const p of TRIP_DATA.pois)if(poiFix[p.id])Object.assign(p,poiFix[p.id]);
+TRIP_DATA.restaurants.push({id:'kafu-seragaki',n:'카후 세라가키 · 아구 샤부샤부',j:'かふぅ 瀬良垣店',a:'mid',t:'아구돼지 샤부샤부',p:'ok',ll:[26.50866,127.86533],address:'沖縄県国頭郡恩納村瀬良垣1105-1',url:'https://www.kafu-onna.com/shop/seragaki.html',hours:'17:00~23:00 · 음식 주문 22:00까지 · 부정기 휴무 (방문일 재확인)',booking:'공식 사이트 예약 링크',d:'온나 세라가키의 아구돼지 샤부샤부. 숙소 위치와 영업 시간을 보고 호텔 식사로 바꿔도 좋아요. 2026-09-25 공식 안내 확인. 지도는 공식 안내 지도의 대략 위치.'});
+const step=(uid,kind,ref,t,d,slot)=>({uid,kind,ref,t,d,...(slot?{slot}:{})});
+const P=id=>({type:'poi',id}),R=id=>({type:'r',id}),H={type:'hotel'};
+TRIP_DATA.template=[
+{k:1,title:'도착 · 바다 · 첫 저녁',drive:'숙소·항공 확정 후 확인',items:[
+step('d1-arrive','flight',P('airport'),'도착','항공 확정 후 수하물·렌터카 인수 시간을 여유 있게 잡아요.'),
+{uid:'d1-drive',kind:'move',n:'렌터카 인수 → 예약한 숙소',t:'도착 후',d:'숙소 위치를 설정한 뒤 길찾기로 확인하세요.'},
+step('d1-checkin','rest',H,'체크인 후','짐을 풀고 충분히 쉬어요.'),
+step('d1-beach','poi',P('hotelbeach'),'컨디션에 맞춰','늦게 도착하면 생략해도 좋아요.'),
+step('d1-dinner','meal',R('kafu-seragaki'),'저녁','아구돼지 샤부샤부 또는 호텔 식사 중 선택해요. 숙소 인근 후보를 확인해 주세요.','dinner')]},
+{k:2,title:'고래상어 · 코우리 바다 드라이브',drive:'구간별 길찾기 확인',items:[
+step('d2-breakfast','meal',H,'조식','북부로 출발하기 전에 여유 있게 식사해요.','breakfast'),
+step('d2-churaumi','poi',P('churaumi'),'오전','주요 전시 위주로 보고 중간에 앉아서 쉬어요.'),
+step('d2-lunch','meal',R('r-85271f6b'),'점심','소바와 주시로 점심. 대기가 길면 근처 다른 식당이나 호텔 식사로 변경해요.','lunch'),
+step('d2-kouri','poi',P('kouri'),'오후','바다 위 다리를 드라이브하고 섬에서 짧게 쉬어요. 피곤하면 생략.'),
+step('d2-hotel','rest',H,'숙소 복귀','북부에서 돌아와 충분히 쉬어요.'),
+step('d2-dinner','meal',H,'저녁','이동이 긴 날이므로 숙소 또는 가까운 식당에서 저녁.','dinner')]},
+{k:3,title:'둘이 만드는 기념품 · 노을과 야경',drive:'구간별 길찾기 확인',items:[
+step('d3-breakfast','meal',H,'느긋한 조식','','breakfast'),
+step('d3-shisa','poi',P('shisa'),'예약 시간에 맞춰','각자 색칠한 시사 한 쌍을 여행 기념품으로 가져가요. 체험 대신 호텔 휴식도 가능.'),
+step('d3-lunch','meal',H,'점심','체험 장소·숙소에 맞춰 식당을 선택해요.','lunch'),
+step('d3-rest','rest',H,'점심 후','오후 외출 전 쉬는 시간.'),
+step('d3-amvillage','poi',P('amvillage'),'늦은 오후','해안 거리와 노을, 원하는 상점만 구경해요.'),
+step('d3-dinner','meal',R('r-8587c6b0'),'저녁','차탄 인근 식당 기본안. 특별 저녁은 기노완 샘즈 철판요리로 변경 가능하며 추가 이동이 있어요.','dinner'),
+step('d3-hotel','rest',H,'숙소 복귀','야경을 즐긴 뒤 숙소로 돌아가요.')]},
+{k:4,title:'마지막 한 곳 · 공항으로',drive:'항공편·반납 시간 기준 역산',items:[
+{uid:'d4-checkout',kind:'move',n:'체크아웃 · 출국 시간 확인',t:'체크아웃',d:'항공사 도착 안내와 렌터카 반납·셔틀 시간, 교통 여유를 먼저 확보해요.'},
+step('d4-choice','poi',P('umikaji'),'출국 여유가 있을 때','우미카지 테라스 또는 국제거리 중 한 곳만. 이른 항공편이면 관광 없이 공항으로.'),
+{uid:'d4-return',kind:'move',n:'주유 → 렌터카 반납',t:'항공 시간에서 역산',d:'반납 영업소와 셔틀 시간을 확인하세요.'},
+step('d4-depart','flight',P('airport'),'출발','항공권 확정 후 출국 시간을 반영하세요.')]}];
+TRIP_DATA.mealPicks={1:['kafu-seragaki','r-73f1c1ee'],2:['r-85271f6b','r-73f1c1ee'],3:['r-8587c6b0','r-c5d2a14f','sams-ginowan'],4:['r-61e7553f','r-533774a8']};
+})();
 if (typeof module !== 'undefined') module.exports = TRIP_DATA;

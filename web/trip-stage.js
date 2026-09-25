@@ -1,141 +1,75 @@
-/* 캐릭터 여행 무대. 그 날의 선택된 스텝(TripState 의 항목)을 축약 일러스트 맵에 순서대로 놓고, 두 캐릭터가 따라 움직인다.
-   - 지리·거리를 나타내지 않는다(뱀 모양 경로). 정확한 위치는 Leaflet 지도·길찾기로.
-   - 재생 상태(스텝·진행·속도)는 일정 상태와 별개다. 재생해도 방문 완료로 기록하지 않는다.
-   - setSteps 는 스텝 서명이 같으면 위치를 유지하고 라벨만 바꾼다. 현재 스텝이 사라지면 가까운 스텝으로 가고 멈춘다.
-   - 타이머·rAF 는 한 번에 하나. 날짜 바꾸기·이전·다음·destroy 에서 정리한다. */
+/* Geographic trip preview. Coordinates share one projection with the Natural Earth coast.
+   Routes are schematic links, never driving directions. Unknown locations stay off-map.
+   One animation clock; persistent progress; independent visit IDs and place IDs. */
 'use strict';
 const TripStage = (() => {
-  const W = 1000, ROW_H = 190, COLS = 3, XS = [180, 500, 820], TOP = 150;
-  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  const ICON = { flight: 'ic-airport', hotel: 'ic-hotel', poi: 'ic-poi', meal: 'ic-meal', rest: 'ic-rest', custom: 'ic-custom' };
-  const POSE = { flight: 'wait', hotel: 'rest', poi: 'look', meal: 'eat', rest: 'rest', custom: 'look', tbd: 'wait' };
-  const BUBBLE = { poi: '둘러보자!', meal: '맛있겠다 😋', rest: '좀 쉬자~', hotel: '오늘도 고생했어', flight: '출발!', custom: '여기야!', tbd: '어디로 갈까?' };
-  const GO = { car: '차 타고 가자 🚗', walk: '걸어가자!' };
-  const reduced = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
-  function layout(n) {
-    const pts = [];
-    for (let i = 0; i < n; i++) { const row = Math.floor(i / COLS), c = i % COLS; const x = row % 2 ? XS[COLS - 1 - c] : XS[c]; pts.push({ x, y: TOP + row * ROW_H }); }
-    return pts;
-  }
-  const H = n => TOP + Math.max(0, Math.ceil(n / COLS) - 1) * ROW_H + 160;
-  /* 배경: 바다·섬·야자수. 스텝 수가 달라도 같은 씨앗으로 그린다. */
-  function background(h) {
-    const isles = [[120, 90, 170, 60], [700, 60, 220, 70], [880, 340, 150, 55], [80, 520, 190, 65], [600, 760, 230, 70], [300, 980, 200, 60], [820, 1200, 170, 60], [150, 1400, 210, 65]].filter(i => i[1] < h + 40);
-    return `<defs><linearGradient id="sea" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8FD3F4"/><stop offset="1" stop-color="#3FA9E0"/></linearGradient>
-      <linearGradient id="sand" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FBEFD3"/><stop offset="1" stop-color="#F1DDB0"/></linearGradient></defs>
-      <rect x="-200" y="-3000" width="${W + 400}" height="${h + 8000}" fill="url(#sea)"/>
-      <g class="waves" fill="none" stroke="#fff" stroke-opacity=".45" stroke-width="3" stroke-linecap="round">${Array.from({ length: Math.ceil(h / 120) + 2 }, (_, i) => `<path d="M${(i % 3) * 140 - 200} ${60 + i * 120}q20-10 40 0t40 0t40 0t40 0"/>`).join('')}</g>
-      ${isles.map(([x, y, rx, ry], i) => `<g><ellipse cx="${x}" cy="${y}" rx="${rx}" ry="${ry}" fill="url(#sand)"/><ellipse cx="${x}" cy="${y - 8}" rx="${rx * .8}" ry="${ry * .6}" fill="#8CCB6A"/><use href="#pr-palm" x="${x - rx * .6}" y="${y - 70}" width="48" height="64"/>${i % 2 ? `<use href="#pr-palm" x="${x + rx * .3}" y="${y - 60}" width="40" height="54"/>` : ''}</g>`).join('')}`;
-  }
-  function pathD(pts) {
-    if (pts.length < 2) return '';
-    let d = `M${pts[0].x} ${pts[0].y}`;
-    for (let i = 1; i < pts.length; i++) { const a = pts[i - 1], b = pts[i]; const mx = (a.x + b.x) / 2; d += a.y === b.y ? ` L${b.x} ${b.y}` : ` C${a.x} ${(a.y + b.y) / 2} ${b.x} ${(a.y + b.y) / 2} ${b.x} ${b.y}`; void mx; }
-    return d;
-  }
-  function create(svg, opts) {
-    const o = Object.assign({ onStep: () => {}, onState: () => {}, onOpen: () => {} }, opts || {});
-    let steps = [], pts = [], sig = '', idx = 0, playing = false, speed = 1, phase = 'at', raf = 0, timer = 0, moving = null, chars = null, car = null, cam = null, fitAllMode = false, destroyed = false;
-    const clearTimers = () => { if (raf) cancelAnimationFrame(raf); if (timer) clearTimeout(timer); raf = 0; timer = 0; moving = null; };
-    const state = () => ({ idx, playing, speed, phase, n: steps.length, step: steps[idx] || null });
-    const emit = () => o.onState(state());
-    let spriteFrame = 3, travelStart = 0;
-    function build() {
-      pts = layout(steps.length);
-      svg.setAttribute('viewBox', '0 0 600 700');
-      svg.setAttribute('preserveAspectRatio', 'xMidYMid slice');
-      svg.innerHTML = `<defs>${TRIP_CHARS.defs}</defs>
-        <image href="assets/trip/coast.webp" width="600" height="700" preserveAspectRatio="xMidYMid slice"/>
-        <path d="M180 600 Q270 550 370 400" fill="none" stroke="#d77350" stroke-width="5" stroke-dasharray="4 16" stroke-linecap="round" opacity=".75"/>
-        <g class="nodes">${steps.map((s,i)=>node(s,i)).join('')}</g>
-        <g class="car pr-car" style="display:none"><use href="#pr-car" x="-65" y="-70" width="130" height="65"/></g>
-        <g class="chars"><ellipse cx="0" cy="-5" rx="79" ry="13" fill="#29352b" opacity=".16"/>
-          <g class="pair"><g class="char man"><svg class="sprite" x="-136" y="-270" width="272" height="272" viewBox="0 512 512 512" overflow="hidden"><image href="assets/trip/couple.webp" width="1536" height="1024"/></svg></g></g>
-          <g class="bubble" style="display:none"><rect x="-80" y="-365" width="160" height="34" rx="17" fill="#fffdf8"/><text x="0" y="-342" text-anchor="middle" font-size="17" font-weight="700" fill="#173c40"></text></g></g>`;
-      chars=svg.querySelector('.chars'); car=svg.querySelector('.car');
+  const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const project=ll=>Array.isArray(ll)&&ll.length===2&&ll.every(Number.isFinite)?{x:60+(ll[1]-127.55)*1000,y:70+(26.91-ll[0])*1120}:null;
+  const layout=steps=>Array.isArray(steps)?steps.map(s=>project(s.ll)):[];
+  const H=()=>1100;
+  const POSE={meal:'eat',rest:'rest',hotel:'rest',poi:'look',flight:'wait'};
+  const BUBBLE={meal:'맛있겠다',hotel:'잠깐 쉬자',rest:'여유롭게',poi:'둘러보자!',flight:'우리 여행 시작'};
+  const reduced=()=>typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const COAST='M319.8,265.5 L321.2,297.4 L295.7,302.3 L268.6,290.8 L264.6,273.2 L278.8,267.1 L305.7,269.9 L319.8,265.5Z M847.7,196.6 L843.3,201.0 L840.3,207.5 L839.8,215.2 L844.2,223.4 L847.7,233.2 L843.3,241.7 L836.8,248.7 L833.4,253.6 L819.7,281.5 L818.8,285.3 L819.7,299.9 L818.1,304.2 L814.2,303.7 L810.0,302.3 L806.6,303.7 L774.4,358.5 L753.3,379.9 L727.1,388.5 L682.2,390.9 L668.9,396.1 L661.6,403.3 L652.8,415.2 L645.3,428.3 L642.1,438.2 L645.0,441.9 L650.9,443.3 L655.8,447.0 L655.2,457.4 L651.8,465.8 L648.4,468.7 L643.1,469.6 L618.7,478.6 L600.3,481.4 L581.6,479.9 L565.9,472.7 L546.4,498.6 L494.1,553.3 L482.0,560.7 L470.0,561.8 L460.9,566.5 L457.3,583.9 L450.3,587.7 L380.6,588.1 L369.9,590.1 L361.7,595.0 L348.9,612.9 L353.0,621.6 L364.7,626.7 L374.8,633.9 L379.8,648.5 L383.4,680.6 L388.3,695.1 L398.8,709.4 L420.2,727.4 L429.9,742.4 L411.9,747.6 L392.1,741.2 L371.5,731.5 L350.8,726.4 L338.3,735.0 L287.5,827.9 L281.0,846.7 L278.4,867.8 L285.4,881.9 L301.5,881.4 L319.9,877.3 L333.6,880.0 L324.2,903.4 L306.9,932.7 L285.7,952.8 L264.9,948.9 L251.7,959.7 L235.4,988.9 L220.1,994.7 L161.7,994.7 L167.1,952.8 L145.9,874.9 L148.2,848.7 L168.5,851.4 L187.7,830.9 L202.6,802.2 L210.2,780.0 L228.3,782.2 L241.3,765.1 L249.1,742.9 L251.9,730.2 L248.6,706.8 L234.4,657.5 L230.7,633.9 L232.5,607.7 L241.3,596.5 L257.7,594.3 L291.1,595.0 L303.7,593.4 L315.2,587.9 L320.1,576.2 L323.7,576.2 L338.8,548.2 L340.6,542.2 L374.3,522.8 L412.7,510.8 L447.5,493.2 L470.2,457.4 L472.4,437.4 L465.9,423.0 L450.6,414.4 L404.3,406.8 L395.6,394.6 L394.8,377.2 L395.8,357.3 L387.9,320.2 L388.3,311.3 L395.4,309.6 L429.9,311.3 L474.6,308.4 L497.3,313.1 L511.2,327.3 L509.5,336.8 L502.5,346.3 L498.5,357.9 L505.6,373.3 L514.4,378.3 L524.9,378.2 L567.4,367.1 L621.1,334.3 L613.3,315.0 L621.3,301.4 L662.4,269.9 L667.0,263.6 L672.0,241.2 L679.2,236.7 L686.1,235.2 L689.5,231.4 L698.0,215.0 L735.9,192.1 L744.6,177.6 L748.5,156.9 L764.4,121.1 L765.1,96.5 L841.4,178.2 L847.7,196.6Z M450.8,795.7 L455.1,797.1 L456.0,807.1 L449.5,820.9 L444.7,816.1 L442.6,808.6 L444.0,806.9 L446.9,801.9 L450.8,795.7Z M498.7,669.4 L503.8,672.0 L505.2,677.9 L499.1,687.7 L488.2,691.8 L477.7,686.4 L483.0,667.6 L487.6,663.9 L497.1,659.1 L500.4,663.2 L498.7,669.4Z';
+  function landmarkIndex(s){const id=s.placeId||s.ref||'';if(/churaumi/.test(id))return 0;if(/kouri/.test(id))return 1;if(/amvillage|sunset/.test(id))return 2;if(/shisa|ryukyumura/.test(id))return 3;if(/umikaji/.test(id))return 4;if(s.k==='hotel'||/hotel/.test(id))return 5;if(/kokusai|shuri/.test(id))return 7;if(s.k==='flight'||/airport/.test(id))return 8;return 6;}
+  function art(s,x=-72,y=-115,size=144){const n=landmarkIndex(s);return `<svg x="${x}" y="${y}" width="${size}" height="${size}" viewBox="${n%3*512} ${Math.floor(n/3)*512} 512 512" overflow="hidden"><image href="assets/trip/landmarks.webp" width="1536" height="1536"/></svg>`;}
+  function create(svg,opts){
+    const o=Object.assign({onStep:()=>{},onState:()=>{},onOpen:()=>{},onMode:()=>{}},opts);
+    let steps=[],pts=[],nodes=[],idx=0,sig='',playing=false,speed=1,phase='at',progress=0,to=null,raf=0,timer=0,dead=false,fit=true,manual=false,cam=[0,0,800,1050],target=cam.slice(),camFrame=0;
+    let chars,car,routeEls=[],drag=null,dragged=false;
+    const stop=()=>{cancelAnimationFrame(raf);clearTimeout(timer);raf=timer=0;};
+    const state=()=>({idx,n:steps.length,step:steps[idx]||null,nextStep:to!=null?steps[to]:null,playing,speed,phase,progress,fitAll:fit,manual});
+    const emit=()=>o.onState(state());
+    function frame(n){const e=svg.querySelector('.sprite');if(e)e.setAttribute('viewBox',`${n%3*512} ${Math.floor(n/3)*512} 512 512`);}
+    function pose(cls){const e=svg.querySelector('.char');if(e)e.setAttribute('class','char man '+cls);frame(cls==='eat'?4:cls==='rest'?5:3);}
+    function bubble(t){const b=svg.querySelector('.bubble');b.querySelector('text').textContent=t||'';b.style.display=t?'':'none';}
+    function ratio(){const b=svg.getBoundingClientRect();return b.width&&b.height?b.width/b.height:.9;}
+    function bounds(ps,minW=390){if(!ps.length)return [0,40,780,1040];let l=Math.min(...ps.map(p=>p.x))-120,r=Math.max(...ps.map(p=>p.x))+120,t=Math.min(...ps.map(p=>p.y))-150,b=Math.max(...ps.map(p=>p.y))+125;let w=Math.max(minW,r-l),h=Math.max(400,b-t);const ar=ratio();if(w/h<ar)w=h*ar;else h=w/ar;return [(l+r-w)/2,(t+b-h)/2,w,h];}
+    function setCam(box,instant=false){target=box;cancelAnimationFrame(camFrame);if(instant||reduced()){cam=box.slice();svg.setAttribute('viewBox',cam.join(' '));return;}const from=cam.slice(),start=performance.now();const tick=now=>{const k=Math.min(1,(now-start)/350),e=1-Math.pow(1-k,3);cam=from.map((v,i)=>v+(box[i]-v)*e);svg.setAttribute('viewBox',cam.join(' '));if(k<1&&!dead)camFrame=requestAnimationFrame(tick);};camFrame=requestAnimationFrame(tick);}
+    function camera(instant=false){if(manual)return;const sel=fit?nodes.map(n=>n.pos):[nodes.find(n=>n.visits.includes(idx))?.pos,nodes.find(n=>n.visits.includes(to??Math.min(idx+1,steps.length-1)))?.pos].filter(Boolean);setCam(bounds(sel,fit?430:390),instant);}
+    function uniqueNodes(){const map=new Map();steps.forEach((s,i)=>{if(!pts[i])return;const key=s.placeId||s.ref||s.uid;if(!map.has(key))map.set(key,{key,s,anchor:pts[i],pos:{...pts[i]},visits:[]});map.get(key).visits.push(i);});const ns=[...map.values()];
+      // A leader line keeps the anchor honest when neighboring illustrations need separation.
+      for(let iter=0;iter<24;iter++)for(let a=0;a<ns.length;a++)for(let b=a+1;b<ns.length;b++){const p=ns[a].pos,q=ns[b].pos;let dx=q.x-p.x,dy=q.y-p.y;if(Math.abs(dx)<175&&Math.abs(dy)<155){const shift=(175-Math.abs(dx))/2+2;const sign=dx===0?(b%2?1:-1):Math.sign(dx);p.x-=shift*sign;q.x+=shift*sign;}}
+      return ns;
     }
-    function node(s,i) {
-      return `<g class="node k-${s.k}${s.done?' done':''}" data-i="${i}" tabindex="0" role="button" aria-label="${esc(s.name)} 상세">
-        <rect x="-126" y="-26" width="252" height="64" rx="18" fill="#fffdf8" stroke="#e6e5da"/>
-        <circle cx="-104" cy="5" r="10" fill="#d66e4d"/>
-        <text x="-84" y="0" font-size="16" font-weight="700" fill="#173c40">${esc(s.name.length>12?s.name.slice(0,12)+'…':s.name)}</text>
-        <text class="nodehint" x="-84" y="23" font-size="13" fill="#697e7c">장소 자세히 보기 ↗</text></g>`;
+    function build(){pts=layout(steps);nodes=uniqueNodes();svg.setAttribute('preserveAspectRatio','xMidYMid meet');
+      svg.innerHTML=`<defs>${typeof TRIP_CHARS!=='undefined'?TRIP_CHARS.defs:''}<linearGradient id="ocean" x2="1" y2="1"><stop stop-color="#c8efe6"/><stop offset="1" stop-color="#77c8cd"/></linearGradient><linearGradient id="land" x2="1" y2="1"><stop stop-color="#d7e8b2"/><stop offset="1" stop-color="#8fbc95"/></linearGradient><pattern id="ripples" width="90" height="75" patternUnits="userSpaceOnUse"><path d="M5 35q10-5 20 0t20 0" fill="none" stroke="white" stroke-opacity=".25" stroke-width="2"/></pattern><filter id="landshadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="8" stdDeviation="5" flood-color="#237f82" flood-opacity=".2"/></filter></defs>
+      <rect x="-5000" y="-5000" width="10000" height="10000" fill="url(#ocean)"/><rect x="-5000" y="-5000" width="10000" height="10000" fill="url(#ripples)"/>
+      <path class="coast" d="${COAST}" fill="url(#land)" stroke="#f9edcb" stroke-width="9" stroke-linejoin="round" filter="url(#landshadow)"/>
+      <g fill="#3f7868" opacity=".65" font-size="17" font-weight="700"><text x="435" y="380">やんばる</text><text x="350" y="620">OKINAWA</text><text x="235" y="860">那覇</text></g>
+      <g class="routes">${steps.slice(1).map((s,j)=>{const a=pts[j],b=pts[j+1];if(!a||!b||Math.hypot(a.x-b.x,a.y-b.y)<1)return '';return `<path class="route" data-to="${j+1}" d="M${a.x},${a.y} L${b.x},${b.y}" fill="none" stroke-width="4" stroke-linecap="round" pathLength="1"/><path class="route-progress" data-to="${j+1}" d="M${a.x},${a.y} L${b.x},${b.y}" fill="none" stroke="#c56c4d" stroke-width="6" stroke-linecap="round" pathLength="1"/>`;}).join('')}</g>
+      <g class="nodes">${nodes.map(n=>`<g class="node" data-i="${n.visits[0]}" tabindex="0" role="button" aria-label="${esc(n.s.name)} 상세"><title>${esc(n.s.name)}</title><path d="M${n.anchor.x},${n.anchor.y} L${n.pos.x},${n.pos.y}" fill="none" stroke="#47695a" stroke-opacity=".6" stroke-width="1.5"/><circle class="anchor" cx="${n.anchor.x}" cy="${n.anchor.y}" r="6" fill="#fff" stroke="#226b69" stroke-width="3"/><g transform="translate(${n.pos.x},${n.pos.y})"><ellipse class="halo" cy="-2" rx="67" ry="23" fill="#fffdf5" fill-opacity=".48"/>${art(n.s)}<g class="lbl"><rect x="-89" y="29" width="178" height="45" rx="14" fill="#fffdf6" stroke="#d5e2d2"/><text class="visit-number" x="0" y="45" text-anchor="middle" fill="#b65a3d" font-size="11" font-weight="800">${n.visits.map(i=>i+1).join(' · ')}</text><text x="0" y="63" text-anchor="middle" fill="#224e4a" font-size="13" font-weight="700">${esc(n.s.name.length>14?n.s.name.slice(0,14)+'…':n.s.name)}</text></g></g></g>`).join('')}</g>
+      <g class="car" style="display:none"><svg x="-32" y="-74" width="64" height="64" viewBox="0 512 512 512" overflow="hidden"><image href="assets/trip/couple.webp" width="1536" height="1024"/></svg><ellipse cy="7" rx="29" ry="7" fill="#183b3b" opacity=".15"/><use href="#pr-car" x="-37" y="-36" width="74" height="40"/></g>
+      <g class="chars" pointer-events="none"><ellipse cy="2" rx="23" ry="6" fill="#183b3b" opacity=".2"/><g class="pair"><g class="char man"><svg class="sprite" x="-49" y="-91" width="98" height="98" viewBox="0 512 512 512" overflow="hidden"><image href="assets/trip/couple.webp" width="1536" height="1024"/></svg></g></g><g class="bubble"><rect x="-51" y="-116" width="102" height="24" rx="12" fill="#fffdf6"/><text x="0" y="-100" font-size="11" text-anchor="middle" fill="#28544e"></text></g></g>`;
+      chars=svg.querySelector('.chars');car=svg.querySelector('.car');routeEls=[...svg.querySelectorAll('.route')];camera(true);
     }
-    function frame(n){const e=svg.querySelector('.sprite');if(e)e.setAttribute('viewBox',`${(n%3)*512} ${Math.floor(n/3)*512} 512 512`);}
-    function place(i){if(!steps[i])return;chars.setAttribute('transform','translate(285,605)');chars.style.display='';car.style.display='none';}
-    function face(dir) { /* Perspective stays consistent with the scene. */ }
-    function pose(cls){const c=svg.querySelector('.char');if(c){c.setAttribute('class','char man '+(cls||''));}spriteFrame=cls==='eat'?4:cls==='rest'?5:3;frame(spriteFrame);}
-    function bubble(text){const b=svg.querySelector('.bubble');if(!b)return;b.style.display=text?'':'none';b.querySelector('text').textContent=text||'';const w=Math.max(140,(text||'').length*17+30);b.querySelector('rect').setAttribute('x',-w/2);b.querySelector('rect').setAttribute('width',w);}
-    function highlight(i){svg.querySelectorAll('.node').forEach(n=>n.classList.toggle('cur',Number(n.dataset.i)===i));positionNodes();}
-    function positionNodes(){svg.querySelectorAll('.node').forEach((n,i)=>{
-      n.style.display=fitAllMode||i===idx||i===idx+1?'':'none';
-      n.setAttribute('transform',fitAllMode?`translate(${i%2?445:155},${90+Math.floor(i/2)*82})`:`translate(${i===idx?151:447},${i===idx?180:320})`);
-      n.querySelector('.nodehint').textContent=fitAllMode?`${i+1}번째 장소 · 상세 ↗`:i===idx?'현재 장소 · 상세 ↗':'다음 장소 · 상세 ↗';
-    });if(chars)chars.style.opacity=fitAllMode?'.25':'1';}
-    function camera(y,instant){positionNodes();}
-    function arrive(i, opt) {
-      idx = i; phase = 'at'; place(i); highlight(i);
-      const s = steps[i]; pose(POSE[s.k] || 'wait'); bubble(BUBBLE[s.k] || '');
-      camera(pts[i].y, opt && opt.instant);
-      o.onStep(state());
-      if (playing && i < steps.length - 1) timer = setTimeout(() => { timer = 0; go(i + 1); }, 1600 / speed);
-      else if (playing && i >= steps.length - 1) { playing = false; }
-      emit();
+    function paintRoutes(){routeEls.forEach(e=>{const n=+e.dataset.to;e.setAttribute('stroke',n<=idx?'#559995':n===to?'#e4b399':'#fffdf5');e.setAttribute('stroke-dasharray',n<=idx?'none':'.018 .025');});svg.querySelectorAll('.route-progress').forEach(e=>{const active=+e.dataset.to===to;e.style.opacity=active?'1':'0';e.setAttribute('stroke-dasharray',`${active?progress:0} 1`);});}
+    function highlight(){svg.querySelectorAll('.node').forEach(e=>{const n=nodes.find(x=>x.visits.includes(+e.dataset.i));const selected=n.visits.includes(idx);e.classList.toggle('cur',selected);e.classList.toggle('done',n.visits.some(i=>steps[i].done));e.dataset.i=selected?idx:n.visits[0];});paintRoutes();}
+    function place(p,byCar=false){chars.style.display=p&&!byCar?'':'none';car.style.display=p&&byCar?'':'none';if(p)(byCar?car:chars).setAttribute('transform',`translate(${p.x},${p.y})`);}
+    function arrive(i){idx=i;to=null;progress=0;phase='at';pose(POSE[steps[i]?.k]||'look');bubble(BUBBLE[steps[i]?.k]||'여기서 잠깐');place(pts[i]);highlight();camera();o.onStep(state());if(playing&&idx<steps.length-1)timer=setTimeout(()=>go(idx+1),1700/speed);else playing=false;emit();}
+    function go(next){stop();if(!steps[next])return;to=next;phase='moving';pose('walk');bubble('다음 장소로');highlight();camera();const a=pts[idx],b=pts[to];
+      if(!a||!b){phase='unlocated';place(null);emit();timer=setTimeout(()=>arrive(next),reduced()?1:900/speed);return;}
+      const same=Math.hypot(a.x-b.x,a.y-b.y)<1;if(same){arrive(next);return;}
+      const byCar=steps[next].car!==false;let last=performance.now();const tick=now=>{if(dead||!playing)return;const dt=Math.min(100,now-last);last=now;progress=Math.min(1,progress+dt*speed/(reduced()?1:2600));const p={x:a.x+(b.x-a.x)*progress,y:a.y+(b.y-a.y)*progress};place(p,byCar);if(!byCar)frame(Math.floor(now/160)%3);paintRoutes();emit();if(progress<1)raf=requestAnimationFrame(tick);else arrive(next);};raf=requestAnimationFrame(tick);emit();
     }
-    let paused = null;   // 이동 중 멈춘 자리 {to, x, y}
-    function go(to, fromXY) {
-      clearTimers(); if (to < 0 || to >= steps.length || destroyed) return;
-      const from = idx, a = fromXY || pts[from], b = pts[to]; if (!a || !b || (from === to && !fromXY)) { arrive(to); return; }
-      paused = null; phase = 'moving'; const byCar = !!steps[to].car; highlight(-1);
-      face(b.x < a.x ? -1 : 1); bubble(byCar ? GO.car : GO.walk); pose('walk');
-      if (byCar) { chars.style.display = 'none'; car.style.display = ''; car.querySelector('use').setAttribute('transform', b.x < a.x ? 'scale(-1,1)' : ''); }
-      const dur = (reduced() ? 1 : 1800) / speed, t0 = performance.now(); travelStart=t0; emit();
-      const tick = now => {
-        if (destroyed) return;
-        const k = Math.min(1, (now - t0) / dur); const e = k < .5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
-        const x = a.x + (b.x - a.x) * e, y = a.y + (b.y - a.y) * e;
-        moving.x = x; moving.y = y;
-        const sceneProgress=(fromXY && fromXY.progress || 0)+(1-(fromXY && fromXY.progress || 0))*e; moving.progress=sceneProgress;
-        (byCar ? car : chars).setAttribute('transform', `translate(${245+sceneProgress*105},${615-sceneProgress*75})`);
-        if(!byCar)frame(Math.floor((now-travelStart)/150)%3);
-        if (k < 1) raf = requestAnimationFrame(tick); else { raf = 0; moving = null; arrive(to); }
-      };
-      moving = { to, x: a.x, y: a.y }; raf = requestAnimationFrame(tick);
-    }
-    const api = {
-      setSteps(next, opt) {
-        const s2 = next.map(s => `${s.uid}|${s.k}|${s.ref}`).join(';');
-        const curUid = steps[idx] && steps[idx].uid;
-        if (s2 === sig && !(opt && opt.force)) { steps = next; steps.forEach((s, i) => { const n = svg.querySelector(`.node[data-i="${i}"]`); if (n) n.classList.toggle('done', !!s.done); }); return; }
-        const wasPlaying = playing; clearTimers(); playing = false; paused = null;
-        steps = next; sig = s2; build();
-        let ni = steps.findIndex(s => s.uid === curUid);
-        if (ni < 0) { ni = Math.max(0, Math.min(idx, steps.length - 1)); }      // 현재 스텝이 사라짐 → 가까운 스텝, 멈춤
-        else if (wasPlaying && !(opt && opt.keepPause)) playing = true;
-        if (steps.length) arrive(ni, { instant: true }); else emit();
-      },
-      play() { if (!steps.length) return; playing = true;
-        if (paused) { const p = paused; go(p.to, { x: p.x, y: p.y, progress:p.progress }); }
-        else if (phase === 'at') { if (idx >= steps.length - 1) { idx = -1; go(0); } else go(idx + 1); }
-        emit(); },
-      pause() { playing = false;
-        if (phase === 'moving' && moving) { paused = { to: moving.to, x: moving.x, y: moving.y, progress:moving.progress }; clearTimers(); phase = 'paused'; pose('wait'); }
-        else clearTimers();
-        emit(); },
-      toggle() { playing ? api.pause() : api.play(); },
-      next() { playing = false; paused = null; clearTimers(); if (idx < steps.length - 1) arrive(idx + 1, { instant: true }); emit(); },
-      prev() { playing = false; paused = null; clearTimers(); if (idx > 0) arrive(idx - 1, { instant: true }); emit(); },
-      goto(i) { playing = false; paused = null; clearTimers(); if (i >= 0 && i < steps.length) arrive(i, { instant: true }); emit(); },
-      gotoUid(uid) { const i = steps.findIndex(s => s.uid === uid); if (i >= 0) api.goto(i); },
-      setSpeed(v) { speed = Number(v) || 1; emit(); },
-      fitAll(on) { fitAllMode = on == null ? !fitAllMode : !!on; camera(pts[idx] ? pts[idx].y : 0, true); emit(); return fitAllMode; },
-      state, isPlaying: () => playing,
-      destroy() { destroyed = true; clearTimers(); svg.innerHTML = ''; },
+    const api={
+      setSteps(next,opt){const key=next.map(s=>[s.uid,s.k,s.ref,s.name,s.ll].join('|')).join(';');if(key===sig&&!opt?.force){steps=next;highlight();return;}const uid=steps[idx]?.uid;stop();playing=false;to=null;progress=0;steps=next;sig=key;idx=Math.max(0,steps.findIndex(s=>s.uid===uid));manual=false;fit=true;build();if(steps.length)arrive(Math.min(idx,steps.length-1));else{place(null);emit();}o.onMode(true);},
+      play(){if(!steps.length||playing)return;playing=true;if(to!=null)go(to);else if(idx>=steps.length-1){arrive(0);}else go(idx+1);emit();},
+      pause(){playing=false;stop();if(to!=null)phase='paused';emit();},toggle(){playing?api.pause():api.play();},
+      goto(i){stop();playing=false;if(i>=0&&i<steps.length)arrive(i);},gotoUid(uid){api.goto(steps.findIndex(s=>s.uid===uid));},next(){api.goto(idx+1);},prev(){api.goto(idx-1);},
+      setSpeed(v){speed=Math.max(.5,Math.min(2,Number(v)||1));emit();},fitAll(on){fit=on==null?!fit:!!on;manual=false;camera();o.onMode(fit);emit();return fit;},
+      state,isPlaying:()=>playing,destroy(){dead=true;stop();cancelAnimationFrame(camFrame);observer?.disconnect();for(const [e,f]of listeners)svg.removeEventListener(e,f);svg.innerHTML='';}
     };
-    svg.addEventListener('click', ev => { const n = ev.target.closest('.node'); if (n) { ev.preventDefault(); o.onOpen(Number(n.dataset.i)); } });
-    svg.addEventListener('keydown', ev => { const n = ev.target.closest('.node'); if (n && (ev.key === 'Enter' || ev.key === ' ')) { ev.preventDefault(); o.onOpen(Number(n.dataset.i)); } });
+    const listeners=[];function listen(e,f){svg.addEventListener(e,f);listeners.push([e,f]);}
+    listen('click',ev=>{if(dragged){dragged=false;return;}const n=ev.target.closest('.node');if(n){ev.preventDefault();o.onOpen(+n.dataset.i);}});
+    listen('keydown',ev=>{const n=ev.target.closest('.node');if(n&&(ev.key==='Enter'||ev.key===' ')){ev.preventDefault();o.onOpen(+n.dataset.i);}});
+    // Map pans on an explicit background drag; the page retains vertical scrolling on touch.
+    listen('pointerdown',ev=>{if(ev.target.closest('.node'))return;drag={x:ev.clientX,y:ev.clientY,box:cam.slice(),id:ev.pointerId};dragged=false;});
+    listen('pointermove',ev=>{if(!drag)return;const dx=ev.clientX-drag.x,dy=ev.clientY-drag.y;if(!dragged&&Math.abs(dx)<8)return;dragged=true;manual=true;cancelAnimationFrame(camFrame);const b=svg.getBoundingClientRect(),unit=cam[2]/(b.width||600);cam=[drag.box[0]-dx*unit,drag.box[1]-dy*unit,cam[2],cam[3]];svg.setAttribute('viewBox',cam.join(' '));o.onMode(null);});
+    listen('pointerup',()=>{drag=null;});listen('pointercancel',()=>{drag=null;});listen('pointerleave',()=>{drag=null;});
+    const observer=typeof ResizeObserver!=='undefined'?new ResizeObserver(()=>camera(true)):null;observer?.observe(svg);
     return api;
   }
-  return { create, layout, H, POSE, BUBBLE };
+  return {create,layout,H,project,art,POSE,BUBBLE};
 })();
-if (typeof module !== 'undefined') module.exports = TripStage;
+if(typeof module!=='undefined')module.exports=TripStage;

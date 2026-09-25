@@ -69,7 +69,7 @@ const TripState = (() => {
   function defaultPlan(data, dep) {
     const days = {};
     for (let k = 1; k <= DAYS; k++) days[k] = { items: defaultItems(data, k) };
-    return { v: VERSION, dep: validDep(dep) ? dep : DEPS[0], days, done: {} };
+    return { recommendation:data.recommendation || 'legacy', v: VERSION, dep: validDep(dep) ? dep : DEPS[0], days, done: {} };
   }
 
   /* ── 불러오기 · 저장 ── */
@@ -84,9 +84,10 @@ const TripState = (() => {
         if (!it || typeof it.uid !== 'string' || seen[it.uid]) return;
         const kind = ['flight', 'move', 'poi', 'meal', 'rest'].indexOf(it.kind) !== -1 ? it.kind : null;
         if (!kind) return;
-        const tpl = typeof it.tpl === 'string' && templateDay(data, k).items.some(t => t.uid === it.tpl) ? it.tpl : null;
+        const sourceItems = templateDay(data,k).items.concat((data.legacyTemplate || []).find(d=>d.k===k)?.items || []);
+        const tpl = typeof it.tpl === 'string' && sourceItems.some(t => t.uid === it.tpl) ? it.tpl : null;
         if ((kind === 'flight' || kind === 'move') && !tpl) return;       // 고정 항목은 기본 일정에 있는 것만
-        const ref = (kind === 'flight' || kind === 'move') ? (templateDay(data, k).items.find(t => t.uid === tpl).ref || null) : validRef(it.ref, data);
+        const ref = (kind === 'flight' || kind === 'move') ? (sourceItems.find(t => t.uid === tpl).ref || null) : validRef(it.ref, data);
         if (!ref && kind !== 'flight' && kind !== 'move') return;
         seen[it.uid] = true;
         items.push({ uid: it.uid.slice(0, 40), kind, slot: SLOTS.indexOf(it.slot) !== -1 ? it.slot : null, ref: ref ? clone(ref) : null, tpl, excluded: !!it.excluded });
@@ -97,6 +98,8 @@ const TripState = (() => {
       });
       plan.days[k].items = items;
     }
+    plan.recommendation = raw.recommendation || 'legacy';
+    if(raw.hotel && Array.isArray(raw.hotel.ll) && raw.hotel.ll.length===2 && raw.hotel.ll.every(Number.isFinite) && raw.hotel.ll[0]>=25 && raw.hotel.ll[0]<=28 && raw.hotel.ll[1]>=126 && raw.hotel.ll[1]<=130) plan.hotel={name:String(raw.hotel.name||'내 숙소').slice(0,60),ll:raw.hotel.ll.slice()};
     plan.done = {};
     if (raw.done && typeof raw.done === 'object') Object.keys(raw.done).forEach(u => { if (raw.done[u] === true) plan.done[u] = true; });
     return plan;

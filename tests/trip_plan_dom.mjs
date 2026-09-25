@@ -7,7 +7,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
-const TSn = require('../web/trip-state.js'), Dn = require('../web/trip-data.js');
+const TSn = require('../web/trip-state.js'), currentData = require('../web/trip-data.js');
+const Dn={...currentData,template:currentData.legacyTemplate};
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const read = f => fs.readFileSync(path.join(root, 'web', f), 'utf8');
 const inline = html => [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m => m[1]).join('\n');
@@ -15,10 +16,11 @@ const PLAN = read('okinawa-2026-10.html'), FOOD = read('okinawa-2026-10-food.htm
 const shared = ['trip-data.js', 'trip-state.js', 'trip-chars.js', 'trip-stage.js'].map(read).join('\n') + '\n';
 const wait = ms => new Promise(r => setTimeout(r, ms || 30));
 const LIST = { 'trip.ui': JSON.stringify({ view: 'list', day: 1, speed: 1 }) };
-async function boot(html, { hash = '', storage = {}, ratings = null } = {}) {
+async function boot(html, { hash = '', storage = {}, ratings = null, fresh = false } = {}) {
   const errors = [], vc = new VirtualConsole(); vc.on('jsdomError', e => errors.push(e));
   const dom = new JSDOM(html.replace(/<script src="[^"]+"><\/script>/g, ''), { url: 'https://example.test/Travel/x.html' + hash, runScripts: 'outside-only', pretendToBeVisual: true, virtualConsole: vc });
   const w = dom.window;
+  if(!fresh && !storage['trip.plan']){const legacy=TSn.defaultPlan(Dn,'2026-10-03');legacy.recommendation='legacy';legacy.hotel={name:'테스트 숙소',ll:[26.488,127.842]};storage={'trip.plan':JSON.stringify(legacy),...storage};}
   Object.entries(storage).forEach(([k, v]) => w.localStorage.setItem(k, v));
   let resolveRatings; const ratingsP = new Promise(r => { resolveRatings = r; });
   w.fetch = async url => (ratings && /food\.json/.test(url)) ? { ok: true, json: () => ratingsP } : { ok: false, json: async () => null };
@@ -36,7 +38,7 @@ async function test(name, fn) { await fn(); console.log('ok', name); count++; }
 let saved;
 
 await test('기존 저장 일정·방문 완료를 보존한 채 새 화면 진입 (처음은 캐릭터 보기 · 자동 재생 없음)', async () => {
-  let p = TSn.defaultPlan(Dn, '2026-10-04'); p = TSn.setRef(p, 2, 'd2-lunch', { type: 'r', id: 'r-533774a8' }, Dn); p = TSn.setDone(p, 'd2-churaumi', true);
+  let p = TSn.defaultPlan(Dn, '2026-10-04'); p = TSn.setRef(p, 2, 'd2-lunch', { type: 'r', id: 'r-533774a8' }, Dn); p = TSn.setDone(p, 'd2-churaumi', true); p.hotel={name:'테스트 숙소',ll:[26.488,127.842]};
   const st = { 'trip.plan': JSON.stringify(p), 'trip.dep': '2026-10-04' };
   const { d } = await boot(PLAN, { hash: '#d2', storage: st });
   assert(d.querySelector('#v-chars').classList.contains('on'), '첫 보기는 캐릭터 여행');
@@ -52,7 +54,7 @@ await test('2일차 재생 → 캐릭터 이동 → 도착 (걷기 동작 · 말
   d.querySelector('[data-play]').click(); await wait(80);
   assert(txt(d.querySelector('#ctl .now')).includes('이동 중'));
   assert(d.querySelector('#stage .char.man').classList.contains('walk'), '걷기 동작');
-  await wait(1100);
+  await wait(1450);
   assert(txt(d.querySelector('#ctl .now')).startsWith('2/6'), txt(d.querySelector('#ctl .now')));
   assert(d.querySelector('#stage .char.man').classList.contains('look'), '관광지 도착 → 둘러보기 동작');
   assert(txt(d.querySelector('#stage .bubble')).includes('둘러보자'));
@@ -162,9 +164,9 @@ await test('직접 입력(좌표·평점 없음)·나쁜 링크·호텔에서 �
   assert(!d.querySelector('#sheet').hidden && txt(d.querySelector('[data-cerr]')).includes('https'));
   d.querySelector('[data-curl]').value = ''; d.querySelector('[data-csave]').click();
   const card = d.querySelector('#s-d1-dinner'); assert(card.querySelector('h4').innerHTML.includes('&lt;b&gt;동네 식당&lt;/b&gt;')); assert(txt(card).includes('지도 위치 미등록'));
-  d.querySelector('[data-view="chars"]').click(); assert([...d.querySelectorAll('#stage .node')].some(n => /동네 식당/.test(n.getAttribute('aria-label'))), '직접 입력도 맵 노드로');
+  d.querySelector('[data-view="chars"]').click(); assert(txt(d.querySelector('#unknown-places')).includes('동네 식당'), 'unlocated custom place stays off the geographic map');
   d.querySelector('[data-view="list"]').click(); edit(d, 'd1-manza'); d.querySelector('[data-rest="d1-manza"]').click();
-  assert(txt(d.querySelector('#s-d1-manza')).includes('호텔 (예약한 곳)'));
+  assert(txt(d.querySelector('#s-d1-manza')).includes('테스트 숙소'));
   const b = await boot(PLAN, { storage: { 'trip.plan': '{broken', 'trip.ui': '{bad' } });
   assert(!b.d.querySelector('#notice').hidden); assert(!b.d.querySelector('[data-exclude="d1-arrive"]'));
 });
@@ -175,3 +177,47 @@ await test('다른 탭의 변경(storage 이벤트)을 받아 다시 그린다',
   assert(txt(d.querySelector('.stop.ex')).includes('츄라우미'));
 });
 console.log(`${count} trip plan DOM scenarios passed (map not loaded)`);
+
+await test('새 추천 일정은 체험·북부·출국 선택을 제공하고 미정 숙소를 지도에 만들지 않는다', async()=>{
+ const {d,w}=await boot(PLAN,{hash:'#d3',fresh:true});
+ assert(txt(d.querySelector('#stage')).includes('시사'));
+ assert(txt(d.querySelector('#unknown-places')).includes('호텔'));
+ assert(![...d.querySelectorAll('#stage .node')].some(n=>n.getAttribute('aria-label').includes('호텔')));
+ d.querySelector('[data-day="4"]').click();
+ d.querySelector('[data-lastday="kokusai"]').click();
+ let p=JSON.parse(w.localStorage.getItem('trip.plan'));
+ assert.equal(p.days[4].items.filter(i=>!i.excluded&&i.kind==='poi').length,1);
+ assert.equal(p.days[4].items.find(i=>i.uid==='d4-choice').ref.id,'kokusai');
+ d.querySelector('[data-lastday="none"]').click();p=JSON.parse(w.localStorage.getItem('trip.plan'));
+ assert(!p.days[4].items.some(i=>!i.excluded&&i.kind==='poi'));
+});
+await test('새 추천 코스 적용은 명시적이고 실행 취소하면 저장한 기존 선택이 복원된다', async()=>{
+ const {d,w}=await boot(PLAN,{hash:'#d2'});
+ const before=JSON.parse(w.localStorage.getItem('trip.plan'));
+ d.querySelector('[data-apply-recommended]').click();
+ let p=JSON.parse(w.localStorage.getItem('trip.plan'));
+ assert(!p.days[2].items.some(i=>i.uid==='d2-bise'));
+ assert(p.days[3].items.some(i=>i.uid==='d3-shisa'));
+ d.querySelector('[data-undo]').click();p=JSON.parse(w.localStorage.getItem('trip.plan'));
+ assert.deepEqual(p.days,before.days);
+});
+await test('숙소 설정·재방문은 한 랜드마크를 공유하며 저장·재로드된다',async()=>{
+ const b=await boot(PLAN,{hash:'#d3',fresh:true});const {d}=b;
+ d.querySelector('[data-hotel-name]').value='내 숙소';d.querySelector('[data-hotel-lat]').value='26.49';d.querySelector('[data-hotel-lon]').value='127.85';d.querySelector('[data-hotel-save]').click();
+ const hotels=[...d.querySelectorAll('#stage .node')].filter(n=>n.getAttribute('aria-label').includes('내 숙소'));
+ assert.equal(hotels.length,1);assert(txt(hotels[0].querySelector('.visit-number')).includes('1 · 3 · 4 · 7'));
+ const re=await boot(PLAN,{hash:'#d3',storage:b.dump(),fresh:true});assert.equal(re.d.querySelector('[data-hotel-name]').value,'내 숙소');
+});
+await test('지리 좌표·이동선·캐릭터가 동일한 투영을 사용하고 멈춘 위치에서 이어진다',async()=>{
+ const {d,w}=await boot(PLAN,{hash:'#d2',fresh:true});
+ d.querySelector('[data-next]').click(); // aquarium; next destination is located restaurant
+ const nodes=[...d.querySelectorAll('#stage .node')];
+ const aquarium=nodes.find(n=>n.getAttribute('aria-label').includes('츄라우미'));const kouri=nodes.find(n=>n.getAttribute('aria-label').includes('코우리'));
+ assert(+aquarium.querySelector('.anchor').getAttribute('cx')<+kouri.querySelector('.anchor').getAttribute('cx'),'Kouri east of aquarium');
+ d.querySelector('[data-play]').click();await wait(180);d.querySelector('[data-play]').click();
+ const p=d.querySelector('#stage .car').getAttribute('transform');await wait(80);assert.equal(d.querySelector('#stage .car').getAttribute('transform'),p);
+ d.querySelector('[data-play]').click();await wait(80);d.querySelector('[data-play]').click();
+ const q=d.querySelector('#stage .car').getAttribute('transform');assert.notEqual(q,p);
+ const x=t=>Number(t.match(/translate\(([^,]+)/)[1]);assert(x(q)>x(p),'restaurant east of aquarium: resume advances, never resets');
+ assert.equal(Object.keys(JSON.parse(w.localStorage.getItem('trip.plan')||'{"done":{}}').done).length,0);
+});
