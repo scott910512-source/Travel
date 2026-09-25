@@ -1,8 +1,8 @@
 {
  "date": "2026-09-25",
- "ts": "2026-09-25 09:23 KST",
+ "ts": "2026-09-25 17:56 KST",
  "status": "OK",
- "headline": "볼 것 553건 · 강력특가 10 · 주말여행 3 · CJJ 3 · 신규 14 · 하락 56",
+ "headline": "볼 것 553건 · 강력특가 9 · 주말여행 3 · CJJ 3 · 신규 30 · 하락 17",
  "home": "CJJ",
  "reason": null,
  "degraded": null,
@@ -10,15 +10,15 @@
  "counts": {
   "total": 554,
   "comparable": 553,
-  "strong": 10,
-  "deal": 24,
-  "candidate": 80,
-  "weekend": 92,
+  "strong": 9,
+  "deal": 25,
+  "candidate": 74,
+  "weekend": 90,
   "home": 34,
-  "new": 14,
-  "down": 56,
-  "up": 13,
-  "gone": 23
+  "new": 30,
+  "down": 17,
+  "up": 8,
+  "gone": 30
  },
  "source_note": "Travelpayouts 캐시 데이터 · 실시간 확정가 아님",
  "access_note": "실부담가 = 항공권 + CJJ 기준 왕복 교통비 (추정치)",
@@ -50,20 +50,33 @@
    "link": "https://www.aviasales.com/search/CJJ2909CJU01101"
   },
   {
-   "text": "오사카 ICN→KIX · 09-29~10-01 2박 · 166,109원 (실부담 210,109) · 비교 기준가보다 57% 저렴 · 강력 특가  🆕",
+   "text": "오사카 ICN→KIX · 09-29~10-01 2박 · 165,453원 (실부담 209,453) · 비교 기준가보다 57% 저렴 · 강력 특가  📉-656",
    "tier": "strong",
    "tier_label": "강력 특가",
    "confidence": "높음",
    "sample": 18,
-   "price": 166109,
+   "price": 165453,
    "access": 44000,
-   "effective": 210109,
+   "effective": 209453,
    "weekend_trip": false,
    "leave": 2.0,
    "link": "https://www.aviasales.com/search/ICN2909KIX01101"
   }
  ],
  "weekend": [
+  {
+   "text": "하노이 ICN→HAN · 11-27~11-29 2박 · 234,544원 (실부담 278,544) · 비교 기준가보다 13% 저렴 · 주말 연차1일  📉-5,666",
+   "tier": "candidate",
+   "tier_label": "특가 후보",
+   "confidence": "보통",
+   "sample": 10,
+   "price": 234544,
+   "access": 44000,
+   "effective": 278544,
+   "weekend_trip": true,
+   "leave": 1.0,
+   "link": "https://www.aviasales.com/search/ICN2711HAN29111"
+  },
   {
    "text": "발리 ICN→DPS · 11-13~11-16 3박 · 520,278원 (실부담 564,278) · 비교 기준가보다 23% 저렴 · 특가 · 주말 연차1일",
    "tier": "deal",
@@ -89,19 +102,6 @@
    "weekend_trip": true,
    "leave": 1.0,
    "link": "https://www.aviasales.com/search/GMP1010HND12101"
-  },
-  {
-   "text": "하노이 ICN→HAN · 11-27~11-29 2박 · 240,210원 (실부담 284,210) · 비교 기준가보다 11% 저렴 · 주말 연차1일",
-   "tier": "candidate",
-   "tier_label": "특가 후보",
-   "confidence": "보통",
-   "sample": 10,
-   "price": 240210,
-   "access": 44000,
-   "effective": 284210,
-   "weekend_trip": true,
-   "leave": 1.0,
-   "link": "https://www.aviasales.com/search/ICN2711HAN29111"
   }
  ],
  "home_airport": [
@@ -173,7 +173,7 @@
    "link": "https://www.aviasales.com/search/ICN0210ZRH10101"
   },
   {
-   "text": "취리히 ICN→ZRH · 10-04~10-17 13박 · 1,395,736원 (실부담 1,439,736) · 비교 기준가보다 39% 비쌈 · 개천절 대체  📉-496",
+   "text": "취리히 ICN→ZRH · 10-04~10-17 13박 · 1,395,736원 (실부담 1,439,736) · 비교 기준가보다 39% 비쌈 · 개천절 대체",
    "tier": "normal",
    "tier_label": "일반",
    "confidence": "높음",
