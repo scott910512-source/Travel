@@ -1,0 +1,797 @@
+{
+ "ts": "2026-09-25T09:48:16.436Z",
+ "source": "Google Places API (web service)",
+ "by": "workflow probe=food",
+ "min_reviews": 10,
+ "min_rating": 4.3,
+ "count": 49,
+ "found": 49,
+ "missing": 0,
+ "photos": 98,
+ "data": {
+  "首里そば": {
+   "rating": 4.4,
+   "total": 1454,
+   "url": "https://maps.google.com/?cid=8226109045606690430",
+   "gname": "슈리 소바",
+   "photos": [
+    {
+     "url": "food-photos/533774a8d3-0.jpg",
+     "attr": "范姜雯岑"
+    },
+    {
+     "url": "food-photos/533774a8d3-1.jpg",
+     "attr": "Arudeon nkm3a"
+    }
+   ]
+  },
+  "大東そば": {
+   "rating": 4.3,
+   "total": 621,
+   "url": "https://maps.google.com/?cid=1090142815864018152",
+   "gname": "다이토소바",
+   "photos": [
+    {
+     "url": "food-photos/248ef6e5a1-0.jpg",
+     "attr": "大東そば 国際通り店"
+    },
+    {
+     "url": "food-photos/248ef6e5a1-1.jpg",
+     "attr": "大東そば 国際通り店"
+    }
+   ]
+  },
+  "首里ほりかわ": {
+   "rating": 4.4,
+   "total": 684,
+   "url": "https://maps.google.com/?cid=3598282412947510765",
+   "gname": "슈리 호리카와",
+   "photos": [
+    {
+     "url": "food-photos/17ef944e89-0.jpg",
+     "attr": "Jeanette Gracian"
+    },
+    {
+     "url": "food-photos/17ef944e89-1.jpg",
+     "attr": "金童玉女"
+    }
+   ]
+  },
+  "やっぱりステーキ 国際通り": {
+   "rating": 4.1,
+   "total": 1725,
+   "url": "https://maps.google.com/?cid=9544842002149338492",
+   "gname": "Yappari Steak 4th Kokusaidori",
+   "photos": [
+    {
+     "url": "food-photos/1e7c6a9738-0.jpg",
+     "attr": "SeaFood Father"
+    },
+    {
+     "url": "food-photos/1e7c6a9738-1.jpg",
+     "attr": "やっぱりステーキ 国際通り店"
+    }
+   ]
+  },
+  "ジャッキーステーキハウス": {
+   "rating": 4.2,
+   "total": 10973,
+   "url": "https://maps.google.com/?cid=6522606484635319543",
+   "gname": "잭스 스테이크 하우스",
+   "photos": [
+    {
+     "url": "food-photos/1c4a19d975-0.jpg",
+     "attr": "のぶちん"
+    },
+    {
+     "url": "food-photos/1c4a19d975-1.jpg",
+     "attr": "Yu Pu Kuo"
+    }
+   ]
+  },
+  "Sam's Anchor Inn 国際通り": {
+   "rating": 3.7,
+   "total": 1021,
+   "url": "https://maps.google.com/?cid=4345540125673560908",
+   "gname": "Sam's Anchor Inn Kokusai Street",
+   "photos": [
+    {
+     "url": "food-photos/dae3e3f1e9-0.jpg",
+     "attr": "はんぺん"
+    },
+    {
+     "url": "food-photos/dae3e3f1e9-1.jpg",
+     "attr": "サムズアンカーイン国際通り店"
+    }
+   ]
+  },
+  "あぐー しゃぶしゃぶ 山本": {
+   "rating": 4.7,
+   "total": 1090,
+   "url": "https://maps.google.com/?cid=5128518131252691017",
+   "gname": "Asatoya",
+   "photos": [
+    {
+     "url": "food-photos/f243a26f62-0.jpg",
+     "attr": "アグー豚しゃぶ＆沖縄料理 安里家"
+    },
+    {
+     "url": "food-photos/f243a26f62-1.jpg",
+     "attr": "ki"
+    }
+   ]
+  },
+  "ゆうなんぎい": {
+   "rating": 4.5,
+   "total": 1848,
+   "url": "https://maps.google.com/?cid=13564136191706926577",
+   "gname": "유난기",
+   "photos": [
+    {
+     "url": "food-photos/d21bf4a94c-0.jpg",
+     "attr": "陳炫丞（Michael）"
+    },
+    {
+     "url": "food-photos/d21bf4a94c-1.jpg",
+     "attr": "hung hing"
+    }
+   ]
+  },
+  "波照間": {
+   "rating": 4.2,
+   "total": 2004,
+   "url": "https://maps.google.com/?cid=9185207271101872456",
+   "gname": "Okinawa Dining Hateruma",
+   "photos": [
+    {
+     "url": "food-photos/5b3a40fff7-0.jpg",
+     "attr": "波照間 国際通り店"
+    },
+    {
+     "url": "food-photos/5b3a40fff7-1.jpg",
+     "attr": "波照間 国際通り店"
+    }
+   ]
+  },
+  "ポークたまごおにぎり本店": {
+   "rating": 4.3,
+   "total": 3917,
+   "url": "https://maps.google.com/?cid=7576803173627225668",
+   "gname": "포타마 마키시시장점",
+   "photos": [
+    {
+     "url": "food-photos/0559b15c91-0.jpg",
+     "attr": "ポーたま 牧志市場店"
+    },
+    {
+     "url": "food-photos/0559b15c91-1.jpg",
+     "attr": "N"
+    }
+   ]
+  },
+  "C&C BREAKFAST OKINAWA": {
+   "rating": 4.3,
+   "total": 857,
+   "url": "https://maps.google.com/?cid=1369108031746275914",
+   "gname": "C&C Breakfast",
+   "photos": [
+    {
+     "url": "food-photos/49920bf37e-0.jpg",
+     "attr": "C&amp;C BREAKFAST OKINAWA"
+    },
+    {
+     "url": "food-photos/49920bf37e-1.jpg",
+     "attr": "C&amp;C BREAKFAST OKINAWA"
+    }
+   ]
+  },
+  "花笠食堂": {
+   "rating": 3.8,
+   "total": 1384,
+   "url": "https://maps.google.com/?cid=12741552341568856512",
+   "gname": "하나가사쇼쿠도",
+   "photos": [
+    {
+     "url": "food-photos/9876d475ba-0.jpg",
+     "attr": "Petty"
+    },
+    {
+     "url": "food-photos/9876d475ba-1.jpg",
+     "attr": "まー"
+    }
+   ]
+  },
+  "タコス屋 国際通り": {
+   "rating": 4.7,
+   "total": 956,
+   "url": "https://maps.google.com/?cid=16861834890804129305",
+   "gname": "JAM'S TACOS（ジャムズタコス）国際通り店",
+   "photos": [
+    {
+     "url": "food-photos/d980a7bc2b-0.jpg",
+     "attr": "JAM&#39;S TACOS（ジャムズタコス）国際通り店"
+    },
+    {
+     "url": "food-photos/d980a7bc2b-1.jpg",
+     "attr": "JAM&#39;S TACOS（ジャムズタコス）国際通り店"
+    }
+   ]
+  },
+  "ブルーシール 国際通り": {
+   "rating": 4.3,
+   "total": 1445,
+   "url": "https://maps.google.com/?cid=5981665176542437666",
+   "gname": "블루실 국제거리점",
+   "photos": [
+    {
+     "url": "food-photos/555d59f588-0.jpg",
+     "attr": "ブルーシール 国際通り"
+    },
+    {
+     "url": "food-photos/555d59f588-1.jpg",
+     "attr": "Nobody Hey"
+    }
+   ]
+  },
+  "ふくぎや 国際通り": {
+   "rating": 4.4,
+   "total": 486,
+   "url": "https://maps.google.com/?cid=3307788921611513278",
+   "gname": "후쿠기야",
+   "photos": [
+    {
+     "url": "food-photos/c1650ea6b0-0.jpg",
+     "attr": "バウムクーヘン専門店 ふくぎや"
+    },
+    {
+     "url": "food-photos/c1650ea6b0-1.jpg",
+     "attr": "バウムクーヘン専門店 ふくぎや"
+    }
+   ]
+  },
+  "oHacorte 港川": {
+   "rating": 4.3,
+   "total": 1034,
+   "url": "https://maps.google.com/?cid=6452321081751861592",
+   "gname": "오하코르테",
+   "photos": [
+    {
+     "url": "food-photos/d46ef2c793-0.jpg",
+     "attr": "オハコルテ 港川本店"
+    },
+    {
+     "url": "food-photos/d46ef2c793-1.jpg",
+     "attr": "オハコルテ 港川本店"
+    }
+   ]
+  },
+  "浜屋": {
+   "rating": 4.4,
+   "total": 3218,
+   "url": "https://maps.google.com/?cid=12045287017928494962",
+   "gname": "하마야",
+   "photos": [
+    {
+     "url": "food-photos/d4847de3f4-0.jpg",
+     "attr": "Katsuya Watabe"
+    },
+    {
+     "url": "food-photos/d4847de3f4-1.jpg",
+     "attr": "欣"
+    }
+   ]
+  },
+  "あぐー屋": {
+   "rating": 4.6,
+   "total": 653,
+   "url": "https://maps.google.com/?cid=16580098275301463971",
+   "gname": "島唄三線ライブ×島豚しゃぶしゃぶ あぐー家",
+   "photos": [
+    {
+     "url": "food-photos/1960cb073d-0.jpg",
+     "attr": "ニュー角打ち 博多ホームラン食堂"
+    },
+    {
+     "url": "food-photos/1960cb073d-1.jpg",
+     "attr": "ニュー角打ち 博多ホームラン食堂"
+    }
+   ]
+  },
+  "浜辺の茶屋": {
+   "rating": 4.4,
+   "total": 2317,
+   "url": "https://maps.google.com/?cid=13933470595957617327",
+   "gname": "하마베노차야",
+   "photos": [
+    {
+     "url": "food-photos/d9976402e2-0.jpg",
+     "attr": "Ricky Huang"
+    },
+    {
+     "url": "food-photos/d9976402e2-1.jpg",
+     "attr": "浜辺の茶屋"
+    }
+   ]
+  },
+  "山の茶屋 楽水": {
+   "rating": 4.4,
+   "total": 535,
+   "url": "https://maps.google.com/?cid=9781532990233527418",
+   "gname": "야마노차야 라쿠스이",
+   "photos": [
+    {
+     "url": "food-photos/d56eaac63e-0.jpg",
+     "attr": "山の茶屋・楽水"
+    },
+    {
+     "url": "food-photos/d56eaac63e-1.jpg",
+     "attr": "山の茶屋・楽水"
+    }
+   ]
+  },
+  "カフェくるくま": {
+   "rating": 4.3,
+   "total": 2745,
+   "url": "https://maps.google.com/?cid=7347924815690913390",
+   "gname": "카페 쿠루쿠마",
+   "photos": [
+    {
+     "url": "food-photos/c86485717d-0.jpg",
+     "attr": "カフェくるくま"
+    },
+    {
+     "url": "food-photos/c86485717d-1.jpg",
+     "attr": "カフェくるくま"
+    }
+   ]
+  },
+  "中本鮮魚てんぷら店": {
+   "rating": 4.1,
+   "total": 2387,
+   "url": "https://maps.google.com/?cid=12501315609290323195",
+   "gname": "나카모토 센교텐 덴푸라",
+   "photos": [
+    {
+     "url": "food-photos/7673947d1c-0.jpg",
+     "attr": "まなちん（Tiktok「墓場のまなぶくん」）"
+    },
+    {
+     "url": "food-photos/7673947d1c-1.jpg",
+     "attr": "黃雅惠"
+    }
+   ]
+  },
+  "瀬長島ウミカジテラス タコライスカフェ きじむなぁ": {
+   "rating": 4.3,
+   "total": 820,
+   "url": "https://maps.google.com/?cid=10619391428329580595",
+   "gname": "타코라이스 카페 키지무나 세나가지마 우미카지 테라스점",
+   "photos": [
+    {
+     "url": "food-photos/61e7553f51-0.jpg",
+     "attr": "タコライスカフェ きじむなぁ 瀬長島 ウミカジテラス店"
+    },
+    {
+     "url": "food-photos/61e7553f51-1.jpg",
+     "attr": "タコライスカフェ きじむなぁ 瀬長島 ウミカジテラス店"
+    }
+   ]
+  },
+  "幸せのパンケーキ 沖縄ウミカジテラス": {
+   "rating": 4.2,
+   "total": 4838,
+   "url": "https://maps.google.com/?cid=13039270336270825903",
+   "gname": "시아와세노 팬케이크 우미카지 테라스 오키나와점",
+   "photos": [
+    {
+     "url": "food-photos/c4e5502f99-0.jpg",
+     "attr": "幸せのパンケーキ ウミカジテラス 沖縄店"
+    },
+    {
+     "url": "food-photos/c4e5502f99-1.jpg",
+     "attr": "Jonstyle將將"
+    }
+   ]
+  },
+  "玉家 南風原": {
+   "rating": 3.9,
+   "total": 58,
+   "url": "https://maps.google.com/?cid=10166053896185613013",
+   "gname": "そば処 玉家 南風原南部医療センター・こども医療センター店",
+   "photos": [
+    {
+     "url": "food-photos/974b8557bc-0.jpg",
+     "attr": "名前を入力してください"
+    },
+    {
+     "url": "food-photos/974b8557bc-1.jpg",
+     "attr": "そば処 玉家 南風原南部医療センター・こども医療センター店"
+    }
+   ]
+  },
+  "糸満漁協 お魚センター": {
+   "rating": 4.1,
+   "total": 6397,
+   "url": "https://maps.google.com/?cid=6347299651609965333",
+   "gname": "Itoman fishing cooperative Fish Center",
+   "photos": [
+    {
+     "url": "food-photos/2d3def0735-0.jpg",
+     "attr": "Amber Lai"
+    },
+    {
+     "url": "food-photos/2d3def0735-1.jpg",
+     "attr": "ファブル"
+    }
+   ]
+  },
+  "なかむらそば": {
+   "rating": 4.2,
+   "total": 3156,
+   "url": "https://maps.google.com/?cid=3915119288500179886",
+   "gname": "나카무라소바",
+   "photos": [
+    {
+     "url": "food-photos/282d8fa013-0.jpg",
+     "attr": "なかむらそば"
+    },
+    {
+     "url": "food-photos/282d8fa013-1.jpg",
+     "attr": "なかむらそば"
+    }
+   ]
+  },
+  "琉球の牛 恩納": {
+   "rating": 4.7,
+   "total": 6242,
+   "url": "https://maps.google.com/?cid=14508976097973711902",
+   "gname": "RYUKYU NO USHI ONNA",
+   "photos": [
+    {
+     "url": "food-photos/73f1c1ee8e-0.jpg",
+     "attr": "焼肉 琉球の牛 恩納本館"
+    },
+    {
+     "url": "food-photos/73f1c1ee8e-1.jpg",
+     "attr": "焼肉 琉球の牛 恩納本館"
+    }
+   ]
+  },
+  "金月そば 読谷": {
+   "rating": 4.4,
+   "total": 829,
+   "url": "https://maps.google.com/?cid=16072110612665427188",
+   "gname": "킨치치소바 요미탄 본점",
+   "photos": [
+    {
+     "url": "food-photos/ef820b132d-0.jpg",
+     "attr": "都市Mr."
+    },
+    {
+     "url": "food-photos/ef820b132d-1.jpg",
+     "attr": "金月そば 読谷本店"
+    }
+   ]
+  },
+  "A&W 美浜": {
+   "rating": 4.2,
+   "total": 2599,
+   "url": "https://maps.google.com/?cid=15586213513426723260",
+   "gname": "A&W Mihama Store",
+   "photos": [
+    {
+     "url": "food-photos/c5d2a14f4a-0.jpg",
+     "attr": "古謝靖"
+    },
+    {
+     "url": "food-photos/c5d2a14f4a-1.jpg",
+     "attr": "A&amp;W 美浜店"
+    }
+   ]
+  },
+  "キングタコス 金武本店": {
+   "rating": 4.4,
+   "total": 1820,
+   "url": "https://maps.google.com/?cid=6393001004168737312",
+   "gname": "King Tacos",
+   "photos": [
+    {
+     "url": "food-photos/867ed37e14-0.jpg",
+     "attr": "Bochi Bochi Adventure"
+    },
+    {
+     "url": "food-photos/867ed37e14-1.jpg",
+     "attr": "カンダタ"
+    }
+   ]
+  },
+  "Transit Cafe 北谷": {
+   "rating": 4.4,
+   "total": 654,
+   "url": "https://maps.google.com/?cid=17431526738449206441",
+   "gname": "Transit Café.",
+   "photos": [
+    {
+     "url": "food-photos/b28e65d062-0.jpg",
+     "attr": "トランジットカフェ"
+    },
+    {
+     "url": "food-photos/b28e65d062-1.jpg",
+     "attr": "トランジットカフェ"
+    }
+   ]
+  },
+  "やっぱりステーキ 美浜": {
+   "rating": 4.2,
+   "total": 726,
+   "url": "https://maps.google.com/?cid=4972496881836973720",
+   "gname": "얏빠리 스테이크 차탄 미하마점",
+   "photos": [
+    {
+     "url": "food-photos/8587c6b072-0.jpg",
+     "attr": "박상우"
+    },
+    {
+     "url": "food-photos/8587c6b072-1.jpg",
+     "attr": "라라리라라"
+    }
+   ]
+  },
+  "花織そば 読谷": {
+   "rating": 4.2,
+   "total": 789,
+   "url": "https://maps.google.com/?cid=9480166358217056407",
+   "gname": "하나우이소바",
+   "photos": [
+    {
+     "url": "food-photos/80965e6b2e-0.jpg",
+     "attr": "Happy.G"
+    },
+    {
+     "url": "food-photos/80965e6b2e-1.jpg",
+     "attr": "HaoWun Wong"
+    }
+   ]
+  },
+  "いしぐふー 恩納": {
+   "rating": 4.6,
+   "total": 879,
+   "url": "https://maps.google.com/?cid=10913289147827629545",
+   "gname": "토리소바야 이시구후 (소바)",
+   "photos": [
+    {
+     "url": "food-photos/e7c7837a44-0.jpg",
+     "attr": "鈴木健介"
+    },
+    {
+     "url": "food-photos/e7c7837a44-1.jpg",
+     "attr": "鶏そば屋いしぐふー"
+    }
+   ]
+  },
+  "ブルーシール 牧港本店": {
+   "rating": 4.4,
+   "total": 3210,
+   "url": "https://maps.google.com/?cid=17318301334061017980",
+   "gname": "블루씰 아이스크림 마키미나토 본점",
+   "photos": [
+    {
+     "url": "food-photos/a9397eb21d-0.jpg",
+     "attr": "ブルーシール 牧港本店"
+    },
+    {
+     "url": "food-photos/a9397eb21d-1.jpg",
+     "attr": "Lucrecia"
+    }
+   ]
+  },
+  "イオンモール沖縄ライカム": {
+   "rating": 4.4,
+   "total": 16490,
+   "url": "https://maps.google.com/?cid=14640780388564529515",
+   "gname": "이온몰 오키나와 라이카무",
+   "photos": [
+    {
+     "url": "food-photos/07ea30c4d1-0.jpg",
+     "attr": "Yukinobu Murata"
+    },
+    {
+     "url": "food-photos/07ea30c4d1-1.jpg",
+     "attr": "イオンモール沖縄ライカム"
+    }
+   ]
+  },
+  "きしもと食堂 本店": {
+   "rating": 4.1,
+   "total": 2349,
+   "url": "https://maps.google.com/?cid=1608828000850414129",
+   "gname": "키시모토 식당",
+   "photos": [
+    {
+     "url": "food-photos/85271f6b91-0.jpg",
+     "attr": "かめグルメ"
+    },
+    {
+     "url": "food-photos/85271f6b91-1.jpg",
+     "attr": "Steve"
+    }
+   ]
+  },
+  "山原そば": {
+   "rating": 4.2,
+   "total": 1000,
+   "url": "https://maps.google.com/?cid=3698955081592171569",
+   "gname": "얀바루소바",
+   "photos": [
+    {
+     "url": "food-photos/4271465746-0.jpg",
+     "attr": "Hideki Umeno"
+    },
+    {
+     "url": "food-photos/4271465746-1.jpg",
+     "attr": "Timm"
+    }
+   ]
+  },
+  "宮里そば": {
+   "rating": 4.2,
+   "total": 2507,
+   "url": "https://maps.google.com/?cid=12855027493143123551",
+   "gname": "미야자토 소바",
+   "photos": [
+    {
+     "url": "food-photos/84777910cf-0.jpg",
+     "attr": "ribbon ri"
+    },
+    {
+     "url": "food-photos/84777910cf-1.jpg",
+     "attr": "シオン"
+    }
+   ]
+  },
+  "花人逢": {
+   "rating": 4.6,
+   "total": 3503,
+   "url": "https://maps.google.com/?cid=12192341243748165770",
+   "gname": "카진호 피자",
+   "photos": [
+    {
+     "url": "food-photos/c8d8bcbd8c-0.jpg",
+     "attr": "知花咲枝"
+    },
+    {
+     "url": "food-photos/c8d8bcbd8c-1.jpg",
+     "attr": "鄭乃嘉"
+    }
+   ]
+  },
+  "カフェこくう": {
+   "rating": 4.6,
+   "total": 426,
+   "url": "https://maps.google.com/?cid=7899209852348738304",
+   "gname": "카페 코쿠",
+   "photos": [
+    {
+     "url": "food-photos/18948240fd-0.jpg",
+     "attr": "カフェ こくう"
+    },
+    {
+     "url": "food-photos/18948240fd-1.jpg",
+     "attr": "カフェ こくう"
+    }
+   ]
+  },
+  "オリオンハッピーパーク": {
+   "rating": 4.4,
+   "total": 2120,
+   "url": "https://maps.google.com/?cid=4316139653382312519",
+   "gname": "오리온 해피 파크",
+   "photos": [
+    {
+     "url": "food-photos/3635b743a7-0.jpg",
+     "attr": "陳長棋"
+    },
+    {
+     "url": "food-photos/3635b743a7-1.jpg",
+     "attr": "なんくるないさー"
+    }
+   ]
+  },
+  "やちむん喫茶 シーサー園": {
+   "rating": 4.5,
+   "total": 469,
+   "url": "https://maps.google.com/?cid=10121826929464776870",
+   "gname": "야치문 킷사 시사엔",
+   "photos": [
+    {
+     "url": "food-photos/b7e26ba205-0.jpg",
+     "attr": "沖縄北部観光情報コミュニケーションサイト"
+    },
+    {
+     "url": "food-photos/b7e26ba205-1.jpg",
+     "attr": "藤木了_沖縄北部note"
+    }
+   ]
+  },
+  "L LOTA 古宇利島": {
+   "rating": 4.4,
+   "total": 931,
+   "url": "https://maps.google.com/?cid=6071968835643421109",
+   "gname": "레스트랑 엘 로타",
+   "photos": [
+    {
+     "url": "food-photos/bce455a00e-0.jpg",
+     "attr": "Restaurant L LOTA"
+    },
+    {
+     "url": "food-photos/bce455a00e-1.jpg",
+     "attr": "Restaurant L LOTA"
+    }
+   ]
+  },
+  "古宇利オーシャンタワー": {
+   "rating": 4.3,
+   "total": 13136,
+   "url": "https://maps.google.com/?cid=16740749444655468324",
+   "gname": "코우리 오션타워",
+   "photos": [
+    {
+     "url": "food-photos/9624989c49-0.jpg",
+     "attr": "古宇利オーシャンタワー"
+    },
+    {
+     "url": "food-photos/9624989c49-1.jpg",
+     "attr": "姉やん"
+    }
+   ]
+  },
+  "焼肉もとぶ牧場 もとぶ店": {
+   "rating": 4.6,
+   "total": 3665,
+   "url": "https://maps.google.com/?cid=11105865860366385359",
+   "gname": "야키니쿠 모토부 목장 모토부점",
+   "photos": [
+    {
+     "url": "food-photos/ac1b77962e-0.jpg",
+     "attr": "Sam Hsieh"
+    },
+    {
+     "url": "food-photos/ac1b77962e-1.jpg",
+     "attr": "焼肉 もとぶ牧場 もとぶ店"
+    }
+   ]
+  },
+  "やっぱりステーキ 名護": {
+   "rating": 4,
+   "total": 452,
+   "url": "https://maps.google.com/?cid=13287871577483051182",
+   "gname": "얏파리 스테이크 이온 나고점",
+   "photos": [
+    {
+     "url": "food-photos/cb6767e3ba-0.jpg",
+     "attr": "이엠둥이"
+    },
+    {
+     "url": "food-photos/cb6767e3ba-1.jpg",
+     "attr": "Jaylen Miller"
+    }
+   ]
+  },
+  "ナゴパイナップルパーク": {
+   "rating": 3.9,
+   "total": 10913,
+   "url": "https://maps.google.com/?cid=16449617930949920362",
+   "gname": "나고 파인애플 파크",
+   "photos": [
+    {
+     "url": "food-photos/f37562f2e4-0.jpg",
+     "attr": "ナゴパイナップルパーク"
+    },
+    {
+     "url": "food-photos/f37562f2e4-1.jpg",
+     "attr": "Aron Hsiao"
+    }
+   ]
+  }
+ }
+}
