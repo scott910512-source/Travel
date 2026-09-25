@@ -107,7 +107,8 @@ font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo",Pretendard,"N
 #hint{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,.6);padding:12px 18px;border-radius:14px;
  font-size:14px;z-index:6;pointer-events:none;opacity:0;transition:opacity .3s}
 #hint.on{opacity:1}
-@media(min-width:800px){.tx h1{font-size:40px}.tx p{font-size:18px}.tx{padding-left:6vw;padding-right:40vw}.cover .tx{padding-right:6vw}}
+/* .sl .tx (0,2,0) 이 기본 패딩을 잡고 있어 .tx 만으로는 못 이긴다 — 같은 특이도로 쓴다 */
+@media(min-width:800px){.tx h1{font-size:40px}.tx p{font-size:18px}.sl .tx{padding-left:6vw;padding-right:40vw}.sl.cover .tx{padding-right:6vw}}
 @media(min-width:1400px){.tx h1{font-size:52px}.tx p{font-size:22px}.preg{font-size:17px}#ctl button{min-height:52px;font-size:16px;padding:0 20px}}
 """
 
