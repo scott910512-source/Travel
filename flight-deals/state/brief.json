@@ -1,41 +1,28 @@
 {
  "date": "2026-09-30",
- "ts": "2026-09-30 10:12 KST",
+ "ts": "2026-09-30 19:23 KST",
  "status": "OK",
- "headline": "볼 것 514건 · 강력특가 6 · 주말여행 3 · CJJ 3 · 신규 14 · 하락 100",
+ "headline": "볼 것 532건 · 강력특가 5 · 주말여행 3 · CJJ 3 · 신규 41 · 하락 8",
  "home": "CJJ",
  "reason": null,
  "degraded": null,
  "holiday_gap": null,
  "counts": {
-  "total": 516,
-  "comparable": 514,
-  "strong": 6,
-  "deal": 25,
-  "candidate": 62,
-  "weekend": 105,
-  "home": 21,
-  "new": 14,
-  "down": 100,
-  "up": 19,
-  "gone": 33
+  "total": 534,
+  "comparable": 532,
+  "strong": 5,
+  "deal": 27,
+  "candidate": 67,
+  "weekend": 111,
+  "home": 23,
+  "new": 41,
+  "down": 8,
+  "up": 9,
+  "gone": 23
  },
  "source_note": "Travelpayouts 캐시 데이터 · 실시간 확정가 아님",
  "access_note": "실부담가 = 항공권 + CJJ 기준 왕복 교통비 (추정치)",
  "top": [
-  {
-   "text": "제주 CJJ→CJU · 10-11~10-13 2박 · 66,169원 · 비교 기준가보다 40% 저렴 · 강력 특가  📉-197",
-   "tier": "strong",
-   "tier_label": "강력 특가",
-   "confidence": "높음",
-   "sample": 25,
-   "price": 66169,
-   "access": 0,
-   "effective": 66169,
-   "weekend_trip": false,
-   "leave": 2.0,
-   "link": "https://www.aviasales.com/search/CJJ1110CJU13101"
-  },
   {
    "text": "제주 CJJ→CJU · 10-10~10-13 3박 · 58,041원 · 비교 기준가보다 40% 저렴 · 강력 특가",
    "tier": "strong",
@@ -50,17 +37,30 @@
    "link": "https://www.aviasales.com/search/CJJ1010CJU13101"
   },
   {
-   "text": "오사카 ICN→KIX · 10-06~10-08 2박 · 173,262원 (실부담 217,262) · 비교 기준가보다 44% 저렴 · 강력 특가  📉-514",
+   "text": "제주 CJJ→CJU · 10-11~10-13 2박 · 66,169원 · 비교 기준가보다 40% 저렴 · 강력 특가",
    "tier": "strong",
    "tier_label": "강력 특가",
    "confidence": "높음",
-   "sample": 23,
-   "price": 173262,
-   "access": 44000,
-   "effective": 217262,
+   "sample": 25,
+   "price": 66169,
+   "access": 0,
+   "effective": 66169,
    "weekend_trip": false,
    "leave": 2.0,
-   "link": "https://www.aviasales.com/search/ICN0610KIX08101"
+   "link": "https://www.aviasales.com/search/CJJ1110CJU13101"
+  },
+  {
+   "text": "다낭 PUS→DAD · 10-13~10-15 2박 · 220,447원 (실부담 276,447) · 비교 기준가보다 33% 저렴 · 특가",
+   "tier": "deal",
+   "tier_label": "특가",
+   "confidence": "보통",
+   "sample": 7,
+   "price": 220447,
+   "access": 56000,
+   "effective": 276447,
+   "weekend_trip": false,
+   "leave": 2.0,
+   "link": "https://www.aviasales.com/search/PUS1310DAD15101"
   }
  ],
  "weekend": [
@@ -78,11 +78,11 @@
    "link": "https://www.aviasales.com/search/ICN1710SGN19101"
   },
   {
-   "text": "홍콩 ICN→HKG · 10-23~10-25 2박 · 257,490원 (실부담 301,490) · 비교 기준가보다 14% 저렴 · 주말 연차1일",
+   "text": "홍콩 ICN→HKG · 10-23~10-25 2박 · 257,490원 (실부담 301,490) · 비교 기준가보다 16% 저렴 · 주말 연차1일",
    "tier": "candidate",
    "tier_label": "특가 후보",
    "confidence": "높음",
-   "sample": 23,
+   "sample": 25,
    "price": 257490,
    "access": 44000,
    "effective": 301490,
@@ -91,33 +91,20 @@
    "link": "https://www.aviasales.com/search/ICN2310HKG25101"
   },
   {
-   "text": "발리 ICN→DPS · 10-10~10-12 2박 · 490,470원 (실부담 534,470) · 비교 기준가보다 13% 저렴 · 주말 연차1일",
+   "text": "마닐라 ICN→MNL · 10-08~10-10 2박 · 333,130원 (실부담 377,130) · 비교 기준가보다 12% 저렴 · 주말 연차1일 · 한글날",
    "tier": "candidate",
    "tier_label": "특가 후보",
    "confidence": "높음",
-   "sample": 12,
-   "price": 490470,
+   "sample": 22,
+   "price": 333130,
    "access": 44000,
-   "effective": 534470,
+   "effective": 377130,
    "weekend_trip": true,
    "leave": 1.0,
-   "link": "https://www.aviasales.com/search/ICN1010DPS12101"
+   "link": "https://www.aviasales.com/search/ICN0810MNL10101"
   }
  ],
  "home_airport": [
-  {
-   "text": "제주 CJJ→CJU · 10-11~10-13 2박 · 66,169원 · 비교 기준가보다 40% 저렴 · 강력 특가  📉-197",
-   "tier": "strong",
-   "tier_label": "강력 특가",
-   "confidence": "높음",
-   "sample": 25,
-   "price": 66169,
-   "access": 0,
-   "effective": 66169,
-   "weekend_trip": false,
-   "leave": 2.0,
-   "link": "https://www.aviasales.com/search/CJJ1110CJU13101"
-  },
   {
    "text": "제주 CJJ→CJU · 10-10~10-13 3박 · 58,041원 · 비교 기준가보다 40% 저렴 · 강력 특가",
    "tier": "strong",
@@ -130,6 +117,19 @@
    "weekend_trip": false,
    "leave": 2.0,
    "link": "https://www.aviasales.com/search/CJJ1010CJU13101"
+  },
+  {
+   "text": "제주 CJJ→CJU · 10-11~10-13 2박 · 66,169원 · 비교 기준가보다 40% 저렴 · 강력 특가",
+   "tier": "strong",
+   "tier_label": "강력 특가",
+   "confidence": "높음",
+   "sample": 25,
+   "price": 66169,
+   "access": 0,
+   "effective": 66169,
+   "weekend_trip": false,
+   "leave": 2.0,
+   "link": "https://www.aviasales.com/search/CJJ1110CJU13101"
   },
   {
    "text": "후쿠오카 CJJ→FUK · 10-05~10-08 3박 · 329,184원 · 비교 기준가보다 19% 저렴 · 개천절 대체",
@@ -160,7 +160,7 @@
    "link": "https://www.aviasales.com/search/ICN2610GVA31101"
   },
   {
-   "text": "취리히 ICN→ZRH · 10-09~10-20 11박 · 1,171,089원 (실부담 1,215,089) · 비교 기준가보다 9% 저렴 · 한글날  📉-3,476",
+   "text": "취리히 ICN→ZRH · 10-09~10-20 11박 · 1,171,089원 (실부담 1,215,089) · 비교 기준가보다 9% 저렴 · 한글날",
    "tier": "unknown",
    "tier_label": "비교 불가",
    "confidence": "낮음",
