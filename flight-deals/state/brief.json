@@ -1,24 +1,24 @@
 {
  "date": "2026-10-03",
- "ts": "2026-10-03 23:39 KST",
+ "ts": "2026-10-04 04:08 KST",
  "status": "OK",
- "headline": "볼 것 580건 · 강력특가 10 · 주말여행 3 · CJJ 3 · 신규 30 · 하락 52",
+ "headline": "볼 것 576건 · 강력특가 10 · 주말여행 3 · CJJ 3 · 신규 8 · 하락 3",
  "home": "CJJ",
  "reason": null,
  "degraded": null,
  "holiday_gap": null,
  "counts": {
-  "total": 583,
-  "comparable": 580,
+  "total": 579,
+  "comparable": 576,
   "strong": 10,
-  "deal": 29,
-  "candidate": 81,
-  "weekend": 121,
+  "deal": 28,
+  "candidate": 80,
+  "weekend": 123,
   "home": 21,
-  "new": 30,
-  "down": 52,
-  "up": 14,
-  "gone": 6
+  "new": 8,
+  "down": 3,
+  "up": 101,
+  "gone": 12
  },
  "source_note": "Travelpayouts 캐시 데이터 · 실시간 확정가 아님",
  "access_note": "실부담가 = 항공권 + CJJ 기준 왕복 교통비 (추정치)",
@@ -50,17 +50,17 @@
    "link": "https://www.aviasales.com/search/CJJ1010CJU13101"
   },
   {
-   "text": "오키나와 ICN→OKA · 11-10~11-13 3박 · 221,954원 (실부담 265,954) · 비교 기준가보다 42% 저렴 · 강력 특가  📉-132",
-   "tier": "strong",
-   "tier_label": "강력 특가",
+   "text": "제주 CJJ→CJU · 10-11~10-13 2박 · 72,888원 · 비교 기준가보다 29% 저렴 · 특가",
+   "tier": "deal",
+   "tier_label": "특가",
    "confidence": "높음",
-   "sample": 16,
-   "price": 221954,
-   "access": 44000,
-   "effective": 265954,
+   "sample": 27,
+   "price": 72888,
+   "access": 0,
+   "effective": 72888,
    "weekend_trip": false,
-   "leave": 4.0,
-   "link": "https://www.aviasales.com/search/ICN1011OKA13111"
+   "leave": 2.0,
+   "link": "https://www.aviasales.com/search/CJJ1110CJU13101"
   }
  ],
  "weekend": [
@@ -78,30 +78,30 @@
    "link": "https://www.aviasales.com/search/ICN0412KIX07121"
   },
   {
-   "text": "상하이 CJJ→PVG · 11-20~11-23 3박 · 331,566원 · 비교 기준가보다 21% 저렴 · 특가 · 주말 연차1일  📉-197",
+   "text": "상하이 CJJ→PVG · 11-20~11-23 3박 · 331,647원 · 비교 기준가보다 21% 저렴 · 특가 · 주말 연차1일",
    "tier": "deal",
    "tier_label": "특가",
    "confidence": "보통",
    "sample": 5,
-   "price": 331566,
+   "price": 331647,
    "access": 0,
-   "effective": 331566,
+   "effective": 331647,
    "weekend_trip": true,
    "leave": 1.0,
    "link": "https://www.aviasales.com/search/CJJ2011PVG23111"
   },
   {
-   "text": "오사카 ICN→KIX · 11-19~11-22 3박 · 247,153원 (실부담 291,153) · 비교 기준가보다 17% 저렴 · 주말 연차1일  📉-146",
+   "text": "다낭 PUS→DAD · 11-13~11-15 2박 · 255,031원 (실부담 311,031) · 비교 기준가보다 13% 저렴 · 주말 연차0일",
    "tier": "candidate",
    "tier_label": "특가 후보",
    "confidence": "높음",
-   "sample": 24,
-   "price": 247153,
-   "access": 44000,
-   "effective": 291153,
+   "sample": 10,
+   "price": 255031,
+   "access": 56000,
+   "effective": 311031,
    "weekend_trip": true,
-   "leave": 1.0,
-   "link": "https://www.aviasales.com/search/ICN1911KIX22111"
+   "leave": 0.0,
+   "link": "https://www.aviasales.com/search/PUS1311DAD15111"
   }
  ],
  "home_airport": [
