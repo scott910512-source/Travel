@@ -1,30 +1,30 @@
 {
  "date": "2026-10-04",
- "ts": "2026-10-04 09:27 KST",
+ "ts": "2026-10-04 19:31 KST",
  "status": "OK",
- "headline": "볼 것 569건 · 강력특가 8 · 주말여행 3 · CJJ 3 · 신규 16 · 하락 2",
+ "headline": "볼 것 564건 · 강력특가 10 · 주말여행 3 · CJJ 3 · 신규 33 · 하락 9",
  "home": "CJJ",
  "reason": null,
  "degraded": null,
  "holiday_gap": null,
  "counts": {
-  "total": 571,
-  "comparable": 569,
-  "strong": 8,
-  "deal": 27,
+  "total": 566,
+  "comparable": 564,
+  "strong": 10,
+  "deal": 26,
   "candidate": 81,
   "weekend": 123,
-  "home": 22,
-  "new": 16,
-  "down": 2,
-  "up": 96,
-  "gone": 24
+  "home": 20,
+  "new": 33,
+  "down": 9,
+  "up": 12,
+  "gone": 38
  },
  "source_note": "Travelpayouts 캐시 데이터 · 실시간 확정가 아님",
  "access_note": "실부담가 = 항공권 + CJJ 기준 왕복 교통비 (추정치)",
  "top": [
   {
-   "text": "제주 CJJ→CJU · 10-13~10-15 2박 · 52,525원 · 비교 기준가보다 46% 저렴 · 강력 특가",
+   "text": "제주 CJJ→CJU · 10-13~10-15 2박 · 52,525원 · 비교 기준가보다 52% 저렴 · 강력 특가",
    "tier": "strong",
    "tier_label": "강력 특가",
    "confidence": "높음",
@@ -50,17 +50,17 @@
    "link": "https://www.aviasales.com/search/CJJ1010CJU13101"
   },
   {
-   "text": "타이베이 PUS→TPE · 10-09~10-13 4박 · 190,241원 (실부담 246,241) · 비교 기준가보다 33% 저렴 · 강력 특가 · 한글날",
+   "text": "제주 CJJ→CJU · 10-11~10-13 2박 · 72,888원 · 비교 기준가보다 33% 저렴 · 강력 특가",
    "tier": "strong",
    "tier_label": "강력 특가",
    "confidence": "높음",
-   "sample": 14,
-   "price": 190241,
-   "access": 56000,
-   "effective": 246241,
+   "sample": 27,
+   "price": 72888,
+   "access": 0,
+   "effective": 72888,
    "weekend_trip": false,
    "leave": 2.0,
-   "link": "https://www.aviasales.com/search/PUS0910TPE13101"
+   "link": "https://www.aviasales.com/search/CJJ1110CJU13101"
   }
  ],
  "weekend": [
@@ -69,13 +69,26 @@
    "tier": "strong",
    "tier_label": "강력 특가",
    "confidence": "높음",
-   "sample": 23,
+   "sample": 24,
    "price": 190756,
    "access": 44000,
    "effective": 234756,
    "weekend_trip": true,
    "leave": 1.0,
    "link": "https://www.aviasales.com/search/ICN0412KIX07121"
+  },
+  {
+   "text": "타이베이 ICN→TPE · 10-09~10-12 3박 · 256,211원 (실부담 300,211) · 비교 기준가보다 22% 저렴 · 특가 · 주말 연차1일 · 한글날  🆕",
+   "tier": "deal",
+   "tier_label": "특가",
+   "confidence": "높음",
+   "sample": 21,
+   "price": 256211,
+   "access": 44000,
+   "effective": 300211,
+   "weekend_trip": true,
+   "leave": 1.0,
+   "link": "https://www.aviasales.com/search/ICN0910TPE12101"
   },
   {
    "text": "다낭 PUS→DAD · 11-13~11-15 2박 · 255,031원 (실부담 311,031) · 비교 기준가보다 13% 저렴 · 주말 연차0일",
@@ -89,24 +102,11 @@
    "weekend_trip": true,
    "leave": 0.0,
    "link": "https://www.aviasales.com/search/PUS1311DAD15111"
-  },
-  {
-   "text": "마닐라 ICN→MNL · 10-08~10-10 2박 · 333,130원 (실부담 377,130) · 비교 기준가보다 13% 저렴 · 주말 연차1일 · 한글날",
-   "tier": "candidate",
-   "tier_label": "특가 후보",
-   "confidence": "높음",
-   "sample": 26,
-   "price": 333130,
-   "access": 44000,
-   "effective": 377130,
-   "weekend_trip": true,
-   "leave": 1.0,
-   "link": "https://www.aviasales.com/search/ICN0810MNL10101"
   }
  ],
  "home_airport": [
   {
-   "text": "제주 CJJ→CJU · 10-13~10-15 2박 · 52,525원 · 비교 기준가보다 46% 저렴 · 강력 특가",
+   "text": "제주 CJJ→CJU · 10-13~10-15 2박 · 52,525원 · 비교 기준가보다 52% 저렴 · 강력 특가",
    "tier": "strong",
    "tier_label": "강력 특가",
    "confidence": "높음",
@@ -132,9 +132,9 @@
    "link": "https://www.aviasales.com/search/CJJ1010CJU13101"
   },
   {
-   "text": "제주 CJJ→CJU · 10-11~10-13 2박 · 72,888원 · 비교 기준가보다 26% 저렴 · 특가",
-   "tier": "deal",
-   "tier_label": "특가",
+   "text": "제주 CJJ→CJU · 10-11~10-13 2박 · 72,888원 · 비교 기준가보다 33% 저렴 · 강력 특가",
+   "tier": "strong",
+   "tier_label": "강력 특가",
    "confidence": "높음",
    "sample": 27,
    "price": 72888,
