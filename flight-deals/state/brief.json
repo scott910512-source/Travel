@@ -1,24 +1,24 @@
 {
  "date": "2026-10-09",
- "ts": "2026-10-09 10:51 KST",
+ "ts": "2026-10-09 20:14 KST",
  "status": "OK",
- "headline": "볼 것 489건 · 강력특가 7 · 주말여행 3 · CJJ 3 · 신규 13 · 하락 62",
+ "headline": "볼 것 477건 · 강력특가 8 · 주말여행 3 · CJJ 3 · 신규 17 · 하락 9",
  "home": "CJJ",
  "reason": null,
  "degraded": null,
  "holiday_gap": null,
  "counts": {
-  "total": 489,
-  "comparable": 489,
-  "strong": 7,
-  "deal": 18,
-  "candidate": 53,
-  "weekend": 82,
+  "total": 477,
+  "comparable": 477,
+  "strong": 8,
+  "deal": 16,
+  "candidate": 55,
+  "weekend": 74,
   "home": 25,
-  "new": 13,
-  "down": 62,
-  "up": 31,
-  "gone": 19
+  "new": 17,
+  "down": 9,
+  "up": 13,
+  "gone": 29
  },
  "source_note": "Travelpayouts 캐시 데이터 · 실시간 확정가 아님",
  "access_note": "실부담가 = 항공권 + CJJ 기준 왕복 교통비 (추정치)",
@@ -37,19 +37,6 @@
    "link": "https://www.aviasales.com/search/CJJ1310CJU15101"
   },
   {
-   "text": "발리 ICN→DPS · 11-23~11-26 3박 · 462,546원 (실부담 506,546) · 비교 기준가보다 23% 저렴 · 특가  📉-211",
-   "tier": "deal",
-   "tier_label": "특가",
-   "confidence": "높음",
-   "sample": 26,
-   "price": 462546,
-   "access": 44000,
-   "effective": 506546,
-   "weekend_trip": false,
-   "leave": 4.0,
-   "link": "https://www.aviasales.com/search/ICN2311DPS26111"
-  },
-  {
    "text": "도쿄 CJJ→NRT · 12-13~12-14 1박 · 335,302원 · 비교 기준가보다 31% 저렴 · 특가 · 주말 연차1일",
    "tier": "deal",
    "tier_label": "특가",
@@ -61,6 +48,19 @@
    "weekend_trip": true,
    "leave": 1.0,
    "link": "https://www.aviasales.com/search/CJJ1312NRT14121"
+  },
+  {
+   "text": "다낭 PUS→DAD · 10-26~10-31 5박 · 209,529원 (실부담 265,529) · 비교 기준가보다 22% 저렴 · 특가",
+   "tier": "deal",
+   "tier_label": "특가",
+   "confidence": "높음",
+   "sample": 19,
+   "price": 209529,
+   "access": 56000,
+   "effective": 265529,
+   "weekend_trip": false,
+   "leave": 5.0,
+   "link": "https://www.aviasales.com/search/PUS2610DAD31101"
   }
  ],
  "weekend": [
@@ -78,20 +78,20 @@
    "link": "https://www.aviasales.com/search/CJJ1312NRT14121"
   },
   {
-   "text": "오사카 ICN→KIX · 12-04~12-07 3박 · 190,756원 (실부담 234,756) · 비교 기준가보다 37% 저렴 · 강력 특가 · 주말 연차1일",
-   "tier": "strong",
-   "tier_label": "강력 특가",
+   "text": "홍콩 ICN→HKG · 10-23~10-25 2박 · 254,681원 (실부담 298,681) · 비교 기준가보다 6% 저렴 · 주말 연차1일  📉-82",
+   "tier": "normal",
+   "tier_label": "일반",
    "confidence": "높음",
-   "sample": 19,
-   "price": 190756,
+   "sample": 18,
+   "price": 254681,
    "access": 44000,
-   "effective": 234756,
+   "effective": 298681,
    "weekend_trip": true,
    "leave": 1.0,
-   "link": "https://www.aviasales.com/search/ICN0412KIX07121"
+   "link": "https://www.aviasales.com/search/ICN2310HKG25101"
   },
   {
-   "text": "다낭 CJJ→DAD · 11-06~11-08 2박 · 310,306원 · 주말 연차0일  📉-142",
+   "text": "다낭 CJJ→DAD · 11-06~11-08 2박 · 310,306원 · 주말 연차0일",
    "tier": "normal",
    "tier_label": "일반",
    "confidence": "보통",
