@@ -1,34 +1,34 @@
 {
- "date": "2026-10-10",
- "ts": "2026-10-11 04:56 KST",
+ "date": "2026-10-11",
+ "ts": "2026-10-11 09:47 KST",
  "status": "OK",
- "headline": "볼 것 474건 · 강력특가 4 · 주말여행 3 · CJJ 3 · 신규 34 · 하락 39",
+ "headline": "볼 것 462건 · 강력특가 3 · 주말여행 3 · CJJ 3 · 신규 10",
  "home": "CJJ",
  "reason": null,
  "degraded": null,
  "holiday_gap": null,
  "counts": {
-  "total": 474,
-  "comparable": 474,
-  "strong": 4,
-  "deal": 13,
-  "candidate": 54,
-  "weekend": 81,
-  "home": 24,
-  "new": 34,
-  "down": 39,
-  "up": 18,
-  "gone": 28
+  "total": 462,
+  "comparable": 462,
+  "strong": 3,
+  "deal": 15,
+  "candidate": 53,
+  "weekend": 82,
+  "home": 25,
+  "new": 10,
+  "down": 0,
+  "up": 21,
+  "gone": 22
  },
  "source_note": "Travelpayouts 캐시 데이터 · 실시간 확정가 아님",
  "access_note": "실부담가 = 항공권 + CJJ 기준 왕복 교통비 (추정치)",
  "top": [
   {
-   "text": "다낭 CJJ→DAD · 11-06~11-08 2박 · 310,306원 · 비교 기준가보다 56% 저렴 · 강력 특가 · 주말 연차0일",
+   "text": "다낭 CJJ→DAD · 11-06~11-08 2박 · 310,306원 · 비교 기준가보다 52% 저렴 · 강력 특가 · 주말 연차0일",
    "tier": "strong",
    "tier_label": "강력 특가",
    "confidence": "높음",
-   "sample": 10,
+   "sample": 11,
    "price": 310306,
    "access": 0,
    "effective": 310306,
@@ -37,11 +37,11 @@
    "link": "https://www.aviasales.com/search/CJJ0611DAD08111"
   },
   {
-   "text": "다낭 CJJ→DAD · 10-15~10-19 4박 · 324,048원 · 비교 기준가보다 58% 저렴 · 특가  📉-104",
+   "text": "다낭 CJJ→DAD · 10-15~10-19 4박 · 324,048원 · 비교 기준가보다 57% 저렴 · 특가",
    "tier": "deal",
    "tier_label": "특가",
    "confidence": "보통",
-   "sample": 8,
+   "sample": 9,
    "price": 324048,
    "access": 0,
    "effective": 324048,
@@ -50,26 +50,26 @@
    "link": "https://www.aviasales.com/search/CJJ1510DAD19101"
   },
   {
-   "text": "상하이 CJJ→PVG · 10-31~11-03 3박 · 261,149원 · 비교 기준가보다 32% 저렴 · 강력 특가  📉-84",
-   "tier": "strong",
-   "tier_label": "강력 특가",
-   "confidence": "높음",
-   "sample": 10,
-   "price": 261149,
+   "text": "도쿄 CJJ→NRT · 12-13~12-14 1박 · 335,302원 · 비교 기준가보다 31% 저렴 · 특가 · 주말 연차1일",
+   "tier": "deal",
+   "tier_label": "특가",
+   "confidence": "보통",
+   "sample": 5,
+   "price": 335302,
    "access": 0,
-   "effective": 261149,
-   "weekend_trip": false,
-   "leave": 2.0,
-   "link": "https://www.aviasales.com/search/CJJ3110PVG03111"
+   "effective": 335302,
+   "weekend_trip": true,
+   "leave": 1.0,
+   "link": "https://www.aviasales.com/search/CJJ1312NRT14121"
   }
  ],
  "weekend": [
   {
-   "text": "다낭 CJJ→DAD · 11-06~11-08 2박 · 310,306원 · 비교 기준가보다 56% 저렴 · 강력 특가 · 주말 연차0일",
+   "text": "다낭 CJJ→DAD · 11-06~11-08 2박 · 310,306원 · 비교 기준가보다 52% 저렴 · 강력 특가 · 주말 연차0일",
    "tier": "strong",
    "tier_label": "강력 특가",
    "confidence": "높음",
-   "sample": 10,
+   "sample": 11,
    "price": 310306,
    "access": 0,
    "effective": 310306,
@@ -91,11 +91,11 @@
    "link": "https://www.aviasales.com/search/CJJ1312NRT14121"
   },
   {
-   "text": "오사카 ICN→KIX · 12-04~12-07 3박 · 224,253원 (실부담 268,253) · 비교 기준가보다 27% 저렴 · 특가 · 주말 연차1일",
+   "text": "오사카 ICN→KIX · 12-04~12-07 3박 · 224,253원 (실부담 268,253) · 비교 기준가보다 28% 저렴 · 특가 · 주말 연차1일",
    "tier": "deal",
    "tier_label": "특가",
    "confidence": "높음",
-   "sample": 20,
+   "sample": 19,
    "price": 224253,
    "access": 44000,
    "effective": 268253,
@@ -106,11 +106,11 @@
  ],
  "home_airport": [
   {
-   "text": "다낭 CJJ→DAD · 11-06~11-08 2박 · 310,306원 · 비교 기준가보다 56% 저렴 · 강력 특가 · 주말 연차0일",
+   "text": "다낭 CJJ→DAD · 11-06~11-08 2박 · 310,306원 · 비교 기준가보다 52% 저렴 · 강력 특가 · 주말 연차0일",
    "tier": "strong",
    "tier_label": "강력 특가",
    "confidence": "높음",
-   "sample": 10,
+   "sample": 11,
    "price": 310306,
    "access": 0,
    "effective": 310306,
@@ -119,11 +119,11 @@
    "link": "https://www.aviasales.com/search/CJJ0611DAD08111"
   },
   {
-   "text": "다낭 CJJ→DAD · 10-15~10-19 4박 · 324,048원 · 비교 기준가보다 58% 저렴 · 특가  📉-104",
+   "text": "다낭 CJJ→DAD · 10-15~10-19 4박 · 324,048원 · 비교 기준가보다 57% 저렴 · 특가",
    "tier": "deal",
    "tier_label": "특가",
    "confidence": "보통",
-   "sample": 8,
+   "sample": 9,
    "price": 324048,
    "access": 0,
    "effective": 324048,
@@ -132,17 +132,17 @@
    "link": "https://www.aviasales.com/search/CJJ1510DAD19101"
   },
   {
-   "text": "상하이 CJJ→PVG · 10-31~11-03 3박 · 261,149원 · 비교 기준가보다 32% 저렴 · 강력 특가  📉-84",
-   "tier": "strong",
-   "tier_label": "강력 특가",
-   "confidence": "높음",
-   "sample": 10,
-   "price": 261149,
+   "text": "도쿄 CJJ→NRT · 12-13~12-14 1박 · 335,302원 · 비교 기준가보다 31% 저렴 · 특가 · 주말 연차1일",
+   "tier": "deal",
+   "tier_label": "특가",
+   "confidence": "보통",
+   "sample": 5,
+   "price": 335302,
    "access": 0,
-   "effective": 261149,
-   "weekend_trip": false,
-   "leave": 2.0,
-   "link": "https://www.aviasales.com/search/CJJ3110PVG03111"
+   "effective": 335302,
+   "weekend_trip": true,
+   "leave": 1.0,
+   "link": "https://www.aviasales.com/search/CJJ1312NRT14121"
   }
  ],
  "swiss": [
