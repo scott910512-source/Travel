@@ -1,34 +1,47 @@
 {
  "date": "2026-10-15",
- "ts": "2026-10-15 09:23 KST",
+ "ts": "2026-10-15 18:01 KST",
  "status": "OK",
- "headline": "볼 것 497건 · 강력특가 4 · 주말여행 3 · CJJ 3 · 신규 20 · 하락 9",
+ "headline": "볼 것 508건 · 강력특가 3 · 주말여행 3 · CJJ 3 · 신규 32 · 하락 3",
  "home": "CJJ",
  "reason": null,
  "degraded": null,
  "holiday_gap": "2026-12-25",
  "counts": {
-  "total": 497,
-  "comparable": 497,
-  "strong": 4,
-  "deal": 19,
+  "total": 509,
+  "comparable": 508,
+  "strong": 3,
+  "deal": 20,
   "candidate": 61,
-  "weekend": 69,
-  "home": 17,
-  "new": 20,
-  "down": 9,
-  "up": 72,
-  "gone": 8
+  "weekend": 72,
+  "home": 18,
+  "new": 32,
+  "down": 3,
+  "up": 10,
+  "gone": 20
  },
  "source_note": "Travelpayouts 캐시 데이터 · 실시간 확정가 아님",
  "access_note": "실부담가 = 항공권 + CJJ 기준 왕복 교통비 (추정치)",
  "top": [
   {
+   "text": "제주 CJJ→CJU · 10-31~11-02 2박 · 69,794원 · 비교 기준가보다 29% 저렴 · 특가 · 주말 연차1일  🆕",
+   "tier": "deal",
+   "tier_label": "특가",
+   "confidence": "높음",
+   "sample": 34,
+   "price": 69794,
+   "access": 0,
+   "effective": 69794,
+   "weekend_trip": true,
+   "leave": 1.0,
+   "link": "https://www.aviasales.com/search/CJJ3110CJU02111"
+  },
+  {
    "text": "제주 CJJ→CJU · 10-18~10-20 2박 · 50,725원 · 비교 기준가보다 48% 저렴 · 강력 특가",
    "tier": "strong",
    "tier_label": "강력 특가",
    "confidence": "높음",
-   "sample": 33,
+   "sample": 34,
    "price": 50725,
    "access": 0,
    "effective": 50725,
@@ -41,29 +54,29 @@
    "tier": "strong",
    "tier_label": "강력 특가",
    "confidence": "높음",
-   "sample": 33,
+   "sample": 34,
    "price": 60073,
    "access": 0,
    "effective": 60073,
    "weekend_trip": false,
    "leave": 2.5,
    "link": "https://www.aviasales.com/search/CJJ2710CJU29101"
-  },
-  {
-   "text": "다낭 PUS→DAD · 10-26~10-31 5박 · 212,944원 (실부담 268,944) · 비교 기준가보다 20% 저렴 · 특가",
-   "tier": "deal",
-   "tier_label": "특가",
-   "confidence": "높음",
-   "sample": 21,
-   "price": 212944,
-   "access": 56000,
-   "effective": 268944,
-   "weekend_trip": false,
-   "leave": 5.0,
-   "link": "https://www.aviasales.com/search/PUS2610DAD31101"
   }
  ],
  "weekend": [
+  {
+   "text": "제주 CJJ→CJU · 10-31~11-02 2박 · 69,794원 · 비교 기준가보다 29% 저렴 · 특가 · 주말 연차1일  🆕",
+   "tier": "deal",
+   "tier_label": "특가",
+   "confidence": "높음",
+   "sample": 34,
+   "price": 69794,
+   "access": 0,
+   "effective": 69794,
+   "weekend_trip": true,
+   "leave": 1.0,
+   "link": "https://www.aviasales.com/search/CJJ3110CJU02111"
+  },
   {
    "text": "다낭 PUS→DAD · 10-29~11-01 3박 · 239,422원 (실부담 295,422) · 비교 기준가보다 16% 저렴 · 주말 연차1일",
    "tier": "candidate",
@@ -76,19 +89,6 @@
    "weekend_trip": true,
    "leave": 1.0,
    "link": "https://www.aviasales.com/search/PUS2910DAD01111"
-  },
-  {
-   "text": "오사카 ICN→KIX · 11-20~11-23 3박 · 266,816원 (실부담 310,816) · 비교 기준가보다 19% 저렴 · 주말 연차1일",
-   "tier": "candidate",
-   "tier_label": "특가 후보",
-   "confidence": "높음",
-   "sample": 19,
-   "price": 266816,
-   "access": 44000,
-   "effective": 310816,
-   "weekend_trip": true,
-   "leave": 1.0,
-   "link": "https://www.aviasales.com/search/ICN2011KIX23111"
   },
   {
    "text": "다낭 CJJ→DAD · 11-06~11-08 2박 · 310,306원 · 주말 연차0일",
@@ -106,11 +106,24 @@
  ],
  "home_airport": [
   {
+   "text": "제주 CJJ→CJU · 10-31~11-02 2박 · 69,794원 · 비교 기준가보다 29% 저렴 · 특가 · 주말 연차1일  🆕",
+   "tier": "deal",
+   "tier_label": "특가",
+   "confidence": "높음",
+   "sample": 34,
+   "price": 69794,
+   "access": 0,
+   "effective": 69794,
+   "weekend_trip": true,
+   "leave": 1.0,
+   "link": "https://www.aviasales.com/search/CJJ3110CJU02111"
+  },
+  {
    "text": "제주 CJJ→CJU · 10-18~10-20 2박 · 50,725원 · 비교 기준가보다 48% 저렴 · 강력 특가",
    "tier": "strong",
    "tier_label": "강력 특가",
    "confidence": "높음",
-   "sample": 33,
+   "sample": 34,
    "price": 50725,
    "access": 0,
    "effective": 50725,
@@ -123,26 +136,13 @@
    "tier": "strong",
    "tier_label": "강력 특가",
    "confidence": "높음",
-   "sample": 33,
+   "sample": 34,
    "price": 60073,
    "access": 0,
    "effective": 60073,
    "weekend_trip": false,
    "leave": 2.5,
    "link": "https://www.aviasales.com/search/CJJ2710CJU29101"
-  },
-  {
-   "text": "다낭 CJJ→DAD · 11-11~11-18 7박 · 296,707원 · 비교 기준가보다 12% 저렴",
-   "tier": "candidate",
-   "tier_label": "특가 후보",
-   "confidence": "보통",
-   "sample": 6,
-   "price": 296707,
-   "access": 0,
-   "effective": 296707,
-   "weekend_trip": false,
-   "leave": 5.0,
-   "link": "https://www.aviasales.com/search/CJJ1111DAD18111"
   }
  ],
  "swiss": [
@@ -158,6 +158,19 @@
    "weekend_trip": false,
    "leave": 8.0,
    "link": "https://www.aviasales.com/search/ICN0102ZRH10021"
+  },
+  {
+   "text": "제네바 ICN→GVA · 02-23~02-27 4박 · 989,524원 (실부담 1,033,524)  🆕  🔻추적기간 최저",
+   "tier": "unknown",
+   "tier_label": "비교 불가",
+   "confidence": "참고",
+   "sample": 0,
+   "price": 989524,
+   "access": 44000,
+   "effective": 1033524,
+   "weekend_trip": false,
+   "leave": 3.5,
+   "link": "https://www.aviasales.com/search/ICN2302GVA27021"
   }
  ],
  "dashboard": "index.html"
