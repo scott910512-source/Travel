@@ -1,28 +1,54 @@
 {
  "date": "2026-10-18",
- "ts": "2026-10-18 17:43 KST",
+ "ts": "2026-10-18 22:52 KST",
  "status": "OK",
- "headline": "볼 것 480건 · 강력특가 4 · 주말여행 3 · CJJ 3 · 신규 32 · 하락 2",
+ "headline": "볼 것 473건 · 강력특가 5 · 주말여행 3 · CJJ 3 · 신규 22 · 하락 2",
  "home": "CJJ",
  "reason": null,
  "degraded": null,
  "holiday_gap": "2026-12-25",
  "counts": {
-  "total": 481,
-  "comparable": 480,
-  "strong": 4,
-  "deal": 24,
-  "candidate": 53,
-  "weekend": 78,
-  "home": 14,
-  "new": 32,
+  "total": 474,
+  "comparable": 473,
+  "strong": 5,
+  "deal": 20,
+  "candidate": 55,
+  "weekend": 79,
+  "home": 19,
+  "new": 22,
   "down": 2,
-  "up": 84,
-  "gone": 46
+  "up": 3,
+  "gone": 29
  },
  "source_note": "Travelpayouts 캐시 데이터 · 실시간 확정가 아님",
  "access_note": "실부담가 = 항공권 + CJJ 기준 왕복 교통비 (추정치)",
  "top": [
+  {
+   "text": "상하이 CJJ→PVG · 10-31~11-03 3박 · 212,376원 · 비교 기준가보다 35% 저렴 · 강력 특가  🆕",
+   "tier": "strong",
+   "tier_label": "강력 특가",
+   "confidence": "높음",
+   "sample": 13,
+   "price": 212376,
+   "access": 0,
+   "effective": 212376,
+   "weekend_trip": false,
+   "leave": 2.0,
+   "link": "https://www.aviasales.com/search/CJJ3110PVG03111"
+  },
+  {
+   "text": "제주 CJJ→CJU · 11-02~11-05 3박 · 52,209원 · 비교 기준가보다 41% 저렴 · 강력 특가  📉-4,036",
+   "tier": "strong",
+   "tier_label": "강력 특가",
+   "confidence": "높음",
+   "sample": 27,
+   "price": 52209,
+   "access": 0,
+   "effective": 52209,
+   "weekend_trip": false,
+   "leave": 3.5,
+   "link": "https://www.aviasales.com/search/CJJ0211CJU05111"
+  },
   {
    "text": "제주 CJJ→CJU · 10-31~11-02 2박 · 69,474원 · 비교 기준가보다 29% 저렴 · 특가 · 주말 연차1일",
    "tier": "deal",
@@ -35,32 +61,6 @@
    "weekend_trip": true,
    "leave": 1.0,
    "link": "https://www.aviasales.com/search/CJJ3110CJU02111"
-  },
-  {
-   "text": "제주 CJJ→CJU · 11-02~11-05 3박 · 56,245원 · 비교 기준가보다 36% 저렴 · 강력 특가",
-   "tier": "strong",
-   "tier_label": "강력 특가",
-   "confidence": "높음",
-   "sample": 27,
-   "price": 56245,
-   "access": 0,
-   "effective": 56245,
-   "weekend_trip": false,
-   "leave": 3.5,
-   "link": "https://www.aviasales.com/search/CJJ0211CJU05111"
-  },
-  {
-   "text": "제주 CJJ→CJU · 10-27~10-29 2박 · 60,073원 · 비교 기준가보다 39% 저렴 · 강력 특가",
-   "tier": "strong",
-   "tier_label": "강력 특가",
-   "confidence": "높음",
-   "sample": 33,
-   "price": 60073,
-   "access": 0,
-   "effective": 60073,
-   "weekend_trip": false,
-   "leave": 2.5,
-   "link": "https://www.aviasales.com/search/CJJ2710CJU29101"
   }
  ],
  "weekend": [
@@ -106,6 +106,32 @@
  ],
  "home_airport": [
   {
+   "text": "상하이 CJJ→PVG · 10-31~11-03 3박 · 212,376원 · 비교 기준가보다 35% 저렴 · 강력 특가  🆕",
+   "tier": "strong",
+   "tier_label": "강력 특가",
+   "confidence": "높음",
+   "sample": 13,
+   "price": 212376,
+   "access": 0,
+   "effective": 212376,
+   "weekend_trip": false,
+   "leave": 2.0,
+   "link": "https://www.aviasales.com/search/CJJ3110PVG03111"
+  },
+  {
+   "text": "제주 CJJ→CJU · 11-02~11-05 3박 · 52,209원 · 비교 기준가보다 41% 저렴 · 강력 특가  📉-4,036",
+   "tier": "strong",
+   "tier_label": "강력 특가",
+   "confidence": "높음",
+   "sample": 27,
+   "price": 52209,
+   "access": 0,
+   "effective": 52209,
+   "weekend_trip": false,
+   "leave": 3.5,
+   "link": "https://www.aviasales.com/search/CJJ0211CJU05111"
+  },
+  {
    "text": "제주 CJJ→CJU · 10-31~11-02 2박 · 69,474원 · 비교 기준가보다 29% 저렴 · 특가 · 주말 연차1일",
    "tier": "deal",
    "tier_label": "특가",
@@ -117,32 +143,6 @@
    "weekend_trip": true,
    "leave": 1.0,
    "link": "https://www.aviasales.com/search/CJJ3110CJU02111"
-  },
-  {
-   "text": "제주 CJJ→CJU · 11-02~11-05 3박 · 56,245원 · 비교 기준가보다 36% 저렴 · 강력 특가",
-   "tier": "strong",
-   "tier_label": "강력 특가",
-   "confidence": "높음",
-   "sample": 27,
-   "price": 56245,
-   "access": 0,
-   "effective": 56245,
-   "weekend_trip": false,
-   "leave": 3.5,
-   "link": "https://www.aviasales.com/search/CJJ0211CJU05111"
-  },
-  {
-   "text": "제주 CJJ→CJU · 10-27~10-29 2박 · 60,073원 · 비교 기준가보다 39% 저렴 · 강력 특가",
-   "tier": "strong",
-   "tier_label": "강력 특가",
-   "confidence": "높음",
-   "sample": 33,
-   "price": 60073,
-   "access": 0,
-   "effective": 60073,
-   "weekend_trip": false,
-   "leave": 2.5,
-   "link": "https://www.aviasales.com/search/CJJ2710CJU29101"
   }
  ],
  "swiss": [
