@@ -1,24 +1,24 @@
 {
  "date": "2026-10-26",
- "ts": "2026-10-26 18:55 KST",
+ "ts": "2026-10-27 01:39 KST",
  "status": "OK",
- "headline": "볼 것 516건 · 강력특가 11 · 주말여행 3 · CJJ 3 · 신규 39 · 하락 11",
+ "headline": "볼 것 544건 · 강력특가 10 · 주말여행 3 · CJJ 3 · 신규 46 · 하락 4",
  "home": "CJJ",
  "reason": null,
  "degraded": null,
  "holiday_gap": "2026-12-25",
  "counts": {
-  "total": 517,
-  "comparable": 516,
-  "strong": 11,
-  "deal": 25,
+  "total": 545,
+  "comparable": 544,
+  "strong": 10,
+  "deal": 31,
   "candidate": 63,
-  "weekend": 71,
-  "home": 23,
-  "new": 39,
-  "down": 11,
-  "up": 70,
-  "gone": 42
+  "weekend": 75,
+  "home": 24,
+  "new": 46,
+  "down": 4,
+  "up": 64,
+  "gone": 18
  },
  "source_note": "Travelpayouts 캐시 데이터 · 실시간 확정가 아님",
  "access_note": "실부담가 = 항공권 + CJJ 기준 왕복 교통비 (추정치)",
@@ -50,14 +50,14 @@
    "link": "https://www.aviasales.com/search/CJJ2911DAD04121"
   },
   {
-   "text": "상하이 CJJ→PVG · 10-31~11-03 3박 · 163,281원 · 비교 기준가보다 50% 저렴 · 강력 특가",
+   "text": "상하이 CJJ→PVG · 10-31~11-03 3박 · 168,502원 · 비교 기준가보다 48% 저렴 · 강력 특가",
    "tier": "strong",
    "tier_label": "강력 특가",
    "confidence": "높음",
    "sample": 13,
-   "price": 163281,
+   "price": 168502,
    "access": 0,
-   "effective": 163281,
+   "effective": 168502,
    "weekend_trip": false,
    "leave": 2.0,
    "link": "https://www.aviasales.com/search/CJJ3110PVG03111"
@@ -65,17 +65,30 @@
  ],
  "weekend": [
   {
-   "text": "오사카 ICN→KIX · 12-18~12-20 2박 · 265,053원 (실부담 309,053) · 비교 기준가보다 29% 저렴 · 특가 · 주말 연차1일  🆕",
+   "text": "오사카 ICN→KIX · 12-18~12-20 2박 · 265,841원 (실부담 309,841) · 비교 기준가보다 22% 저렴 · 특가 · 주말 연차1일",
    "tier": "deal",
    "tier_label": "특가",
    "confidence": "높음",
-   "sample": 13,
-   "price": 265053,
+   "sample": 16,
+   "price": 265841,
    "access": 44000,
-   "effective": 309053,
+   "effective": 309841,
    "weekend_trip": true,
    "leave": 1.0,
    "link": "https://www.aviasales.com/search/ICN1812KIX20121"
+  },
+  {
+   "text": "세부 ICN→CEB · 10-31~11-02 2박 · 380,822원 (실부담 424,822) · 비교 기준가보다 15% 저렴 · 주말 연차1일  🆕",
+   "tier": "candidate",
+   "tier_label": "특가 후보",
+   "confidence": "높음",
+   "sample": 10,
+   "price": 380822,
+   "access": 44000,
+   "effective": 424822,
+   "weekend_trip": true,
+   "leave": 1.0,
+   "link": "https://www.aviasales.com/search/ICN3110CEB02111"
   },
   {
    "text": "오사카 ICN→KIX · 11-19~11-22 3박 · 248,790원 (실부담 292,790) · 비교 기준가보다 20% 저렴 · 특가 · 주말 연차1일",
@@ -89,19 +102,6 @@
    "weekend_trip": true,
    "leave": 1.0,
    "link": "https://www.aviasales.com/search/ICN1911KIX22111"
-  },
-  {
-   "text": "다낭 PUS→DAD · 11-06~11-09 3박 · 235,400원 (실부담 291,400) · 비교 기준가보다 12% 저렴 · 주말 연차1일",
-   "tier": "candidate",
-   "tier_label": "특가 후보",
-   "confidence": "보통",
-   "sample": 8,
-   "price": 235400,
-   "access": 56000,
-   "effective": 291400,
-   "weekend_trip": true,
-   "leave": 1.0,
-   "link": "https://www.aviasales.com/search/PUS0611DAD09111"
   }
  ],
  "home_airport": [
@@ -132,14 +132,14 @@
    "link": "https://www.aviasales.com/search/CJJ2911DAD04121"
   },
   {
-   "text": "상하이 CJJ→PVG · 10-31~11-03 3박 · 163,281원 · 비교 기준가보다 50% 저렴 · 강력 특가",
+   "text": "상하이 CJJ→PVG · 10-31~11-03 3박 · 168,502원 · 비교 기준가보다 48% 저렴 · 강력 특가",
    "tier": "strong",
    "tier_label": "강력 특가",
    "confidence": "높음",
    "sample": 13,
-   "price": 163281,
+   "price": 168502,
    "access": 0,
-   "effective": 163281,
+   "effective": 168502,
    "weekend_trip": false,
    "leave": 2.0,
    "link": "https://www.aviasales.com/search/CJJ3110PVG03111"
@@ -173,14 +173,14 @@
    "link": "https://www.aviasales.com/search/ICN0501GVA10011"
   },
   {
-   "text": "제네바 ICN→GVA · 01-01~01-07 6박 · 1,081,361원 (실부담 1,125,361) · 비교 기준가보다 13% 비쌈  🆕",
+   "text": "제네바 ICN→GVA · 01-01~01-07 6박 · 1,084,575원 (실부담 1,128,575) · 비교 기준가보다 14% 비쌈",
    "tier": "unknown",
    "tier_label": "비교 불가",
    "confidence": "낮음",
    "sample": 3,
-   "price": 1081361,
+   "price": 1084575,
    "access": 44000,
-   "effective": 1125361,
+   "effective": 1128575,
    "weekend_trip": false,
    "leave": 4.0,
    "link": "https://www.aviasales.com/search/ICN0101GVA07011"
