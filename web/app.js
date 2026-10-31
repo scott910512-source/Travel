@@ -1427,7 +1427,7 @@ function viewTrip() {
   return `${plainHeader('10월 여행 · 오키나와 3박 4일', `${TS_FMT(dep)} 출발 → ${TS_FMT(ret)} 귀국 · 청주 · 렌터카 · 임산부`)}
   <div class="wrap trip hub">
     <section class="mytrip">
-      <div class="mt-hd"><div><b>오키나와 3박 4일</b><small>${TS_FMT(dep)} 출발 → ${TS_FMT(ret)} 귀국 · 연차 ${leaveDays(dep, ret)}일</small></div>
+      <div class="mt-hd"><div><b>오키나와 3박 4일${ret < todayISO() ? ' <span class="bg">지난 여행</span>' : ''}</b><small>${TS_FMT(dep)} 출발 → ${TS_FMT(ret)} 귀국 · 연차 ${leaveDays(dep, ret)}일${ret < todayISO() ? ' · 일정·식당 기록은 그대로 볼 수 있습니다' : ''}</small></div>
         <button class="chip" data-depchips aria-expanded="${S.depOpen ? 'true' : 'false'}">날짜 변경</button></div>
       ${S.depOpen ? tripDateChips() : ''}
       <div class="mt-body">
@@ -1457,6 +1457,7 @@ function viewTrip() {
 `;
 }
 const TS_FMT = d => `${md(d)}(${dow(d)})`;
+const todayISO = () => { const t = new Date(); return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`; };
 
 function tripSearchLinks(d) {
   const r = addDays(d, TRIP.nights);

@@ -14,6 +14,19 @@ def chk(c, m):
 
 SKY = json.load(io.open("tests/fixtures/skyscanner_cjj.json", encoding="utf-8"))
 
+# ★ 고정 날짜(2026-10-15…)는 그날이 지나면 ingest 의 '출발 D+3~' 창에 걸려 전부 버려진다.
+#   2026-10-30 부터 verify 가 이 시험 하나로 빨갛게 됐다. 날짜를 오늘 기준으로 밀어 넣는다
+#   (간격은 그대로). 데이터 모양·시각에 기대는 시험은 이렇게 상대 날짜로 둔다.
+import re
+from datetime import date, timedelta
+def _shift_dates(obj, base="2026-10-15", to=None):
+    to = to or date.today() + timedelta(days=S.CJJ_WINDOW[0] + 14)
+    delta = (to - date.fromisoformat(base)).days
+    def mv(m):
+        return str(date.fromisoformat(m.group(0)) + timedelta(days=delta))
+    return json.loads(re.sub(r"20\d\d-\d\d-\d\d", mv, json.dumps(obj)))
+SKY = _shift_dates(SKY)
+
 def tp_rows(n, roundtrip=True):
     return [{"price_krw": 300000 + i, "roundtrip_verified": roundtrip,
              "dep": "CJJ", "arr": "TPE"} for i in range(n)]
