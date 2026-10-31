@@ -1,17 +1,17 @@
 {
- "ts": "2026-09-25T09:48:16.436Z",
+ "ts": "2026-10-31T03:54:13.404Z",
  "source": "Google Places API (web service)",
  "by": "workflow probe=food",
  "min_reviews": 10,
  "min_rating": 4.3,
- "count": 49,
- "found": 49,
+ "count": 51,
+ "found": 51,
  "missing": 0,
- "photos": 98,
+ "photos": 102,
  "data": {
   "首里そば": {
    "rating": 4.4,
-   "total": 1454,
+   "total": 1463,
    "url": "https://maps.google.com/?cid=8226109045606690430",
    "gname": "슈리 소바",
    "photos": [
@@ -23,11 +23,15 @@
      "url": "food-photos/533774a8d3-1.jpg",
      "attr": "Arudeon nkm3a"
     }
+   ],
+   "ll": [
+    26.21755,
+    127.72285
    ]
   },
   "大東そば": {
    "rating": 4.3,
-   "total": 621,
+   "total": 641,
    "url": "https://maps.google.com/?cid=1090142815864018152",
    "gname": "다이토소바",
    "photos": [
@@ -39,11 +43,15 @@
      "url": "food-photos/248ef6e5a1-1.jpg",
      "attr": "大東そば 国際通り店"
     }
+   ],
+   "ll": [
+    26.21612,
+    127.68541
    ]
   },
   "首里ほりかわ": {
    "rating": 4.4,
-   "total": 684,
+   "total": 692,
    "url": "https://maps.google.com/?cid=3598282412947510765",
    "gname": "슈리 호리카와",
    "photos": [
@@ -53,29 +61,37 @@
     },
     {
      "url": "food-photos/17ef944e89-1.jpg",
-     "attr": "金童玉女"
+     "attr": "吉村勇輝"
     }
+   ],
+   "ll": [
+    26.21952,
+    127.71632
    ]
   },
   "やっぱりステーキ 国際通り": {
    "rating": 4.1,
-   "total": 1725,
+   "total": 1728,
    "url": "https://maps.google.com/?cid=9544842002149338492",
    "gname": "Yappari Steak 4th Kokusaidori",
    "photos": [
     {
      "url": "food-photos/1e7c6a9738-0.jpg",
-     "attr": "SeaFood Father"
+     "attr": "y33 kino"
     },
     {
      "url": "food-photos/1e7c6a9738-1.jpg",
      "attr": "やっぱりステーキ 国際通り店"
     }
+   ],
+   "ll": [
+    26.21699,
+    127.69079
    ]
   },
   "ジャッキーステーキハウス": {
    "rating": 4.2,
-   "total": 10973,
+   "total": 11082,
    "url": "https://maps.google.com/?cid=6522606484635319543",
    "gname": "잭스 스테이크 하우스",
    "photos": [
@@ -85,13 +101,17 @@
     },
     {
      "url": "food-photos/1c4a19d975-1.jpg",
-     "attr": "Yu Pu Kuo"
+     "attr": "Michael Ho"
     }
+   ],
+   "ll": [
+    26.2129,
+    127.6725
    ]
   },
   "Sam's Anchor Inn 国際通り": {
    "rating": 3.7,
-   "total": 1021,
+   "total": 1023,
    "url": "https://maps.google.com/?cid=4345540125673560908",
    "gname": "Sam's Anchor Inn Kokusai Street",
    "photos": [
@@ -103,27 +123,35 @@
      "url": "food-photos/dae3e3f1e9-1.jpg",
      "attr": "サムズアンカーイン国際通り店"
     }
+   ],
+   "ll": [
+    26.21446,
+    127.68229
    ]
   },
   "あぐー しゃぶしゃぶ 山本": {
-   "rating": 4.7,
-   "total": 1090,
-   "url": "https://maps.google.com/?cid=5128518131252691017",
-   "gname": "Asatoya",
+   "rating": 4.4,
+   "total": 1337,
+   "url": "https://maps.google.com/?cid=11001577555389722551",
+   "gname": "쇼쿠사이슈보 마츠모토",
    "photos": [
     {
      "url": "food-photos/f243a26f62-0.jpg",
-     "attr": "アグー豚しゃぶ＆沖縄料理 安里家"
+     "attr": "食彩酒房 まつもと"
     },
     {
      "url": "food-photos/f243a26f62-1.jpg",
-     "attr": "ki"
+     "attr": "食彩酒房 まつもと"
     }
+   ],
+   "ll": [
+    26.21695,
+    127.67833
    ]
   },
   "ゆうなんぎい": {
    "rating": 4.5,
-   "total": 1848,
+   "total": 1862,
    "url": "https://maps.google.com/?cid=13564136191706926577",
    "gname": "유난기",
    "photos": [
@@ -135,27 +163,35 @@
      "url": "food-photos/d21bf4a94c-1.jpg",
      "attr": "hung hing"
     }
+   ],
+   "ll": [
+    26.21446,
+    127.68191
    ]
   },
   "波照間": {
-   "rating": 4.2,
-   "total": 2004,
-   "url": "https://maps.google.com/?cid=9185207271101872456",
-   "gname": "Okinawa Dining Hateruma",
+   "rating": 4.7,
+   "total": 208,
+   "url": "https://maps.google.com/?cid=7385980787564102162",
+   "gname": "하테루마 섬",
    "photos": [
     {
      "url": "food-photos/5b3a40fff7-0.jpg",
-     "attr": "波照間 国際通り店"
+     "attr": "竹石康晴"
     },
     {
      "url": "food-photos/5b3a40fff7-1.jpg",
-     "attr": "波照間 国際通り店"
+     "attr": "おれんじ"
     }
+   ],
+   "ll": [
+    24.06317,
+    123.77971
    ]
   },
   "ポークたまごおにぎり本店": {
    "rating": 4.3,
-   "total": 3917,
+   "total": 3957,
    "url": "https://maps.google.com/?cid=7576803173627225668",
    "gname": "포타마 마키시시장점",
    "photos": [
@@ -165,13 +201,17 @@
     },
     {
      "url": "food-photos/0559b15c91-1.jpg",
-     "attr": "N"
+     "attr": "ポーたま 牧志市場店"
     }
+   ],
+   "ll": [
+    26.21518,
+    127.68797
    ]
   },
   "C&C BREAKFAST OKINAWA": {
    "rating": 4.3,
-   "total": 857,
+   "total": 862,
    "url": "https://maps.google.com/?cid=1369108031746275914",
    "gname": "C&C Breakfast",
    "photos": [
@@ -183,11 +223,15 @@
      "url": "food-photos/49920bf37e-1.jpg",
      "attr": "C&amp;C BREAKFAST OKINAWA"
     }
+   ],
+   "ll": [
+    26.21505,
+    127.68801
    ]
   },
   "花笠食堂": {
    "rating": 3.8,
-   "total": 1384,
+   "total": 1386,
    "url": "https://maps.google.com/?cid=12741552341568856512",
    "gname": "하나가사쇼쿠도",
    "photos": [
@@ -199,27 +243,35 @@
      "url": "food-photos/9876d475ba-1.jpg",
      "attr": "まー"
     }
+   ],
+   "ll": [
+    26.21498,
+    127.68886
    ]
   },
   "タコス屋 国際通り": {
-   "rating": 4.7,
-   "total": 956,
-   "url": "https://maps.google.com/?cid=16861834890804129305",
-   "gname": "JAM'S TACOS（ジャムズタコス）国際通り店",
+   "rating": 4.5,
+   "total": 712,
+   "url": "https://maps.google.com/?cid=4791855235090111822",
+   "gname": "더 타코라이스 하우스",
    "photos": [
     {
      "url": "food-photos/d980a7bc2b-0.jpg",
-     "attr": "JAM&#39;S TACOS（ジャムズタコス）国際通り店"
+     "attr": "ザ・タコライスハウス 那覇国際通り店"
     },
     {
      "url": "food-photos/d980a7bc2b-1.jpg",
-     "attr": "JAM&#39;S TACOS（ジャムズタコス）国際通り店"
+     "attr": "ザ・タコライスハウス 那覇国際通り店"
     }
+   ],
+   "ll": [
+    26.21638,
+    127.69045
    ]
   },
   "ブルーシール 国際通り": {
    "rating": 4.3,
-   "total": 1445,
+   "total": 1474,
    "url": "https://maps.google.com/?cid=5981665176542437666",
    "gname": "블루실 국제거리점",
    "photos": [
@@ -231,11 +283,15 @@
      "url": "food-photos/555d59f588-1.jpg",
      "attr": "Nobody Hey"
     }
+   ],
+   "ll": [
+    26.21544,
+    127.68506
    ]
   },
   "ふくぎや 国際通り": {
    "rating": 4.4,
-   "total": 486,
+   "total": 493,
    "url": "https://maps.google.com/?cid=3307788921611513278",
    "gname": "후쿠기야",
    "photos": [
@@ -247,11 +303,15 @@
      "url": "food-photos/c1650ea6b0-1.jpg",
      "attr": "バウムクーヘン専門店 ふくぎや"
     }
+   ],
+   "ll": [
+    26.21505,
+    127.68397
    ]
   },
   "oHacorte 港川": {
    "rating": 4.3,
-   "total": 1034,
+   "total": 1039,
    "url": "https://maps.google.com/?cid=6452321081751861592",
    "gname": "오하코르테",
    "photos": [
@@ -263,59 +323,75 @@
      "url": "food-photos/d46ef2c793-1.jpg",
      "attr": "オハコルテ 港川本店"
     }
+   ],
+   "ll": [
+    26.26249,
+    127.71537
    ]
   },
   "浜屋": {
    "rating": 4.4,
-   "total": 3218,
+   "total": 3240,
    "url": "https://maps.google.com/?cid=12045287017928494962",
    "gname": "하마야",
    "photos": [
     {
      "url": "food-photos/d4847de3f4-0.jpg",
-     "attr": "Katsuya Watabe"
+     "attr": "Li-Wei Kuo"
     },
     {
      "url": "food-photos/d4847de3f4-1.jpg",
      "attr": "欣"
     }
+   ],
+   "ll": [
+    26.32931,
+    127.74432
    ]
   },
   "あぐー屋": {
-   "rating": 4.6,
-   "total": 653,
+   "rating": 4.5,
+   "total": 642,
    "url": "https://maps.google.com/?cid=16580098275301463971",
    "gname": "島唄三線ライブ×島豚しゃぶしゃぶ あぐー家",
    "photos": [
     {
      "url": "food-photos/1960cb073d-0.jpg",
-     "attr": "ニュー角打ち 博多ホームラン食堂"
+     "attr": "島唄三線ライブ×島豚しゃぶしゃぶ あぐー家"
     },
     {
      "url": "food-photos/1960cb073d-1.jpg",
-     "attr": "ニュー角打ち 博多ホームラン食堂"
+     "attr": "島唄三線ライブ×島豚しゃぶしゃぶ あぐー家"
     }
+   ],
+   "ll": [
+    24.34071,
+    124.15782
    ]
   },
   "浜辺の茶屋": {
    "rating": 4.4,
-   "total": 2317,
+   "total": 2335,
    "url": "https://maps.google.com/?cid=13933470595957617327",
    "gname": "하마베노차야",
    "photos": [
     {
      "url": "food-photos/d9976402e2-0.jpg",
-     "attr": "Ricky Huang"
+     "attr": "張珍郎"
     },
     {
      "url": "food-photos/d9976402e2-1.jpg",
      "attr": "浜辺の茶屋"
     }
+   ],
+   "ll": [
+    26.13353,
+    127.78465
    ]
   },
   "山の茶屋 楽水": {
    "rating": 4.4,
-   "total": 535,
+   "total": 536,
    "url": "https://maps.google.com/?cid=9781532990233527418",
    "gname": "야마노차야 라쿠스이",
    "photos": [
@@ -325,13 +401,17 @@
     },
     {
      "url": "food-photos/d56eaac63e-1.jpg",
-     "attr": "山の茶屋・楽水"
+     "attr": "meiling"
     }
+   ],
+   "ll": [
+    26.13487,
+    127.78386
    ]
   },
   "カフェくるくま": {
    "rating": 4.3,
-   "total": 2745,
+   "total": 2742,
    "url": "https://maps.google.com/?cid=7347924815690913390",
    "gname": "카페 쿠루쿠마",
    "photos": [
@@ -343,11 +423,15 @@
      "url": "food-photos/c86485717d-1.jpg",
      "attr": "カフェくるくま"
     }
+   ],
+   "ll": [
+    26.16212,
+    127.81238
    ]
   },
   "中本鮮魚てんぷら店": {
    "rating": 4.1,
-   "total": 2387,
+   "total": 2413,
    "url": "https://maps.google.com/?cid=12501315609290323195",
    "gname": "나카모토 센교텐 덴푸라",
    "photos": [
@@ -359,11 +443,15 @@
      "url": "food-photos/7673947d1c-1.jpg",
      "attr": "黃雅惠"
     }
+   ],
+   "ll": [
+    26.13155,
+    127.77213
    ]
   },
   "瀬長島ウミカジテラス タコライスカフェ きじむなぁ": {
    "rating": 4.3,
-   "total": 820,
+   "total": 833,
    "url": "https://maps.google.com/?cid=10619391428329580595",
    "gname": "타코라이스 카페 키지무나 세나가지마 우미카지 테라스점",
    "photos": [
@@ -373,13 +461,17 @@
     },
     {
      "url": "food-photos/61e7553f51-1.jpg",
-     "attr": "タコライスカフェ きじむなぁ 瀬長島 ウミカジテラス店"
+     "attr": "타지마니아"
     }
+   ],
+   "ll": [
+    26.17658,
+    127.64049
    ]
   },
   "幸せのパンケーキ 沖縄ウミカジテラス": {
    "rating": 4.2,
-   "total": 4838,
+   "total": 4923,
    "url": "https://maps.google.com/?cid=13039270336270825903",
    "gname": "시아와세노 팬케이크 우미카지 테라스 오키나와점",
    "photos": [
@@ -389,29 +481,37 @@
     },
     {
      "url": "food-photos/c4e5502f99-1.jpg",
-     "attr": "Jonstyle將將"
+     "attr": "幸せのパンケーキ ウミカジテラス 沖縄店"
     }
+   ],
+   "ll": [
+    26.17652,
+    127.64057
    ]
   },
   "玉家 南風原": {
-   "rating": 3.9,
-   "total": 58,
-   "url": "https://maps.google.com/?cid=10166053896185613013",
-   "gname": "そば処 玉家 南風原南部医療センター・こども医療センター店",
+   "rating": 4.4,
+   "total": 1359,
+   "url": "https://maps.google.com/?cid=7166077441381424918",
+   "gname": "Tamaya Soba Headquarters",
    "photos": [
     {
      "url": "food-photos/974b8557bc-0.jpg",
-     "attr": "名前を入力してください"
+     "attr": "Tamaya Soba Headquarters"
     },
     {
      "url": "food-photos/974b8557bc-1.jpg",
-     "attr": "そば処 玉家 南風原南部医療センター・こども医療センター店"
+     "attr": "Tamaya Soba Headquarters"
     }
+   ],
+   "ll": [
+    26.19084,
+    127.74507
    ]
   },
   "糸満漁協 お魚センター": {
    "rating": 4.1,
-   "total": 6397,
+   "total": 6477,
    "url": "https://maps.google.com/?cid=6347299651609965333",
    "gname": "Itoman fishing cooperative Fish Center",
    "photos": [
@@ -421,13 +521,17 @@
     },
     {
      "url": "food-photos/2d3def0735-1.jpg",
-     "attr": "ファブル"
+     "attr": "Edward"
     }
+   ],
+   "ll": [
+    26.1381,
+    127.66138
    ]
   },
   "なかむらそば": {
    "rating": 4.2,
-   "total": 3156,
+   "total": 3190,
    "url": "https://maps.google.com/?cid=3915119288500179886",
    "gname": "나카무라소바",
    "photos": [
@@ -439,13 +543,17 @@
      "url": "food-photos/282d8fa013-1.jpg",
      "attr": "なかむらそば"
     }
+   ],
+   "ll": [
+    26.50671,
+    127.86533
    ]
   },
   "琉球の牛 恩納": {
    "rating": 4.7,
-   "total": 6242,
+   "total": 6527,
    "url": "https://maps.google.com/?cid=14508976097973711902",
-   "gname": "RYUKYU NO USHI ONNA",
+   "gname": "류큐노우시 온나본관",
    "photos": [
     {
      "url": "food-photos/73f1c1ee8e-0.jpg",
@@ -455,11 +563,15 @@
      "url": "food-photos/73f1c1ee8e-1.jpg",
      "attr": "焼肉 琉球の牛 恩納本館"
     }
+   ],
+   "ll": [
+    26.452,
+    127.80563
    ]
   },
   "金月そば 読谷": {
    "rating": 4.4,
-   "total": 829,
+   "total": 842,
    "url": "https://maps.google.com/?cid=16072110612665427188",
    "gname": "킨치치소바 요미탄 본점",
    "photos": [
@@ -471,27 +583,35 @@
      "url": "food-photos/ef820b132d-1.jpg",
      "attr": "金月そば 読谷本店"
     }
+   ],
+   "ll": [
+    26.39769,
+    127.7574
    ]
   },
   "A&W 美浜": {
    "rating": 4.2,
-   "total": 2599,
+   "total": 2642,
    "url": "https://maps.google.com/?cid=15586213513426723260",
    "gname": "A&W Mihama Store",
    "photos": [
     {
      "url": "food-photos/c5d2a14f4a-0.jpg",
-     "attr": "古謝靖"
+     "attr": "Puchi 散歩665"
     },
     {
      "url": "food-photos/c5d2a14f4a-1.jpg",
      "attr": "A&amp;W 美浜店"
     }
+   ],
+   "ll": [
+    26.31832,
+    127.75941
    ]
   },
   "キングタコス 金武本店": {
    "rating": 4.4,
-   "total": 1820,
+   "total": 1852,
    "url": "https://maps.google.com/?cid=6393001004168737312",
    "gname": "King Tacos",
    "photos": [
@@ -501,15 +621,19 @@
     },
     {
      "url": "food-photos/867ed37e14-1.jpg",
-     "attr": "カンダタ"
+     "attr": "赤い彗星"
     }
+   ],
+   "ll": [
+    26.45328,
+    127.91728
    ]
   },
   "Transit Cafe 北谷": {
    "rating": 4.4,
-   "total": 654,
+   "total": 658,
    "url": "https://maps.google.com/?cid=17431526738449206441",
-   "gname": "Transit Café.",
+   "gname": "Transit Café",
    "photos": [
     {
      "url": "food-photos/b28e65d062-0.jpg",
@@ -517,13 +641,17 @@
     },
     {
      "url": "food-photos/b28e65d062-1.jpg",
-     "attr": "トランジットカフェ"
+     "attr": "hihisumsum"
     }
+   ],
+   "ll": [
+    26.3295,
+    127.74395
    ]
   },
   "やっぱりステーキ 美浜": {
    "rating": 4.2,
-   "total": 726,
+   "total": 738,
    "url": "https://maps.google.com/?cid=4972496881836973720",
    "gname": "얏빠리 스테이크 차탄 미하마점",
    "photos": [
@@ -533,13 +661,17 @@
     },
     {
      "url": "food-photos/8587c6b072-1.jpg",
-     "attr": "라라리라라"
+     "attr": "민웅기"
     }
+   ],
+   "ll": [
+    26.31933,
+    127.75911
    ]
   },
   "花織そば 読谷": {
    "rating": 4.2,
-   "total": 789,
+   "total": 798,
    "url": "https://maps.google.com/?cid=9480166358217056407",
    "gname": "하나우이소바",
    "photos": [
@@ -551,11 +683,15 @@
      "url": "food-photos/80965e6b2e-1.jpg",
      "attr": "HaoWun Wong"
     }
+   ],
+   "ll": [
+    26.39767,
+    127.72513
    ]
   },
   "いしぐふー 恩納": {
    "rating": 4.6,
-   "total": 879,
+   "total": 890,
    "url": "https://maps.google.com/?cid=10913289147827629545",
    "gname": "토리소바야 이시구후 (소바)",
    "photos": [
@@ -567,11 +703,15 @@
      "url": "food-photos/e7c7837a44-1.jpg",
      "attr": "鶏そば屋いしぐふー"
     }
+   ],
+   "ll": [
+    26.26337,
+    127.71609
    ]
   },
   "ブルーシール 牧港本店": {
    "rating": 4.4,
-   "total": 3210,
+   "total": 3241,
    "url": "https://maps.google.com/?cid=17318301334061017980",
    "gname": "블루씰 아이스크림 마키미나토 본점",
    "photos": [
@@ -581,13 +721,17 @@
     },
     {
      "url": "food-photos/a9397eb21d-1.jpg",
-     "attr": "Lucrecia"
+     "attr": "Narae Kim"
     }
+   ],
+   "ll": [
+    26.26733,
+    127.72143
    ]
   },
   "イオンモール沖縄ライカム": {
    "rating": 4.4,
-   "total": 16490,
+   "total": 16649,
    "url": "https://maps.google.com/?cid=14640780388564529515",
    "gname": "이온몰 오키나와 라이카무",
    "photos": [
@@ -599,27 +743,35 @@
      "url": "food-photos/07ea30c4d1-1.jpg",
      "attr": "イオンモール沖縄ライカム"
     }
+   ],
+   "ll": [
+    26.31451,
+    127.79655
    ]
   },
   "きしもと食堂 本店": {
    "rating": 4.1,
-   "total": 2349,
+   "total": 2371,
    "url": "https://maps.google.com/?cid=1608828000850414129",
    "gname": "키시모토 식당",
    "photos": [
     {
      "url": "food-photos/85271f6b91-0.jpg",
-     "attr": "かめグルメ"
+     "attr": "ぽこ"
     },
     {
      "url": "food-photos/85271f6b91-1.jpg",
-     "attr": "Steve"
+     "attr": "柚IG: kuangyuwu_yoyo"
     }
+   ],
+   "ll": [
+    26.66033,
+    127.89589
    ]
   },
   "山原そば": {
    "rating": 4.2,
-   "total": 1000,
+   "total": 1003,
    "url": "https://maps.google.com/?cid=3698955081592171569",
    "gname": "얀바루소바",
    "photos": [
@@ -629,13 +781,17 @@
     },
     {
      "url": "food-photos/4271465746-1.jpg",
-     "attr": "Timm"
+     "attr": "M D"
     }
+   ],
+   "ll": [
+    26.65053,
+    127.94947
    ]
   },
   "宮里そば": {
    "rating": 4.2,
-   "total": 2507,
+   "total": 2537,
    "url": "https://maps.google.com/?cid=12855027493143123551",
    "gname": "미야자토 소바",
    "photos": [
@@ -645,13 +801,17 @@
     },
     {
      "url": "food-photos/84777910cf-1.jpg",
-     "attr": "シオン"
+     "attr": "宮國うるま"
     }
+   ],
+   "ll": [
+    26.59398,
+    127.97071
    ]
   },
   "花人逢": {
    "rating": 4.6,
-   "total": 3503,
+   "total": 3547,
    "url": "https://maps.google.com/?cid=12192341243748165770",
    "gname": "카진호 피자",
    "photos": [
@@ -661,13 +821,17 @@
     },
     {
      "url": "food-photos/c8d8bcbd8c-1.jpg",
-     "attr": "鄭乃嘉"
+     "attr": "Nam Hyo Kim"
     }
+   ],
+   "ll": [
+    26.66859,
+    127.90081
    ]
   },
   "カフェこくう": {
    "rating": 4.6,
-   "total": 426,
+   "total": 430,
    "url": "https://maps.google.com/?cid=7899209852348738304",
    "gname": "카페 코쿠",
    "photos": [
@@ -679,27 +843,35 @@
      "url": "food-photos/18948240fd-1.jpg",
      "attr": "カフェ こくう"
     }
+   ],
+   "ll": [
+    26.67998,
+    127.94192
    ]
   },
   "オリオンハッピーパーク": {
    "rating": 4.4,
-   "total": 2120,
+   "total": 2176,
    "url": "https://maps.google.com/?cid=4316139653382312519",
-   "gname": "오리온 해피 파크",
+   "gname": "오리온 해피파크",
    "photos": [
     {
      "url": "food-photos/3635b743a7-0.jpg",
-     "attr": "陳長棋"
+     "attr": "くらしゅみ"
     },
     {
      "url": "food-photos/3635b743a7-1.jpg",
-     "attr": "なんくるないさー"
+     "attr": "陳長棋"
     }
+   ],
+   "ll": [
+    26.58679,
+    127.9895
    ]
   },
   "やちむん喫茶 シーサー園": {
    "rating": 4.5,
-   "total": 469,
+   "total": 470,
    "url": "https://maps.google.com/?cid=10121826929464776870",
    "gname": "야치문 킷사 시사엔",
    "photos": [
@@ -711,11 +883,15 @@
      "url": "food-photos/b7e26ba205-1.jpg",
      "attr": "藤木了_沖縄北部note"
     }
+   ],
+   "ll": [
+    26.64383,
+    127.9412
    ]
   },
   "L LOTA 古宇利島": {
    "rating": 4.4,
-   "total": 931,
+   "total": 945,
    "url": "https://maps.google.com/?cid=6071968835643421109",
    "gname": "레스트랑 엘 로타",
    "photos": [
@@ -727,11 +903,15 @@
      "url": "food-photos/bce455a00e-1.jpg",
      "attr": "Restaurant L LOTA"
     }
+   ],
+   "ll": [
+    26.69816,
+    128.02064
    ]
   },
   "古宇利オーシャンタワー": {
-   "rating": 4.3,
-   "total": 13136,
+   "rating": 4.4,
+   "total": 13292,
    "url": "https://maps.google.com/?cid=16740749444655468324",
    "gname": "코우리 오션타워",
    "photos": [
@@ -741,13 +921,17 @@
     },
     {
      "url": "food-photos/9624989c49-1.jpg",
-     "attr": "姉やん"
+     "attr": "Lady Blue Z"
     }
+   ],
+   "ll": [
+    26.7005,
+    128.02421
    ]
   },
   "焼肉もとぶ牧場 もとぶ店": {
    "rating": 4.6,
-   "total": 3665,
+   "total": 3730,
    "url": "https://maps.google.com/?cid=11105865860366385359",
    "gname": "야키니쿠 모토부 목장 모토부점",
    "photos": [
@@ -757,8 +941,12 @@
     },
     {
      "url": "food-photos/ac1b77962e-1.jpg",
-     "attr": "焼肉 もとぶ牧場 もとぶ店"
+     "attr": "Frannie"
     }
+   ],
+   "ll": [
+    26.65784,
+    127.88542
    ]
   },
   "やっぱりステーキ 名護": {
@@ -773,13 +961,17 @@
     },
     {
      "url": "food-photos/cb6767e3ba-1.jpg",
-     "attr": "Jaylen Miller"
+     "attr": "T N"
     }
+   ],
+   "ll": [
+    26.60944,
+    127.98443
    ]
   },
   "ナゴパイナップルパーク": {
    "rating": 3.9,
-   "total": 10913,
+   "total": 11042,
    "url": "https://maps.google.com/?cid=16449617930949920362",
    "gname": "나고 파인애플 파크",
    "photos": [
@@ -789,8 +981,52 @@
     },
     {
      "url": "food-photos/f37562f2e4-1.jpg",
-     "attr": "Aron Hsiao"
+     "attr": "こけさん"
     }
+   ],
+   "ll": [
+    26.6165,
+    127.96957
+   ]
+  },
+  "SAM’S ANCHOR INN GINOWAN": {
+   "rating": 4.2,
+   "total": 830,
+   "url": "https://maps.google.com/?cid=11488128582830149405",
+   "gname": "샘즈 앙카인 기노안점",
+   "photos": [
+    {
+     "url": "food-photos/83d200f432-0.jpg",
+     "attr": "サムズアンカーイン宜野湾店"
+    },
+    {
+     "url": "food-photos/83d200f432-1.jpg",
+     "attr": "サムズアンカーイン宜野湾店"
+    }
+   ],
+   "ll": [
+    26.27097,
+    127.73819
+   ]
+  },
+  "かふぅ 瀬良垣店": {
+   "rating": 4.1,
+   "total": 212,
+   "url": "https://maps.google.com/?cid=5501438604698550610",
+   "gname": "Kafu",
+   "photos": [
+    {
+     "url": "food-photos/c5ef0ab418-0.jpg",
+     "attr": "かふぅ 瀬良垣店"
+    },
+    {
+     "url": "food-photos/c5ef0ab418-1.jpg",
+     "attr": "かふぅ 瀬良垣店"
+    }
+   ],
+   "ll": [
+    26.50895,
+    127.86993
    ]
   }
  }
