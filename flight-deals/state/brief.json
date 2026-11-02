@@ -1,24 +1,24 @@
 {
  "date": "2026-11-02",
- "ts": "2026-11-02 21:08 KST",
+ "ts": "2026-11-03 08:24 KST",
  "status": "OK",
- "headline": "볼 것 593건 · 강력특가 5 · 주말여행 3 · CJJ 3 · 신규 67 · 하락 5",
+ "headline": "볼 것 579건 · 강력특가 5 · 주말여행 3 · CJJ 3 · 신규 27 · 하락 2",
  "home": "CJJ",
  "reason": null,
  "degraded": null,
  "holiday_gap": null,
  "counts": {
-  "total": 594,
-  "comparable": 593,
+  "total": 580,
+  "comparable": 579,
   "strong": 5,
-  "deal": 34,
+  "deal": 37,
   "candidate": 74,
-  "weekend": 113,
-  "home": 22,
-  "new": 67,
-  "down": 5,
-  "up": 27,
-  "gone": 36
+  "weekend": 115,
+  "home": 24,
+  "new": 27,
+  "down": 2,
+  "up": 99,
+  "gone": 41
  },
  "source_note": "Travelpayouts 캐시 데이터 · 실시간 확정가 아님",
  "access_note": "실부담가 = 항공권 + CJJ 기준 왕복 교통비 (추정치)",
@@ -78,6 +78,19 @@
    "link": "https://www.aviasales.com/search/CJJ0511DAD08111"
   },
   {
+   "text": "도쿄 ICN→NRT · 12-12~12-14 2박 · 308,468원 (실부담 352,468) · 비교 기준가보다 22% 저렴 · 특가 · 주말 연차1일",
+   "tier": "deal",
+   "tier_label": "특가",
+   "confidence": "높음",
+   "sample": 17,
+   "price": 308468,
+   "access": 44000,
+   "effective": 352468,
+   "weekend_trip": true,
+   "leave": 1.0,
+   "link": "https://www.aviasales.com/search/ICN1212NRT14121"
+  },
+  {
    "text": "마카오 ICN→MFM · 11-28~11-30 2박 · 296,023원 (실부담 340,023) · 비교 기준가보다 11% 저렴 · 주말 연차1일  🔻추적기간 최저",
    "tier": "candidate",
    "tier_label": "특가 후보",
@@ -89,19 +102,6 @@
    "weekend_trip": true,
    "leave": 1.0,
    "link": "https://www.aviasales.com/search/ICN2811MFM30111"
-  },
-  {
-   "text": "도쿄 ICN→NRT · 12-12~12-14 2박 · 308,468원 (실부담 352,468) · 비교 기준가보다 18% 저렴 · 주말 연차1일",
-   "tier": "candidate",
-   "tier_label": "특가 후보",
-   "confidence": "높음",
-   "sample": 16,
-   "price": 308468,
-   "access": 44000,
-   "effective": 352468,
-   "weekend_trip": true,
-   "leave": 1.0,
-   "link": "https://www.aviasales.com/search/ICN1212NRT14121"
   }
  ],
  "home_airport": [
@@ -147,27 +147,27 @@
  ],
  "swiss": [
   {
-   "text": "취리히 ICN→ZRH · 12-01~12-15 14박 · 998,503원 (실부담 1,042,503) · 비교 기준가보다 7% 저렴  🆕",
+   "text": "취리히 ICN→ZRH · 12-01~12-15 14박 · 1,001,646원 (실부담 1,045,646) · 비교 기준가보다 6% 저렴",
    "tier": "normal",
    "tier_label": "일반",
    "confidence": "보통",
    "sample": 8,
-   "price": 998503,
+   "price": 1001646,
    "access": 44000,
-   "effective": 1042503,
+   "effective": 1045646,
    "weekend_trip": false,
    "leave": 11.0,
    "link": "https://www.aviasales.com/search/ICN0112ZRH15121"
   },
   {
-   "text": "취리히 ICN→ZRH · 11-20~11-30 10박 · 1,065,054원 (실부담 1,109,054) · 비교 기준가보다 0% 저렴  🆕",
+   "text": "취리히 ICN→ZRH · 11-20~11-30 10박 · 1,068,407원 (실부담 1,112,407)",
    "tier": "normal",
    "tier_label": "일반",
    "confidence": "보통",
    "sample": 8,
-   "price": 1065054,
+   "price": 1068407,
    "access": 44000,
-   "effective": 1109054,
+   "effective": 1112407,
    "weekend_trip": false,
    "leave": 6.5,
    "link": "https://www.aviasales.com/search/ICN2011ZRH30111"
