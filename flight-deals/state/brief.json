@@ -1,24 +1,24 @@
 {
- "date": "2026-11-04",
- "ts": "2026-11-05 06:48 KST",
+ "date": "2026-11-05",
+ "ts": "2026-11-05 11:05 KST",
  "status": "OK",
- "headline": "볼 것 564건 · 강력특가 3 · 주말여행 3 · CJJ 3 · 신규 49 · 하락 4",
+ "headline": "볼 것 562건 · 강력특가 3 · 주말여행 3 · CJJ 3 · 신규 15 · 하락 56",
  "home": "CJJ",
  "reason": null,
  "degraded": null,
  "holiday_gap": null,
  "counts": {
-  "total": 564,
-  "comparable": 564,
+  "total": 562,
+  "comparable": 562,
   "strong": 3,
-  "deal": 26,
-  "candidate": 79,
-  "weekend": 98,
-  "home": 20,
-  "new": 49,
-  "down": 4,
-  "up": 86,
-  "gone": 26
+  "deal": 24,
+  "candidate": 77,
+  "weekend": 97,
+  "home": 18,
+  "new": 15,
+  "down": 56,
+  "up": 88,
+  "gone": 17
  },
  "source_note": "Travelpayouts 캐시 데이터 · 실시간 확정가 아님",
  "access_note": "실부담가 = 항공권 + CJJ 기준 왕복 교통비 (추정치)",
@@ -50,14 +50,14 @@
    "link": "https://www.aviasales.com/search/CJJ1311DAD19111"
   },
   {
-   "text": "다낭 CJJ→DAD · 11-14~11-20 6박 · 251,797원 · 비교 기준가보다 16% 저렴",
+   "text": "다낭 CJJ→DAD · 11-14~11-20 6박 · 251,766원 · 비교 기준가보다 16% 저렴",
    "tier": "candidate",
    "tier_label": "특가 후보",
    "confidence": "높음",
    "sample": 13,
-   "price": 251797,
+   "price": 251766,
    "access": 0,
-   "effective": 251797,
+   "effective": 251766,
    "weekend_trip": false,
    "leave": 5.0,
    "link": "https://www.aviasales.com/search/CJJ1411DAD20111"
@@ -65,11 +65,24 @@
  ],
  "weekend": [
   {
-   "text": "홍콩 ICN→HKG · 11-27~11-29 2박 · 284,250원 (실부담 328,250) · 비교 기준가보다 19% 저렴 · 주말 연차1일",
+   "text": "도쿄 ICN→NRT · 12-12~12-14 2박 · 308,468원 (실부담 352,468) · 비교 기준가보다 22% 저렴 · 특가 · 주말 연차1일",
+   "tier": "deal",
+   "tier_label": "특가",
+   "confidence": "높음",
+   "sample": 24,
+   "price": 308468,
+   "access": 44000,
+   "effective": 352468,
+   "weekend_trip": true,
+   "leave": 1.0,
+   "link": "https://www.aviasales.com/search/ICN1212NRT14121"
+  },
+  {
+   "text": "홍콩 ICN→HKG · 11-27~11-29 2박 · 284,250원 (실부담 328,250) · 비교 기준가보다 18% 저렴 · 주말 연차1일",
    "tier": "candidate",
    "tier_label": "특가 후보",
    "confidence": "높음",
-   "sample": 17,
+   "sample": 18,
    "price": 284250,
    "access": 44000,
    "effective": 328250,
@@ -78,30 +91,17 @@
    "link": "https://www.aviasales.com/search/ICN2711HKG29111"
   },
   {
-   "text": "홍콩 ICN→HKG · 12-11~12-13 2박 · 284,767원 (실부담 328,767) · 비교 기준가보다 19% 저렴 · 주말 연차0일",
+   "text": "홍콩 ICN→HKG · 12-11~12-13 2박 · 284,767원 (실부담 328,767) · 비교 기준가보다 18% 저렴 · 주말 연차0일",
    "tier": "candidate",
    "tier_label": "특가 후보",
    "confidence": "높음",
-   "sample": 17,
+   "sample": 18,
    "price": 284767,
    "access": 44000,
    "effective": 328767,
    "weekend_trip": true,
    "leave": 0.0,
    "link": "https://www.aviasales.com/search/ICN1112HKG13121"
-  },
-  {
-   "text": "도쿄 ICN→NRT · 12-12~12-14 2박 · 308,468원 (실부담 352,468) · 비교 기준가보다 22% 저렴 · 특가 · 주말 연차1일",
-   "tier": "deal",
-   "tier_label": "특가",
-   "confidence": "높음",
-   "sample": 23,
-   "price": 308468,
-   "access": 44000,
-   "effective": 352468,
-   "weekend_trip": true,
-   "leave": 1.0,
-   "link": "https://www.aviasales.com/search/ICN1212NRT14121"
   }
  ],
  "home_airport": [
@@ -132,14 +132,14 @@
    "link": "https://www.aviasales.com/search/CJJ1311DAD19111"
   },
   {
-   "text": "다낭 CJJ→DAD · 11-14~11-20 6박 · 251,797원 · 비교 기준가보다 16% 저렴",
+   "text": "다낭 CJJ→DAD · 11-14~11-20 6박 · 251,766원 · 비교 기준가보다 16% 저렴",
    "tier": "candidate",
    "tier_label": "특가 후보",
    "confidence": "높음",
    "sample": 13,
-   "price": 251797,
+   "price": 251766,
    "access": 0,
-   "effective": 251797,
+   "effective": 251766,
    "weekend_trip": false,
    "leave": 5.0,
    "link": "https://www.aviasales.com/search/CJJ1411DAD20111"
@@ -160,11 +160,11 @@
    "link": "https://www.aviasales.com/search/ICN1111ZRH02121"
   },
   {
-   "text": "취리히 ICN→ZRH · 11-25~12-02 7박 · 1,000,180원 (실부담 1,044,180)",
+   "text": "취리히 ICN→ZRH · 11-25~12-02 7박 · 1,000,180원 (실부담 1,044,180) · 비교 기준가보다 3% 저렴",
    "tier": "unknown",
    "tier_label": "비교 불가",
    "confidence": "낮음",
-   "sample": 3,
+   "sample": 4,
    "price": 1000180,
    "access": 44000,
    "effective": 1044180,
