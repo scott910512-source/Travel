@@ -1,54 +1,28 @@
 {
  "date": "2026-11-06",
- "ts": "2026-11-06 20:57 KST",
+ "ts": "2026-11-07 06:25 KST",
  "status": "OK",
- "headline": "볼 것 617건 · 강력특가 4 · 주말여행 3 · CJJ 3 · 신규 24 · 하락 21",
+ "headline": "볼 것 636건 · 강력특가 5 · 주말여행 3 · CJJ 3 · 신규 31 · 하락 1",
  "home": "CJJ",
  "reason": null,
  "degraded": null,
  "holiday_gap": null,
  "counts": {
-  "total": 618,
-  "comparable": 617,
-  "strong": 4,
+  "total": 637,
+  "comparable": 636,
+  "strong": 5,
   "deal": 20,
-  "candidate": 82,
-  "weekend": 99,
-  "home": 15,
-  "new": 24,
-  "down": 21,
-  "up": 10,
-  "gone": 32
+  "candidate": 83,
+  "weekend": 105,
+  "home": 18,
+  "new": 31,
+  "down": 1,
+  "up": 55,
+  "gone": 12
  },
  "source_note": "Travelpayouts 캐시 데이터 · 실시간 확정가 아님",
  "access_note": "실부담가 = 항공권 + CJJ 기준 왕복 교통비 (추정치)",
  "top": [
-  {
-   "text": "다낭 CJJ→DAD · 11-21~11-27 6박 · 254,276원 · 비교 기준가보다 14% 저렴  📉-504",
-   "tier": "candidate",
-   "tier_label": "특가 후보",
-   "confidence": "높음",
-   "sample": 14,
-   "price": 254276,
-   "access": 0,
-   "effective": 254276,
-   "weekend_trip": false,
-   "leave": 5.0,
-   "link": "https://www.aviasales.com/search/CJJ2111DAD27111"
-  },
-  {
-   "text": "후쿠오카 CJJ→FUK · 11-17~11-19 2박 · 284,899원 · 비교 기준가보다 34% 저렴 · 강력 특가  🆕",
-   "tier": "strong",
-   "tier_label": "강력 특가",
-   "confidence": "높음",
-   "sample": 12,
-   "price": 284899,
-   "access": 0,
-   "effective": 284899,
-   "weekend_trip": false,
-   "leave": 3.0,
-   "link": "https://www.aviasales.com/search/CJJ1711FUK19111"
-  },
   {
    "text": "다낭 CJJ→DAD · 11-13~11-19 6박 · 249,115원 · 비교 기준가보다 16% 저렴",
    "tier": "candidate",
@@ -61,6 +35,32 @@
    "weekend_trip": false,
    "leave": 4.0,
    "link": "https://www.aviasales.com/search/CJJ1311DAD19111"
+  },
+  {
+   "text": "후쿠오카 CJJ→FUK · 11-17~11-19 2박 · 286,483원 · 비교 기준가보다 34% 저렴 · 강력 특가",
+   "tier": "strong",
+   "tier_label": "강력 특가",
+   "confidence": "높음",
+   "sample": 12,
+   "price": 286483,
+   "access": 0,
+   "effective": 286483,
+   "weekend_trip": false,
+   "leave": 3.0,
+   "link": "https://www.aviasales.com/search/CJJ1711FUK19111"
+  },
+  {
+   "text": "다낭 CJJ→DAD · 11-14~11-20 6박 · 254,904원 · 비교 기준가보다 14% 저렴",
+   "tier": "candidate",
+   "tier_label": "특가 후보",
+   "confidence": "높음",
+   "sample": 14,
+   "price": 254904,
+   "access": 0,
+   "effective": 254904,
+   "weekend_trip": false,
+   "leave": 5.0,
+   "link": "https://www.aviasales.com/search/CJJ1411DAD20111"
   }
  ],
  "weekend": [
@@ -82,7 +82,7 @@
    "tier": "candidate",
    "tier_label": "특가 후보",
    "confidence": "높음",
-   "sample": 12,
+   "sample": 16,
    "price": 296023,
    "access": 44000,
    "effective": 340023,
@@ -106,32 +106,6 @@
  ],
  "home_airport": [
   {
-   "text": "다낭 CJJ→DAD · 11-21~11-27 6박 · 254,276원 · 비교 기준가보다 14% 저렴  📉-504",
-   "tier": "candidate",
-   "tier_label": "특가 후보",
-   "confidence": "높음",
-   "sample": 14,
-   "price": 254276,
-   "access": 0,
-   "effective": 254276,
-   "weekend_trip": false,
-   "leave": 5.0,
-   "link": "https://www.aviasales.com/search/CJJ2111DAD27111"
-  },
-  {
-   "text": "후쿠오카 CJJ→FUK · 11-17~11-19 2박 · 284,899원 · 비교 기준가보다 34% 저렴 · 강력 특가  🆕",
-   "tier": "strong",
-   "tier_label": "강력 특가",
-   "confidence": "높음",
-   "sample": 12,
-   "price": 284899,
-   "access": 0,
-   "effective": 284899,
-   "weekend_trip": false,
-   "leave": 3.0,
-   "link": "https://www.aviasales.com/search/CJJ1711FUK19111"
-  },
-  {
    "text": "다낭 CJJ→DAD · 11-13~11-19 6박 · 249,115원 · 비교 기준가보다 16% 저렴",
    "tier": "candidate",
    "tier_label": "특가 후보",
@@ -143,6 +117,32 @@
    "weekend_trip": false,
    "leave": 4.0,
    "link": "https://www.aviasales.com/search/CJJ1311DAD19111"
+  },
+  {
+   "text": "후쿠오카 CJJ→FUK · 11-17~11-19 2박 · 286,483원 · 비교 기준가보다 34% 저렴 · 강력 특가",
+   "tier": "strong",
+   "tier_label": "강력 특가",
+   "confidence": "높음",
+   "sample": 12,
+   "price": 286483,
+   "access": 0,
+   "effective": 286483,
+   "weekend_trip": false,
+   "leave": 3.0,
+   "link": "https://www.aviasales.com/search/CJJ1711FUK19111"
+  },
+  {
+   "text": "다낭 CJJ→DAD · 11-14~11-20 6박 · 254,904원 · 비교 기준가보다 14% 저렴",
+   "tier": "candidate",
+   "tier_label": "특가 후보",
+   "confidence": "높음",
+   "sample": 14,
+   "price": 254904,
+   "access": 0,
+   "effective": 254904,
+   "weekend_trip": false,
+   "leave": 5.0,
+   "link": "https://www.aviasales.com/search/CJJ1411DAD20111"
   }
  ],
  "swiss": [
