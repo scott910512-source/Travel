@@ -1,24 +1,24 @@
 {
  "date": "2026-11-11",
- "ts": "2026-11-11 10:48 KST",
+ "ts": "2026-11-11 20:46 KST",
  "status": "OK",
- "headline": "볼 것 577건 · 강력특가 5 · 주말여행 3 · CJJ 3 · 신규 11 · 하락 36",
+ "headline": "볼 것 566건 · 강력특가 2 · 주말여행 3 · CJJ 3 · 신규 29 · 하락 33",
  "home": "CJJ",
  "reason": null,
  "degraded": null,
  "holiday_gap": null,
  "counts": {
-  "total": 579,
-  "comparable": 577,
-  "strong": 5,
-  "deal": 14,
-  "candidate": 84,
-  "weekend": 85,
-  "home": 26,
-  "new": 11,
-  "down": 36,
-  "up": 64,
-  "gone": 39
+  "total": 568,
+  "comparable": 566,
+  "strong": 2,
+  "deal": 11,
+  "candidate": 73,
+  "weekend": 83,
+  "home": 25,
+  "new": 29,
+  "down": 33,
+  "up": 11,
+  "gone": 40
  },
  "source_note": "Travelpayouts 캐시 데이터 · 실시간 확정가 아님",
  "access_note": "실부담가 = 항공권 + CJJ 기준 왕복 교통비 (추정치)",
@@ -37,11 +37,11 @@
    "link": "https://www.aviasales.com/search/CJJ2111CJU23111"
   },
   {
-   "text": "다낭 CJJ→DAD · 11-14~11-20 6박 · 246,184원 · 비교 기준가보다 19% 저렴",
+   "text": "다낭 CJJ→DAD · 11-14~11-20 6박 · 246,184원 · 비교 기준가보다 18% 저렴",
    "tier": "candidate",
    "tier_label": "특가 후보",
    "confidence": "높음",
-   "sample": 21,
+   "sample": 20,
    "price": 246184,
    "access": 0,
    "effective": 246184,
@@ -50,11 +50,11 @@
    "link": "https://www.aviasales.com/search/CJJ1411DAD20111"
   },
   {
-   "text": "다낭 CJJ→DAD · 11-21~11-27 6박 · 246,184원 · 비교 기준가보다 19% 저렴",
+   "text": "다낭 CJJ→DAD · 11-21~11-27 6박 · 246,184원 · 비교 기준가보다 18% 저렴",
    "tier": "candidate",
    "tier_label": "특가 후보",
    "confidence": "높음",
-   "sample": 21,
+   "sample": 20,
    "price": 246184,
    "access": 0,
    "effective": 246184,
@@ -78,19 +78,6 @@
    "link": "https://www.aviasales.com/search/CJJ2111CJU23111"
   },
   {
-   "text": "도쿄 GMP→HND · 01-15~01-17 2박 · 576,289원 (실부담 616,289) · 비교 기준가보다 16% 저렴 · 주말 연차0.5일",
-   "tier": "candidate",
-   "tier_label": "특가 후보",
-   "confidence": "높음",
-   "sample": 21,
-   "price": 576289,
-   "access": 40000,
-   "effective": 616289,
-   "weekend_trip": true,
-   "leave": 0.5,
-   "link": "https://www.aviasales.com/search/GMP1501HND17011"
-  },
-  {
    "text": "제주 CJJ→CJU · 11-26~11-29 3박 · 73,977원 · 비교 기준가보다 6% 저렴 · 주말 연차1일",
    "tier": "normal",
    "tier_label": "일반",
@@ -102,6 +89,19 @@
    "weekend_trip": true,
    "leave": 1.0,
    "link": "https://www.aviasales.com/search/CJJ2611CJU29111"
+  },
+  {
+   "text": "홍콩 ICN→HKG · 12-04~12-06 2박 · 310,302원 (실부담 354,302) · 비교 기준가보다 13% 저렴 · 주말 연차1일  🆕",
+   "tier": "candidate",
+   "tier_label": "특가 후보",
+   "confidence": "높음",
+   "sample": 11,
+   "price": 310302,
+   "access": 44000,
+   "effective": 354302,
+   "weekend_trip": true,
+   "leave": 1.0,
+   "link": "https://www.aviasales.com/search/ICN0412HKG06121"
   }
  ],
  "home_airport": [
@@ -119,11 +119,11 @@
    "link": "https://www.aviasales.com/search/CJJ2111CJU23111"
   },
   {
-   "text": "다낭 CJJ→DAD · 11-14~11-20 6박 · 246,184원 · 비교 기준가보다 19% 저렴",
+   "text": "다낭 CJJ→DAD · 11-14~11-20 6박 · 246,184원 · 비교 기준가보다 18% 저렴",
    "tier": "candidate",
    "tier_label": "특가 후보",
    "confidence": "높음",
-   "sample": 21,
+   "sample": 20,
    "price": 246184,
    "access": 0,
    "effective": 246184,
@@ -132,11 +132,11 @@
    "link": "https://www.aviasales.com/search/CJJ1411DAD20111"
   },
   {
-   "text": "다낭 CJJ→DAD · 11-21~11-27 6박 · 246,184원 · 비교 기준가보다 19% 저렴",
+   "text": "다낭 CJJ→DAD · 11-21~11-27 6박 · 246,184원 · 비교 기준가보다 18% 저렴",
    "tier": "candidate",
    "tier_label": "특가 후보",
    "confidence": "높음",
-   "sample": 21,
+   "sample": 20,
    "price": 246184,
    "access": 0,
    "effective": 246184,
@@ -145,20 +145,6 @@
    "link": "https://www.aviasales.com/search/CJJ2111DAD27111"
   }
  ],
- "swiss": [
-  {
-   "text": "취리히 ICN→ZRH · 02-03~02-10 7박 · 1,058,438원 (실부담 1,102,438) · 설날 연휴",
-   "tier": "unknown",
-   "tier_label": "비교 불가",
-   "confidence": "낮음",
-   "sample": 4,
-   "price": 1058438,
-   "access": 44000,
-   "effective": 1102438,
-   "weekend_trip": false,
-   "leave": 4.0,
-   "link": "https://www.aviasales.com/search/ICN0302ZRH10021"
-  }
- ],
+ "swiss": [],
  "dashboard": "index.html"
 }
