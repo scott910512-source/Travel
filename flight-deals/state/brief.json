@@ -1,24 +1,24 @@
 {
  "date": "2026-11-15",
- "ts": "2026-11-15 20:52 KST",
+ "ts": "2026-11-16 05:55 KST",
  "status": "OK",
- "headline": "볼 것 516건 · 강력특가 1 · 주말여행 3 · CJJ 3 · 신규 41 · 하락 5",
+ "headline": "볼 것 538건 · 강력특가 2 · 주말여행 3 · CJJ 3 · 신규 52 · 하락 4",
  "home": "CJJ",
  "reason": null,
  "degraded": null,
  "holiday_gap": null,
  "counts": {
-  "total": 517,
-  "comparable": 516,
-  "strong": 1,
-  "deal": 20,
-  "candidate": 64,
-  "weekend": 80,
+  "total": 539,
+  "comparable": 538,
+  "strong": 2,
+  "deal": 18,
+  "candidate": 67,
+  "weekend": 79,
   "home": 17,
-  "new": 41,
-  "down": 5,
-  "up": 4,
-  "gone": 58
+  "new": 52,
+  "down": 4,
+  "up": 57,
+  "gone": 30
  },
  "source_note": "Travelpayouts 캐시 데이터 · 실시간 확정가 아님",
  "access_note": "실부담가 = 항공권 + CJJ 기준 왕복 교통비 (추정치)",
@@ -50,17 +50,17 @@
    "link": "https://www.aviasales.com/search/CJJ0512DAD11121"
   },
   {
-   "text": "오사카 ICN→KIX · 12-01~12-03 2박 · 232,492원 (실부담 276,492) · 비교 기준가보다 36% 저렴 · 강력 특가",
+   "text": "후쿠오카 ICN→FUK · 12-07~12-09 2박 · 276,452원 (실부담 320,452) · 비교 기준가보다 33% 저렴 · 강력 특가  📉-2,835",
    "tier": "strong",
    "tier_label": "강력 특가",
    "confidence": "높음",
    "sample": 10,
-   "price": 232492,
+   "price": 276452,
    "access": 44000,
-   "effective": 276492,
+   "effective": 320452,
    "weekend_trip": false,
-   "leave": 2.0,
-   "link": "https://www.aviasales.com/search/ICN0112KIX03121"
+   "leave": 3.0,
+   "link": "https://www.aviasales.com/search/ICN0712FUK09121"
   }
  ],
  "weekend": [
@@ -78,6 +78,19 @@
    "link": "https://www.aviasales.com/search/ICN0412DPS06121"
   },
   {
+   "text": "후쿠오카 ICN→FUK · 11-21~11-23 2박 · 335,156원 (실부담 379,156) · 비교 기준가보다 19% 저렴 · 주말 연차1일",
+   "tier": "candidate",
+   "tier_label": "특가 후보",
+   "confidence": "높음",
+   "sample": 10,
+   "price": 335156,
+   "access": 44000,
+   "effective": 379156,
+   "weekend_trip": true,
+   "leave": 1.0,
+   "link": "https://www.aviasales.com/search/ICN2111FUK23111"
+  },
+  {
    "text": "도쿄 ICN→NRT · 12-04~12-06 2박 · 338,482원 (실부담 382,482) · 비교 기준가보다 14% 저렴 · 주말 연차1일",
    "tier": "candidate",
    "tier_label": "특가 후보",
@@ -89,19 +102,6 @@
    "weekend_trip": true,
    "leave": 1.0,
    "link": "https://www.aviasales.com/search/ICN0412NRT06121"
-  },
-  {
-   "text": "마카오 ICN→MFM · 11-27~11-29 2박 · 302,431원 (실부담 346,431) · 비교 기준가보다 6% 저렴 · 주말 연차0일",
-   "tier": "normal",
-   "tier_label": "일반",
-   "confidence": "높음",
-   "sample": 23,
-   "price": 302431,
-   "access": 44000,
-   "effective": 346431,
-   "weekend_trip": true,
-   "leave": 0.0,
-   "link": "https://www.aviasales.com/search/ICN2711MFM29111"
   }
  ],
  "home_airport": [
@@ -147,14 +147,14 @@
  ],
  "swiss": [
   {
-   "text": "취리히 ICN→ZRH · 03-17~03-22 5박 · 936,707원 (실부담 980,707) · 비교 기준가보다 22% 저렴  🆕",
+   "text": "취리히 ICN→ZRH · 03-17~03-22 5박 · 936,819원 (실부담 980,819) · 비교 기준가보다 22% 저렴",
    "tier": "unknown",
    "tier_label": "비교 불가",
    "confidence": "낮음",
    "sample": 3,
-   "price": 936707,
+   "price": 936819,
    "access": 44000,
-   "effective": 980707,
+   "effective": 980819,
    "weekend_trip": false,
    "leave": 3.0,
    "link": "https://www.aviasales.com/search/ICN1703ZRH22031"
