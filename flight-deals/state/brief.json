@@ -1,24 +1,24 @@
 {
  "date": "2026-11-16",
- "ts": "2026-11-16 10:40 KST",
+ "ts": "2026-11-16 21:37 KST",
  "status": "OK",
- "headline": "볼 것 529건 · 강력특가 1 · 주말여행 3 · CJJ 3 · 신규 7 · 하락 2",
+ "headline": "볼 것 552건 · 주말여행 3 · CJJ 3 · 신규 71 · 하락 16",
  "home": "CJJ",
  "reason": null,
  "degraded": null,
  "holiday_gap": null,
  "counts": {
-  "total": 530,
-  "comparable": 529,
-  "strong": 1,
-  "deal": 18,
+  "total": 552,
+  "comparable": 552,
+  "strong": 0,
+  "deal": 23,
   "candidate": 65,
-  "weekend": 77,
-  "home": 16,
-  "new": 7,
-  "down": 2,
-  "up": 57,
-  "gone": 16
+  "weekend": 75,
+  "home": 21,
+  "new": 71,
+  "down": 16,
+  "up": 10,
+  "gone": 49
  },
  "source_note": "Travelpayouts 캐시 데이터 · 실시간 확정가 아님",
  "access_note": "실부담가 = 항공권 + CJJ 기준 왕복 교통비 (추정치)",
@@ -50,20 +50,46 @@
    "link": "https://www.aviasales.com/search/CJJ0512DAD11121"
   },
   {
-   "text": "도쿄 CJJ→NRT · 12-13~12-16 3박 · 332,482원 · 비교 기준가보다 22% 저렴 · 특가",
+   "text": "제주 CJJ→CJU · 11-19~11-21 2박 · 74,848원 · 비교 기준가보다 24% 저렴 · 특가  🆕",
    "tier": "deal",
    "tier_label": "특가",
    "confidence": "높음",
-   "sample": 25,
-   "price": 332482,
+   "sample": 41,
+   "price": 74848,
    "access": 0,
-   "effective": 332482,
+   "effective": 74848,
    "weekend_trip": false,
-   "leave": 3.0,
-   "link": "https://www.aviasales.com/search/CJJ1312NRT16121"
+   "leave": 1.5,
+   "link": "https://www.aviasales.com/search/CJJ1911CJU21111"
   }
  ],
  "weekend": [
+  {
+   "text": "홍콩 ICN→HKG · 01-14~01-17 3박 · 268,428원 (실부담 312,428) · 비교 기준가보다 20% 저렴 · 주말 연차1일  🆕",
+   "tier": "candidate",
+   "tier_label": "특가 후보",
+   "confidence": "높음",
+   "sample": 12,
+   "price": 268428,
+   "access": 44000,
+   "effective": 312428,
+   "weekend_trip": true,
+   "leave": 1.0,
+   "link": "https://www.aviasales.com/search/ICN1401HKG17011"
+  },
+  {
+   "text": "홍콩 ICN→HKG · 01-29~01-31 2박 · 284,391원 (실부담 328,391) · 비교 기준가보다 17% 저렴 · 주말 연차0일  🆕",
+   "tier": "candidate",
+   "tier_label": "특가 후보",
+   "confidence": "높음",
+   "sample": 10,
+   "price": 284391,
+   "access": 44000,
+   "effective": 328391,
+   "weekend_trip": true,
+   "leave": 0.0,
+   "link": "https://www.aviasales.com/search/ICN2901HKG31011"
+  },
   {
    "text": "발리 ICN→DPS · 12-04~12-06 2박 · 455,840원 (실부담 499,840) · 비교 기준가보다 11% 저렴 · 주말 연차1일",
    "tier": "candidate",
@@ -76,32 +102,6 @@
    "weekend_trip": true,
    "leave": 1.0,
    "link": "https://www.aviasales.com/search/ICN0412DPS06121"
-  },
-  {
-   "text": "후쿠오카 ICN→FUK · 11-21~11-23 2박 · 335,156원 (실부담 379,156) · 비교 기준가보다 17% 저렴 · 주말 연차1일",
-   "tier": "candidate",
-   "tier_label": "특가 후보",
-   "confidence": "보통",
-   "sample": 9,
-   "price": 335156,
-   "access": 44000,
-   "effective": 379156,
-   "weekend_trip": true,
-   "leave": 1.0,
-   "link": "https://www.aviasales.com/search/ICN2111FUK23111"
-  },
-  {
-   "text": "도쿄 ICN→NRT · 12-04~12-06 2박 · 338,482원 (실부담 382,482) · 비교 기준가보다 14% 저렴 · 주말 연차1일",
-   "tier": "candidate",
-   "tier_label": "특가 후보",
-   "confidence": "높음",
-   "sample": 13,
-   "price": 338482,
-   "access": 44000,
-   "effective": 382482,
-   "weekend_trip": true,
-   "leave": 1.0,
-   "link": "https://www.aviasales.com/search/ICN0412NRT06121"
   }
  ],
  "home_airport": [
@@ -132,17 +132,17 @@
    "link": "https://www.aviasales.com/search/CJJ0512DAD11121"
   },
   {
-   "text": "도쿄 CJJ→NRT · 12-13~12-16 3박 · 332,482원 · 비교 기준가보다 22% 저렴 · 특가",
+   "text": "제주 CJJ→CJU · 11-19~11-21 2박 · 74,848원 · 비교 기준가보다 24% 저렴 · 특가  🆕",
    "tier": "deal",
    "tier_label": "특가",
    "confidence": "높음",
-   "sample": 25,
-   "price": 332482,
+   "sample": 41,
+   "price": 74848,
    "access": 0,
-   "effective": 332482,
+   "effective": 74848,
    "weekend_trip": false,
-   "leave": 3.0,
-   "link": "https://www.aviasales.com/search/CJJ1312NRT16121"
+   "leave": 1.5,
+   "link": "https://www.aviasales.com/search/CJJ1911CJU21111"
   }
  ],
  "swiss": [
@@ -158,6 +158,19 @@
    "weekend_trip": false,
    "leave": 3.0,
    "link": "https://www.aviasales.com/search/ICN1703ZRH22031"
+  },
+  {
+   "text": "취리히 ICN→ZRH · 12-29~01-02 4박 · 1,088,443원 (실부담 1,132,443) · 신정  🆕",
+   "tier": "normal",
+   "tier_label": "일반",
+   "confidence": "보통",
+   "sample": 5,
+   "price": 1088443,
+   "access": 44000,
+   "effective": 1132443,
+   "weekend_trip": false,
+   "leave": 2.5,
+   "link": "https://www.aviasales.com/search/ICN2912ZRH02011"
   }
  ],
  "dashboard": "index.html"
