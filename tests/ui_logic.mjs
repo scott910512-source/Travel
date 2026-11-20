@@ -85,23 +85,34 @@ t('조건 시트의 예상 건수 = 적용 후 실제 건수 (모든 축 조합)
 t('변화 조건 + 직항을 동시에 걸 수 있다', () => {
   reset();
   const base = ctx.countOf(ctx.queryNow());
-  // 그날 데이터에 실제로 있는 변화 축을 고른다. 0건짜리로 재면 아무것도
-  // 검증하지 못한 채 통과한다.
-  const ch = ['down', 'new'].find(k =>
-    ctx.countOf(Object.assign({}, ctx.queryNow(),
-      { f: Object.assign(ctx.defaultF(), { change: k }) })) > 0);
-  if (!ch) throw new Error('오늘 데이터에 신규도 하락도 없다');
-  const q1 = Object.assign({}, ctx.queryNow(), { f: Object.assign(ctx.defaultF(), { change: ch }) });
   // ★ 환승 축은 근거리(stops)와 장거리(longStops)가 따로다 — 조건 시트도
   //   '장거리 조건' 을 따로 보여 준다. 둘 다 직항으로 걸어야 "직항만" 이다.
   //   한쪽만 걸고 유럽 1회 경유가 섞였다고 실패한 적이 있다 (2026-09-25).
-  const q2 = Object.assign({}, ctx.queryNow(), { stops: 'direct', longStops: 'direct' });
-  const both = Object.assign({}, q1, { stops: 'direct', longStops: 'direct' });
-  const n1 = ctx.countOf(q1), n2 = ctx.countOf(q2), nb = ctx.countOf(both);
-  if (!(nb <= n1 && nb <= n2)) throw new Error(`조합 ${nb} > 단일 ${n1}/${n2}`);
+  const direct = { stops: 'direct', longStops: 'direct' };
+  const q2 = Object.assign({}, ctx.queryNow(), direct);
+  const n2 = ctx.countOf(q2);
+  // 신규·하락 두 축을 다 재 둔다. 불변식(조합 ≤ 단일)은 0건이어도 늘 확인한다.
+  const axes = ['down', 'new'].map(k => {
+    const q1 = Object.assign({}, ctx.queryNow(), { f: Object.assign(ctx.defaultF(), { change: k }) });
+    const both = Object.assign({}, q1, direct);
+    return { ch: k, q1, both, n1: ctx.countOf(q1), nb: ctx.countOf(both) };
+  });
+  for (const a of axes) {
+    if (!(a.nb <= a.n1 && a.nb <= n2)) throw new Error(`${a.ch}: 조합 ${a.nb} > 단일 ${a.n1}/${n2}`);
+  }
+  // ★ 항목까지 확인하려면 그날 데이터에 「변화 + 직항」이 실제로 겹쳐야 한다.
+  //   예전에는 신규·하락 중 건이 있는 쪽을 고른 뒤 그 조합이 0건이면 실패시켰다
+  //   (2026-10-12: 그날 신규·하락이 전부 경유편이라 verify 가 빨갛게 됐다).
+  //   데이터 모양에 기대는 시험이 데이터 갱신을 막으면 안 된다 — 아래 3번과 같이
+  //   겹치는 축을 찾아서 재고, 없으면 실패가 아니라 건너뛴다.
+  const hit = axes.find(a => a.nb > 0);
+  if (!hit) {
+    console.log(`     (오늘 데이터엔 변화(신규·하락) + 직항이 겹치는 건이 없어 항목 검증은 건너뜀 — 신규 ${axes[1].n1} · 하락 ${axes[0].n1} · 직항 ${n2})`);
+    return;
+  }
+  const { ch, n1, nb, both } = hit;
   if (n1 >= base && n2 >= base) throw new Error('조건이 아무것도 안 거른다');
   // 실제로 두 조건이 다 걸렸는지 항목으로 확인
-  if (!nb) throw new Error('조합이 0건이라 검증이 안 된다');
   for (const o of ctx.poolOf(both)) {
     if (o.change !== ch) throw new Error(`${ch} 가 아닌 건이 섞임`);
     if (o.stops !== 0) throw new Error('직항이 아닌 건이 섞임');
