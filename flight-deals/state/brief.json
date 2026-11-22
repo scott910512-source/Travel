@@ -1,8 +1,8 @@
 {
- "date": "2026-11-21",
- "ts": "2026-11-22 06:32 KST",
+ "date": "2026-11-22",
+ "ts": "2026-11-22 11:00 KST",
  "status": "OK",
- "headline": "볼 것 570건 · 강력특가 4 · 주말여행 3 · CJJ 3 · 신규 19 · 하락 3",
+ "headline": "볼 것 570건 · 강력특가 3 · 주말여행 3 · CJJ 3 · 신규 19 · 하락 4",
  "home": "CJJ",
  "reason": null,
  "degraded": null,
@@ -10,15 +10,15 @@
  "counts": {
   "total": 571,
   "comparable": 570,
-  "strong": 4,
-  "deal": 17,
-  "candidate": 79,
-  "weekend": 80,
+  "strong": 3,
+  "deal": 18,
+  "candidate": 76,
+  "weekend": 87,
   "home": 11,
   "new": 19,
-  "down": 3,
-  "up": 3,
-  "gone": 15
+  "down": 4,
+  "up": 5,
+  "gone": 19
  },
  "source_note": "Travelpayouts 캐시 데이터 · 실시간 확정가 아님",
  "access_note": "실부담가 = 항공권 + CJJ 기준 왕복 교통비 (추정치)",
@@ -50,17 +50,17 @@
    "link": "https://www.aviasales.com/search/CJJ2012CJU24121"
   },
   {
-   "text": "도쿄 GMP→HND · 01-13~01-17 4박 · 510,583원 (실부담 550,583) · 비교 기준가보다 19% 저렴  🆕",
+   "text": "홍콩 ICN→HKG · 01-14~01-17 3박 · 268,933원 (실부담 312,933) · 비교 기준가보다 19% 저렴 · 주말 연차1일",
    "tier": "candidate",
    "tier_label": "특가 후보",
    "confidence": "높음",
-   "sample": 24,
-   "price": 510583,
-   "access": 40000,
-   "effective": 550583,
-   "weekend_trip": false,
-   "leave": 2.5,
-   "link": "https://www.aviasales.com/search/GMP1301HND17011"
+   "sample": 11,
+   "price": 268933,
+   "access": 44000,
+   "effective": 312933,
+   "weekend_trip": true,
+   "leave": 1.0,
+   "link": "https://www.aviasales.com/search/ICN1401HKG17011"
   }
  ],
  "weekend": [
