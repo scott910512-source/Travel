@@ -1,24 +1,24 @@
 {
- "date": "2026-11-24",
- "ts": "2026-11-24 23:41 KST",
+ "date": "2026-11-25",
+ "ts": "2026-11-25 09:29 KST",
  "status": "OK",
- "headline": "볼 것 546건 · 강력특가 4 · 주말여행 3 · CJJ 3 · 신규 63 · 하락 9",
+ "headline": "볼 것 530건 · 강력특가 6 · 주말여행 3 · CJJ 3 · 신규 36 · 하락 75",
  "home": "CJJ",
  "reason": null,
  "degraded": null,
  "holiday_gap": null,
  "counts": {
-  "total": 547,
-  "comparable": 546,
-  "strong": 4,
-  "deal": 16,
-  "candidate": 64,
-  "weekend": 96,
+  "total": 531,
+  "comparable": 530,
+  "strong": 6,
+  "deal": 14,
+  "candidate": 72,
+  "weekend": 94,
   "home": 10,
-  "new": 63,
-  "down": 9,
-  "up": 23,
-  "gone": 50
+  "new": 36,
+  "down": 75,
+  "up": 24,
+  "gone": 52
  },
  "source_note": "Travelpayouts 캐시 데이터 · 실시간 확정가 아님",
  "access_note": "실부담가 = 항공권 + CJJ 기준 왕복 교통비 (추정치)",
@@ -50,17 +50,17 @@
    "link": "https://www.aviasales.com/search/CJJ2012CJU24121"
   },
   {
-   "text": "오사카 TAE→KIX · 12-14~12-17 3박 · 280,061원 (실부담 310,061) · 비교 기준가보다 32% 저렴 · 강력 특가",
+   "text": "오사카 PUS→KIX · 12-15~12-17 2박 · 229,915원 (실부담 285,915) · 비교 기준가보다 35% 저렴 · 강력 특가  📉-151",
    "tier": "strong",
    "tier_label": "강력 특가",
    "confidence": "높음",
-   "sample": 15,
-   "price": 280061,
-   "access": 30000,
-   "effective": 310061,
+   "sample": 28,
+   "price": 229915,
+   "access": 56000,
+   "effective": 285915,
    "weekend_trip": false,
-   "leave": 4.0,
-   "link": "https://www.aviasales.com/search/TAE1412KIX17121"
+   "leave": 3.0,
+   "link": "https://www.aviasales.com/search/PUS1512KIX17121"
   }
  ],
  "weekend": [
@@ -69,7 +69,7 @@
    "tier": "candidate",
    "tier_label": "특가 후보",
    "confidence": "높음",
-   "sample": 24,
+   "sample": 25,
    "price": 285345,
    "access": 44000,
    "effective": 329345,
@@ -78,11 +78,11 @@
    "link": "https://www.aviasales.com/search/ICN2901HKG31011"
   },
   {
-   "text": "도쿄 ICN→NRT · 12-04~12-06 2박 · 314,320원 (실부담 358,320) · 비교 기준가보다 17% 저렴 · 주말 연차1일",
+   "text": "도쿄 ICN→NRT · 12-04~12-06 2박 · 314,320원 (실부담 358,320) · 비교 기준가보다 16% 저렴 · 주말 연차1일",
    "tier": "candidate",
    "tier_label": "특가 후보",
    "confidence": "높음",
-   "sample": 22,
+   "sample": 21,
    "price": 314320,
    "access": 44000,
    "effective": 358320,
@@ -95,7 +95,7 @@
    "tier": "candidate",
    "tier_label": "특가 후보",
    "confidence": "높음",
-   "sample": 22,
+   "sample": 21,
    "price": 313604,
    "access": 44000,
    "effective": 357604,
@@ -151,7 +151,7 @@
    "tier": "candidate",
    "tier_label": "특가 후보",
    "confidence": "보통",
-   "sample": 6,
+   "sample": 5,
    "price": 818998,
    "access": 44000,
    "effective": 862998,
@@ -171,19 +171,6 @@
    "weekend_trip": false,
    "leave": 5.0,
    "link": "https://www.aviasales.com/search/SEL1101ZRH17011"
-  },
-  {
-   "text": "취리히 ICN→ZRH · 11-27~12-03 6박 · 942,464원 (실부담 986,464)",
-   "tier": "normal",
-   "tier_label": "일반",
-   "confidence": "보통",
-   "sample": 6,
-   "price": 942464,
-   "access": 44000,
-   "effective": 986464,
-   "weekend_trip": false,
-   "leave": 5.0,
-   "link": "https://www.aviasales.com/search/ICN2711ZRH03121"
   }
  ],
  "dashboard": "index.html"
